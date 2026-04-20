@@ -1,0 +1,4799 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9381321,
+          13.9957214
+        ]
+      },
+      "properties": {
+        "name": "Caayunan",
+        "psgc": "501601004",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9677101,
+          14.0836954
+        ]
+      },
+      "properties": {
+        "name": "Bactas",
+        "psgc": "501601002",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9127726,
+          14.0325206
+        ]
+      },
+      "properties": {
+        "name": "Binatagan",
+        "psgc": "501601003",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0141721,
+          14.0626454
+        ]
+      },
+      "properties": {
+        "name": "Angas",
+        "psgc": "501601001",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8930441,
+          14.01271
+        ]
+      },
+      "properties": {
+        "name": "Guinatungan",
+        "psgc": "501601005",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9972793,
+          14.0753662
+        ]
+      },
+      "properties": {
+        "name": "Hinampacan",
+        "psgc": "501601006",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9240443,
+          14.046011
+        ]
+      },
+      "properties": {
+        "name": "Langa",
+        "psgc": "501601007",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9409494,
+          14.0535704
+        ]
+      },
+      "properties": {
+        "name": "Laniton",
+        "psgc": "501601008",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9803837,
+          14.083022
+        ]
+      },
+      "properties": {
+        "name": "Mampili",
+        "psgc": "501601010",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0085415,
+          14.043244
+        ]
+      },
+      "properties": {
+        "name": "Mandazo",
+        "psgc": "501601011",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0254323,
+          14.0355959
+        ]
+      },
+      "properties": {
+        "name": "Mangcamagong",
+        "psgc": "501601012",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9296796,
+          14.0248775
+        ]
+      },
+      "properties": {
+        "name": "Mantugawe",
+        "psgc": "501601015",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9691183,
+          14.0442019
+        ]
+      },
+      "properties": {
+        "name": "Manmuntay",
+        "psgc": "501601014",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0141721,
+          14.0119958
+        ]
+      },
+      "properties": {
+        "name": "Lidong",
+        "psgc": "501601009",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9465838,
+          14.0679172
+        ]
+      },
+      "properties": {
+        "name": "Matnog",
+        "psgc": "501601016",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9831998,
+          14.0192542
+        ]
+      },
+      "properties": {
+        "name": "Oliva",
+        "psgc": "501601018",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9860159,
+          14.0517543
+        ]
+      },
+      "properties": {
+        "name": "Pinagwarasan",
+        "psgc": "501601020",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9240443,
+          13.9851957
+        ]
+      },
+      "properties": {
+        "name": "Plaridel",
+        "psgc": "501601021",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9677101,
+          14.063421
+        ]
+      },
+      "properties": {
+        "name": "Poblacion 1",
+        "psgc": "501601022",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9296796,
+          14.0096742
+        ]
+      },
+      "properties": {
+        "name": "San Felipe",
+        "psgc": "501601025",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9761593,
+          14.0595952
+        ]
+      },
+      "properties": {
+        "name": "Mocong",
+        "psgc": "501601017",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9409494,
+          14.0383648
+        ]
+      },
+      "properties": {
+        "name": "Pagsangahan",
+        "psgc": "501601019",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9578517,
+          14.05099
+        ]
+      },
+      "properties": {
+        "name": "San Jose",
+        "psgc": "501601027",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0113568,
+          13.9592663
+        ]
+      },
+      "properties": {
+        "name": "San Pascual",
+        "psgc": "501601028",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9986872,
+          14.0637497
+        ]
+      },
+      "properties": {
+        "name": "Tacad",
+        "psgc": "501601031",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0254323,
+          14.0558552
+        ]
+      },
+      "properties": {
+        "name": "Taba-taba",
+        "psgc": "501601030",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9972793,
+          14.0399
+        ]
+      },
+      "properties": {
+        "name": "Taisan",
+        "psgc": "501601032",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5592434,
+          14.2808433
+        ]
+      },
+      "properties": {
+        "name": "Alayao",
+        "psgc": "501602001",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4134656,
+          14.2879388
+        ]
+      },
+      "properties": {
+        "name": "Binawangan",
+        "psgc": "501602002",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9550349,
+          13.9374433
+        ]
+      },
+      "properties": {
+        "name": "Tuaca",
+        "psgc": "501601033",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4750292,
+          14.3204324
+        ]
+      },
+      "properties": {
+        "name": "Camagsaan",
+        "psgc": "501602004",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9592601,
+          14.067247
+        ]
+      },
+      "properties": {
+        "name": "Poblacion 2",
+        "psgc": "501601034",
+        "municipality": "Basud",
+        "municipality_psgc": "501601000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4339839,
+          14.2973517
+        ]
+      },
+      "properties": {
+        "name": "Calabaca",
+        "psgc": "501602003",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.531617,
+          14.2914037
+        ]
+      },
+      "properties": {
+        "name": "Catabaguangan",
+        "psgc": "501602005",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4835193,
+          14.2961877
+        ]
+      },
+      "properties": {
+        "name": "Itok",
+        "psgc": "501602008",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.497668,
+          14.2557978
+        ]
+      },
+      "properties": {
+        "name": "Lucbanan",
+        "psgc": "501602009",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5004975,
+          14.3088971
+        ]
+      },
+      "properties": {
+        "name": "Catioan",
+        "psgc": "501602006",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3957548,
+          14.2610657
+        ]
+      },
+      "properties": {
+        "name": "Del Pilar",
+        "psgc": "501602007",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4488436,
+          14.3022057
+        ]
+      },
+      "properties": {
+        "name": "Mactang",
+        "psgc": "501602011",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5089856,
+          14.2846597
+        ]
+      },
+      "properties": {
+        "name": "Mataque",
+        "psgc": "501602012",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4523855,
+          14.2728769
+        ]
+      },
+      "properties": {
+        "name": "Mabini",
+        "psgc": "501602010",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4962532,
+          14.3337694
+        ]
+      },
+      "properties": {
+        "name": "Poblacion",
+        "psgc": "501602014",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5542435,
+          14.2370014
+        ]
+      },
+      "properties": {
+        "name": "Magsaysay",
+        "psgc": "501602015",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4523855,
+          14.2524797
+        ]
+      },
+      "properties": {
+        "name": "San Antonio",
+        "psgc": "501602016",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5287884,
+          14.324972
+        ]
+      },
+      "properties": {
+        "name": "San Isidro",
+        "psgc": "501602017",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5542435,
+          14.31853
+        ]
+      },
+      "properties": {
+        "name": "San Roque",
+        "psgc": "501602018",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5655549,
+          14.2658429
+        ]
+      },
+      "properties": {
+        "name": "Old Camp",
+        "psgc": "501602013",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5457592,
+          14.2153707
+        ]
+      },
+      "properties": {
+        "name": "Tanawan",
+        "psgc": "501602019",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.497668,
+          14.2252195
+        ]
+      },
+      "properties": {
+        "name": "Villa Aurora",
+        "psgc": "501602021",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4297369,
+          14.2457157
+        ]
+      },
+      "properties": {
+        "name": "Villa Belen",
+        "psgc": "501602022",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4934236,
+          14.3061517
+        ]
+      },
+      "properties": {
+        "name": "Ubang",
+        "psgc": "501602020",
+        "municipality": "Capalonga",
+        "municipality_psgc": "501602000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9803837,
+          14.1337179
+        ]
+      },
+      "properties": {
+        "name": "Bagasbas",
+        "psgc": "501603003",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9353147,
+          14.094991
+        ]
+      },
+      "properties": {
+        "name": "Bibirao",
+        "psgc": "501603004",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9691183,
+          14.1253065
+        ]
+      },
+      "properties": {
+        "name": "Borabod",
+        "psgc": "501603005",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9677101,
+          14.1394685
+        ]
+      },
+      "properties": {
+        "name": "Awitan",
+        "psgc": "501603002",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.926862,
+          14.1089634
+        ]
+      },
+      "properties": {
+        "name": "Alawihao",
+        "psgc": "501603001",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9409494,
+          14.0839878
+        ]
+      },
+      "properties": {
+        "name": "Calasgasan",
+        "psgc": "501603006",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9536264,
+          14.1289521
+        ]
+      },
+      "properties": {
+        "name": "Gahonon",
+        "psgc": "501603013",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9648935,
+          14.1044051
+        ]
+      },
+      "properties": {
+        "name": "Cobangbang",
+        "psgc": "501603008",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9071363,
+          14.0993008
+        ]
+      },
+      "properties": {
+        "name": "Dogongan",
+        "psgc": "501603012",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9409494,
+          14.119485
+        ]
+      },
+      "properties": {
+        "name": "Lag-On",
+        "psgc": "501603015",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9465838,
+          14.1084786
+        ]
+      },
+      "properties": {
+        "name": "Camambugan",
+        "psgc": "501603007",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9479924,
+          14.0968536
+        ]
+      },
+      "properties": {
+        "name": "Magang",
+        "psgc": "501603018",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9916478,
+          14.10157
+        ]
+      },
+      "properties": {
+        "name": "Mambalite",
+        "psgc": "501603019",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9747512,
+          14.1143011
+        ]
+      },
+      "properties": {
+        "name": "Gubat",
+        "psgc": "501603014",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9536264,
+          14.0883859
+        ]
+      },
+      "properties": {
+        "name": "Mancruz",
+        "psgc": "501603021",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9634852,
+          14.0957485
+        ]
+      },
+      "properties": {
+        "name": "Pamorangon",
+        "psgc": "501603023",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9562519,
+          14.105571
+        ]
+      },
+      "properties": {
+        "name": "Barangay II ",
+        "psgc": "501603025",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9543307,
+          14.1117285
+        ]
+      },
+      "properties": {
+        "name": "Barangay III ",
+        "psgc": "501603026",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9508094,
+          14.1167055
+        ]
+      },
+      "properties": {
+        "name": "Barangay IV ",
+        "psgc": "501603027",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9536264,
+          14.1213448
+        ]
+      },
+      "properties": {
+        "name": "Barangay V ",
+        "psgc": "501603028",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9599643,
+          14.1172033
+        ]
+      },
+      "properties": {
+        "name": "Barangay VII ",
+        "psgc": "501603030",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9585559,
+          14.1110808
+        ]
+      },
+      "properties": {
+        "name": "Barangay I ",
+        "psgc": "501603024",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9613727,
+          14.1144519
+        ]
+      },
+      "properties": {
+        "name": "Barangay VIII ",
+        "psgc": "501603031",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9184086,
+          14.0823627
+        ]
+      },
+      "properties": {
+        "name": "Daculang Bolo",
+        "psgc": "501604001",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9567954,
+          14.1186401
+        ]
+      },
+      "properties": {
+        "name": "Barangay VI ",
+        "psgc": "501603029",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9747512,
+          14.1041614
+        ]
+      },
+      "properties": {
+        "name": "San Isidro",
+        "psgc": "501603032",
+        "municipality": "Daet",
+        "municipality_psgc": "501603000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8930441,
+          14.0431291
+        ]
+      },
+      "properties": {
+        "name": "Mampurog",
+        "psgc": "501604006",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9184086,
+          14.0620799
+        ]
+      },
+      "properties": {
+        "name": "Laniton",
+        "psgc": "501604004",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9014996,
+          14.0646593
+        ]
+      },
+      "properties": {
+        "name": "Dagotdotan",
+        "psgc": "501604002",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9071363,
+          14.0485881
+        ]
+      },
+      "properties": {
+        "name": "Langga",
+        "psgc": "501604003",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8563952,
+          14.0461697
+        ]
+      },
+      "properties": {
+        "name": "Maisog",
+        "psgc": "501604005",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9240443,
+          13.9649312
+        ]
+      },
+      "properties": {
+        "name": "Manlimonsito",
+        "psgc": "501604007",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8704925,
+          14.0262765
+        ]
+      },
+      "properties": {
+        "name": "Matacong ",
+        "psgc": "501604008",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9198175,
+          13.9491092
+        ]
+      },
+      "properties": {
+        "name": "Salvacion",
+        "psgc": "501604009",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6771885,
+          14.2831436
+        ]
+      },
+      "properties": {
+        "name": "Calero",
+        "psgc": "501605002",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8704925,
+          13.9857177
+        ]
+      },
+      "properties": {
+        "name": "San Isidro",
+        "psgc": "501604011",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8930441,
+          13.982299
+        ]
+      },
+      "properties": {
+        "name": "San Ramon",
+        "psgc": "501604012",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9085454,
+          13.9432179
+        ]
+      },
+      "properties": {
+        "name": "San Antonio",
+        "psgc": "501604010",
+        "municipality": "San Lorenzo Ruiz (Imelda)",
+        "municipality_psgc": "501604000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.588174,
+          14.303146
+        ]
+      },
+      "properties": {
+        "name": "Dahican",
+        "psgc": "501605003",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6291585,
+          14.2854115
+        ]
+      },
+      "properties": {
+        "name": "Dayhagan",
+        "psgc": "501605004",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6531763,
+          14.2906435
+        ]
+      },
+      "properties": {
+        "name": "Larap",
+        "psgc": "501605005",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6870742,
+          14.305807
+        ]
+      },
+      "properties": {
+        "name": "Bagong Bayan",
+        "psgc": "501605001",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6983711,
+          14.3040711
+        ]
+      },
+      "properties": {
+        "name": "Luklukan Norte",
+        "psgc": "501605006",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7011951,
+          14.3265456
+        ]
+      },
+      "properties": {
+        "name": "Luklukan Sur",
+        "psgc": "501605007",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6870742,
+          14.2701755
+        ]
+      },
+      "properties": {
+        "name": "Nakalaya",
+        "psgc": "501605009",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6990771,
+          14.284239
+        ]
+      },
+      "properties": {
+        "name": "Motherlode",
+        "psgc": "501605008",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6786008,
+          14.3300223
+        ]
+      },
+      "properties": {
+        "name": "Osme\u00f1a",
+        "psgc": "501605010",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6941349,
+          14.2805441
+        ]
+      },
+      "properties": {
+        "name": "Parang",
+        "psgc": "501605012",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6658893,
+          14.2976043
+        ]
+      },
+      "properties": {
+        "name": "Pag-Asa",
+        "psgc": "501605011",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6920167,
+          14.2904126
+        ]
+      },
+      "properties": {
+        "name": "North Poblacion",
+        "psgc": "501605014",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6934289,
+          14.2876509
+        ]
+      },
+      "properties": {
+        "name": "South Poblacion",
+        "psgc": "501605015",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6319844,
+          14.3053506
+        ]
+      },
+      "properties": {
+        "name": "Salvacion",
+        "psgc": "501605016",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.695194,
+          14.2838807
+        ]
+      },
+      "properties": {
+        "name": "Plaridel",
+        "psgc": "501605013",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5994817,
+          14.2708517
+        ]
+      },
+      "properties": {
+        "name": "San Jose",
+        "psgc": "501605018",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.588174,
+          14.2420198
+        ]
+      },
+      "properties": {
+        "name": "San Martin",
+        "psgc": "501605019",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6220934,
+          14.2164854
+        ]
+      },
+      "properties": {
+        "name": "San Pedro",
+        "psgc": "501605020",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6220934,
+          14.2470291
+        ]
+      },
+      "properties": {
+        "name": "Santa Cruz",
+        "psgc": "501605022",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6898986,
+          14.2570199
+        ]
+      },
+      "properties": {
+        "name": "San Rafael",
+        "psgc": "501605021",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6701267,
+          14.2575028
+        ]
+      },
+      "properties": {
+        "name": "San Isidro",
+        "psgc": "501605017",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6418745,
+          14.2770996
+        ]
+      },
+      "properties": {
+        "name": "Santa Elena",
+        "psgc": "501605023",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6701267,
+          14.2880446
+        ]
+      },
+      "properties": {
+        "name": "Santa Milagrosa",
+        "psgc": "501605024",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.715314,
+          14.2861988
+        ]
+      },
+      "properties": {
+        "name": "Santa Rosa Norte",
+        "psgc": "501605025",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7266077,
+          14.2691996
+        ]
+      },
+      "properties": {
+        "name": "Santa Rosa Sur",
+        "psgc": "501605026",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6673018,
+          14.2095922
+        ]
+      },
+      "properties": {
+        "name": "Tamisan",
+        "psgc": "501605027",
+        "municipality": "Jose Panganiban",
+        "municipality_psgc": "501605000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.588174,
+          14.1707462
+        ]
+      },
+      "properties": {
+        "name": "Anameam",
+        "psgc": "501606001",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7294309,
+          14.0730598
+        ]
+      },
+      "properties": {
+        "name": "Baay",
+        "psgc": "501606003",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8253741,
+          14.2057406
+        ]
+      },
+      "properties": {
+        "name": "Bagacay",
+        "psgc": "501606004",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6271141,
+          14.1760341
+        ]
+      },
+      "properties": {
+        "name": "Bagong Silang I",
+        "psgc": "501606005",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.588174,
+          14.2012867
+        ]
+      },
+      "properties": {
+        "name": "Bagong Silang II",
+        "psgc": "501606006",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8451159,
+          14.169697
+        ]
+      },
+      "properties": {
+        "name": "Bakiad",
+        "psgc": "501606007",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.463708,
+          14.1692171
+        ]
+      },
+      "properties": {
+        "name": "Bayabas",
+        "psgc": "501606009",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8451159,
+          14.1392319
+        ]
+      },
+      "properties": {
+        "name": "Bautista",
+        "psgc": "501606008",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7576589,
+          14.1144862
+        ]
+      },
+      "properties": {
+        "name": "Bayan-bayan",
+        "psgc": "501606010",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8338354,
+          14.2171431
+        ]
+      },
+      "properties": {
+        "name": "Awitan",
+        "psgc": "501606002",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8317201,
+          14.1571484
+        ]
+      },
+      "properties": {
+        "name": "Gumamela ",
+        "psgc": "501606013",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8299574,
+          14.1520225
+        ]
+      },
+      "properties": {
+        "name": "San Francisco ",
+        "psgc": "501606014",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7887007,
+          14.1275351
+        ]
+      },
+      "properties": {
+        "name": "Benit",
+        "psgc": "501606011",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8359506,
+          14.1514231
+        ]
+      },
+      "properties": {
+        "name": "Anahaw ",
+        "psgc": "501606012",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8274895,
+          14.1577957
+        ]
+      },
+      "properties": {
+        "name": "Kalamunding ",
+        "psgc": "501606015",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8281946,
+          14.1773683
+        ]
+      },
+      "properties": {
+        "name": "Cabusay",
+        "psgc": "501606018",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5429309,
+          14.1368802
+        ]
+      },
+      "properties": {
+        "name": "Cabatuhan",
+        "psgc": "501606017",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7463686,
+          14.1466888
+        ]
+      },
+      "properties": {
+        "name": "Calabasa",
+        "psgc": "501606019",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5542435,
+          14.175892
+        ]
+      },
+      "properties": {
+        "name": "Canapawan",
+        "psgc": "501606020",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7124903,
+          14.1925227
+        ]
+      },
+      "properties": {
+        "name": "Daguit",
+        "psgc": "501606021",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8028074,
+          14.1482374
+        ]
+      },
+      "properties": {
+        "name": "Dalas",
+        "psgc": "501606022",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6560016,
+          14.1502731
+        ]
+      },
+      "properties": {
+        "name": "Exciban",
+        "psgc": "501606024",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8281946,
+          14.1672102
+        ]
+      },
+      "properties": {
+        "name": "Bulhao",
+        "psgc": "501606016",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6220934,
+          14.114731
+        ]
+      },
+      "properties": {
+        "name": "Dumagmang",
+        "psgc": "501606023",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8634441,
+          14.1554647
+        ]
+      },
+      "properties": {
+        "name": "Guinacutan",
+        "psgc": "501606026",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4863492,
+          14.1759851
+        ]
+      },
+      "properties": {
+        "name": "Guisican",
+        "psgc": "501606027",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8281946,
+          14.1926072
+        ]
+      },
+      "properties": {
+        "name": "Fundado",
+        "psgc": "501606025",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8197329,
+          14.0796528
+        ]
+      },
+      "properties": {
+        "name": "Lugui",
+        "psgc": "501606030",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8563952,
+          14.1273546
+        ]
+      },
+      "properties": {
+        "name": "Iberica",
+        "psgc": "501606028",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8253741,
+          14.1346334
+        ]
+      },
+      "properties": {
+        "name": "Mabilo II",
+        "psgc": "501606032",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7999862,
+          14.1969312
+        ]
+      },
+      "properties": {
+        "name": "Mahawan-hawan",
+        "psgc": "501606034",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7463686,
+          14.1771818
+        ]
+      },
+      "properties": {
+        "name": "Malangcao-Basud",
+        "psgc": "501606035",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8112705,
+          14.119015
+        ]
+      },
+      "properties": {
+        "name": "Mabilo I",
+        "psgc": "501606031",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8507557,
+          14.1536001
+        ]
+      },
+      "properties": {
+        "name": "Malasugui",
+        "psgc": "501606036",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6164409,
+          14.1511925
+        ]
+      },
+      "properties": {
+        "name": "Malatap",
+        "psgc": "501606037",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5768651,
+          14.1317491
+        ]
+      },
+      "properties": {
+        "name": "Malibago",
+        "psgc": "501606039",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8112705,
+          14.1698007
+        ]
+      },
+      "properties": {
+        "name": "Masalong",
+        "psgc": "501606041",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7661258,
+          14.1411364
+        ]
+      },
+      "properties": {
+        "name": "Matanlang",
+        "psgc": "501606042",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6644769,
+          14.1718707
+        ]
+      },
+      "properties": {
+        "name": "Macogon",
+        "psgc": "501606033",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.588174,
+          14.1096892
+        ]
+      },
+      "properties": {
+        "name": "Malaya",
+        "psgc": "501606038",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7830574,
+          14.1131592
+        ]
+      },
+      "properties": {
+        "name": "Napaod",
+        "psgc": "501606043",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7830574,
+          14.1639546
+        ]
+      },
+      "properties": {
+        "name": "Pangpang",
+        "psgc": "501606045",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6616518,
+          14.1036559
+        ]
+      },
+      "properties": {
+        "name": "Pag-Asa",
+        "psgc": "501606044",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7237843,
+          14.1602957
+        ]
+      },
+      "properties": {
+        "name": "Maot",
+        "psgc": "501606040",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8285472,
+          14.1535078
+        ]
+      },
+      "properties": {
+        "name": "Pinya ",
+        "psgc": "501606046",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8366556,
+          14.1024521
+        ]
+      },
+      "properties": {
+        "name": "San Antonio",
+        "psgc": "501606047",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6842498,
+          14.1612332
+        ]
+      },
+      "properties": {
+        "name": "Submakin",
+        "psgc": "501606050",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.6362231,
+          14.1914326
+        ]
+      },
+      "properties": {
+        "name": "Bagong Silang III",
+        "psgc": "501606049",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8563952,
+          14.1832024
+        ]
+      },
+      "properties": {
+        "name": "Santa Cruz",
+        "psgc": "501606048",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7915222,
+          14.1804431
+        ]
+      },
+      "properties": {
+        "name": "Talobatib",
+        "psgc": "501606051",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.5259596,
+          14.1852703
+        ]
+      },
+      "properties": {
+        "name": "Tigbinan",
+        "psgc": "501606052",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7830574,
+          14.0776157
+        ]
+      },
+      "properties": {
+        "name": "Tulay Na Lupa",
+        "psgc": "501606053",
+        "municipality": "Labo",
+        "municipality_psgc": "501606000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.1028119,
+          14.0832242
+        ]
+      },
+      "properties": {
+        "name": "Apuao",
+        "psgc": "501607001",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0036144,
+          14.1117715
+        ]
+      },
+      "properties": {
+        "name": "Barangay I ",
+        "psgc": "501607002",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0036144,
+          14.1092371
+        ]
+      },
+      "properties": {
+        "name": "Barangay II ",
+        "psgc": "501607003",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0064299,
+          14.1100719
+        ]
+      },
+      "properties": {
+        "name": "Barangay III ",
+        "psgc": "501607004",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0103011,
+          14.1091606
+        ]
+      },
+      "properties": {
+        "name": "Barangay V ",
+        "psgc": "501607006",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0088934,
+          14.1081097
+        ]
+      },
+      "properties": {
+        "name": "Barangay IV ",
+        "psgc": "501607005",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0110049,
+          14.1103196
+        ]
+      },
+      "properties": {
+        "name": "Barangay VI ",
+        "psgc": "501607007",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0131164,
+          14.1106287
+        ]
+      },
+      "properties": {
+        "name": "Barangay VII ",
+        "psgc": "501607008",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.1098434,
+          14.0378517
+        ]
+      },
+      "properties": {
+        "name": "Caringo",
+        "psgc": "501607009",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0029105,
+          14.0897059
+        ]
+      },
+      "properties": {
+        "name": "Catandunganon",
+        "psgc": "501607010",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0366913,
+          14.0743914
+        ]
+      },
+      "properties": {
+        "name": "Cayucyucan",
+        "psgc": "501607011",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0198024,
+          14.0820481
+        ]
+      },
+      "properties": {
+        "name": "Gaboc",
+        "psgc": "501607014",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0845277,
+          13.8925028
+        ]
+      },
+      "properties": {
+        "name": "Hamoraon",
+        "psgc": "501607015",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0732741,
+          13.914437
+        ]
+      },
+      "properties": {
+        "name": "Colasi",
+        "psgc": "501607012",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9860159,
+          14.1176421
+        ]
+      },
+      "properties": {
+        "name": "Del Rosario",
+        "psgc": "501607013",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0395058,
+          13.8689933
+        ]
+      },
+      "properties": {
+        "name": "Lanot",
+        "psgc": "501607018",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.047949,
+          13.9916523
+        ]
+      },
+      "properties": {
+        "name": "Hinipaan",
+        "psgc": "501607016",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0366913,
+          14.0946556
+        ]
+      },
+      "properties": {
+        "name": "Mambungalon",
+        "psgc": "501607019",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0198024,
+          14.1023166
+        ]
+      },
+      "properties": {
+        "name": "Manguisoc",
+        "psgc": "501607020",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0592054,
+          13.9798126
+        ]
+      },
+      "properties": {
+        "name": "Masalongsalong",
+        "psgc": "501607021",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0254323,
+          14.0153401
+        ]
+      },
+      "properties": {
+        "name": "Matoogtoog",
+        "psgc": "501607022",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0760876,
+          13.9721766
+        ]
+      },
+      "properties": {
+        "name": "Pambuhan",
+        "psgc": "501607023",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0746809,
+          14.0698266
+        ]
+      },
+      "properties": {
+        "name": "Quinapaguian",
+        "psgc": "501607024",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0620193,
+          13.8858071
+        ]
+      },
+      "properties": {
+        "name": "Lalawigan",
+        "psgc": "501607017",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9958715,
+          14.1148614
+        ]
+      },
+      "properties": {
+        "name": "San Roque",
+        "psgc": "501607025",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.0732741,
+          13.9447823
+        ]
+      },
+      "properties": {
+        "name": "Tarum",
+        "psgc": "501607026",
+        "municipality": "Mercedes",
+        "municipality_psgc": "501607000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8549853,
+          14.2202427
+        ]
+      },
+      "properties": {
+        "name": "Awitan",
+        "psgc": "501608001",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.77177,
+          14.3131275
+        ]
+      },
+      "properties": {
+        "name": "Bagumbayan",
+        "psgc": "501608002",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7410396,
+          14.2356019
+        ]
+      },
+      "properties": {
+        "name": "Batobalani",
+        "psgc": "501608004",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8140914,
+          14.237963
+        ]
+      },
+      "properties": {
+        "name": "Calaburnay",
+        "psgc": "501608005",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7435459,
+          14.2513393
+        ]
+      },
+      "properties": {
+        "name": "Capacuan",
+        "psgc": "501608006",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7604813,
+          14.2996045
+        ]
+      },
+      "properties": {
+        "name": "Casalugan",
+        "psgc": "501608007",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7689479,
+          14.2143931
+        ]
+      },
+      "properties": {
+        "name": "Dalnac",
+        "psgc": "501608009",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8394758,
+          14.2721751
+        ]
+      },
+      "properties": {
+        "name": "Bakal",
+        "psgc": "501608003",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7590701,
+          14.2375152
+        ]
+      },
+      "properties": {
+        "name": "Dagang",
+        "psgc": "501608008",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8451159,
+          14.2306514
+        ]
+      },
+      "properties": {
+        "name": "Dancalan",
+        "psgc": "501608010",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7463686,
+          14.2992335
+        ]
+      },
+      "properties": {
+        "name": "Gumaus",
+        "psgc": "501608011",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7943436,
+          14.2689604
+        ]
+      },
+      "properties": {
+        "name": "Malaguit",
+        "psgc": "501608015",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8507557,
+          14.2450265
+        ]
+      },
+      "properties": {
+        "name": "Mampungo",
+        "psgc": "501608016",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8225536,
+          14.2697004
+        ]
+      },
+      "properties": {
+        "name": "Labnig",
+        "psgc": "501608012",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7802357,
+          14.2126633
+        ]
+      },
+      "properties": {
+        "name": "Malacbang",
+        "psgc": "501608014",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8112705,
+          14.4036992
+        ]
+      },
+      "properties": {
+        "name": "Macolabo Island",
+        "psgc": "501608013",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7435459,
+          14.2208262
+        ]
+      },
+      "properties": {
+        "name": "Maybato",
+        "psgc": "501608018",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7932856,
+          14.2827894
+        ]
+      },
+      "properties": {
+        "name": "Palanas",
+        "psgc": "501608019",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.77177,
+          14.2317537
+        ]
+      },
+      "properties": {
+        "name": "Pinagbirayan Munti",
+        "psgc": "501608021",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7872899,
+          14.2814879
+        ]
+      },
+      "properties": {
+        "name": "Poblacion Norte",
+        "psgc": "501608022",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8169122,
+          14.2553191
+        ]
+      },
+      "properties": {
+        "name": "Mangkasay",
+        "psgc": "501608017",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7851737,
+          14.2786353
+        ]
+      },
+      "properties": {
+        "name": "Poblacion Sur",
+        "psgc": "501608023",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8394758,
+          14.2620098
+        ]
+      },
+      "properties": {
+        "name": "Tabas",
+        "psgc": "501608024",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7915222,
+          14.2414312
+        ]
+      },
+      "properties": {
+        "name": "Pinagbirayan Malaki",
+        "psgc": "501608020",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.77177,
+          14.2419223
+        ]
+      },
+      "properties": {
+        "name": "Talusan",
+        "psgc": "501608025",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7576589,
+          14.2669739
+        ]
+      },
+      "properties": {
+        "name": "Tawig",
+        "psgc": "501608026",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8507557,
+          14.0977639
+        ]
+      },
+      "properties": {
+        "name": "Asdum",
+        "psgc": "501609001",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8845878,
+          14.1179687
+        ]
+      },
+      "properties": {
+        "name": "Cabanbanan",
+        "psgc": "501609002",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8719021,
+          14.1186399
+        ]
+      },
+      "properties": {
+        "name": "Calabagas",
+        "psgc": "501609003",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8338354,
+          14.0445258
+        ]
+      },
+      "properties": {
+        "name": "Iraya Sur",
+        "psgc": "501609005",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.7802357,
+          14.2635034
+        ]
+      },
+      "properties": {
+        "name": "Tugos",
+        "psgc": "501608027",
+        "municipality": "Paracale",
+        "municipality_psgc": "501608000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8845878,
+          14.0875275
+        ]
+      },
+      "properties": {
+        "name": "Man-Ogob",
+        "psgc": "501609006",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8394758,
+          14.0639622
+        ]
+      },
+      "properties": {
+        "name": "Fabrica",
+        "psgc": "501609004",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8729593,
+          14.1048407
+        ]
+      },
+      "properties": {
+        "name": "Poblacion District I",
+        "psgc": "501609007",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3419274,
+          14.1799217
+        ]
+      },
+      "properties": {
+        "name": "Basiad",
+        "psgc": "501610001",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8620343,
+          14.0706748
+        ]
+      },
+      "properties": {
+        "name": "San Jose",
+        "psgc": "501609009",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4410618,
+          14.2032146
+        ]
+      },
+      "properties": {
+        "name": "Bulala",
+        "psgc": "501610002",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8711973,
+          14.1066955
+        ]
+      },
+      "properties": {
+        "name": "Poblacion District II",
+        "psgc": "501609008",
+        "municipality": "San Vicente",
+        "municipality_psgc": "501609000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4070834,
+          14.1981519
+        ]
+      },
+      "properties": {
+        "name": "Rizal",
+        "psgc": "501610004",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3759269,
+          14.2360073
+        ]
+      },
+      "properties": {
+        "name": "Salvacion",
+        "psgc": "501610005",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3957548,
+          14.2202594
+        ]
+      },
+      "properties": {
+        "name": "San Lorenzo",
+        "psgc": "501610006",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3815924,
+          14.153561
+        ]
+      },
+      "properties": {
+        "name": "San Pedro",
+        "psgc": "501610007",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3645949,
+          14.2122124
+        ]
+      },
+      "properties": {
+        "name": "Polungguitguit",
+        "psgc": "501610003",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.373094,
+          14.1828811
+        ]
+      },
+      "properties": {
+        "name": "San Vicente",
+        "psgc": "501610008",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3872576,
+          14.1883958
+        ]
+      },
+      "properties": {
+        "name": "Santa Elena ",
+        "psgc": "501610009",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4184108,
+          14.1658586
+        ]
+      },
+      "properties": {
+        "name": "Villa San Isidro",
+        "psgc": "501610010",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.373094,
+          14.0911309
+        ]
+      },
+      "properties": {
+        "name": "Don Tomas",
+        "psgc": "501610011",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.4184108,
+          14.1149043
+        ]
+      },
+      "properties": {
+        "name": "Guitol",
+        "psgc": "501610012",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3645949,
+          14.1153357
+        ]
+      },
+      "properties": {
+        "name": "Kabuluan",
+        "psgc": "501610013",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3617618,
+          14.1539926
+        ]
+      },
+      "properties": {
+        "name": "Kagtalaba",
+        "psgc": "501610014",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3390936,
+          14.0962184
+        ]
+      },
+      "properties": {
+        "name": "Maulawin",
+        "psgc": "501610015",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3135862,
+          14.087287
+        ]
+      },
+      "properties": {
+        "name": "Patag Ibaba",
+        "psgc": "501610016",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.373094,
+          14.1318998
+        ]
+      },
+      "properties": {
+        "name": "Plaridel",
+        "psgc": "501610018",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9409494,
+          14.1347014
+        ]
+      },
+      "properties": {
+        "name": "Binanuaan",
+        "psgc": "501611001",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8972719,
+          14.1325187
+        ]
+      },
+      "properties": {
+        "name": "Caawigan",
+        "psgc": "501611002",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9141816,
+          14.1197818
+        ]
+      },
+      "properties": {
+        "name": "Cahabaan",
+        "psgc": "501611003",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3617618,
+          14.0724458
+        ]
+      },
+      "properties": {
+        "name": "Tabugon",
+        "psgc": "501610019",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9198175,
+          14.126528
+        ]
+      },
+      "properties": {
+        "name": "Calintaan",
+        "psgc": "501611004",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.3305918,
+          14.0694578
+        ]
+      },
+      "properties": {
+        "name": "Patag Iraya",
+        "psgc": "501610017",
+        "municipality": "Santa Elena",
+        "municipality_psgc": "501610000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9423581,
+          14.168729
+        ]
+      },
+      "properties": {
+        "name": "Del Carmen",
+        "psgc": "501611005",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9057271,
+          14.1337605
+        ]
+      },
+      "properties": {
+        "name": "Gabon",
+        "psgc": "501611006",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9233398,
+          14.1355002
+        ]
+      },
+      "properties": {
+        "name": "Poblacion",
+        "psgc": "501611008",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9296796,
+          14.1262847
+        ]
+      },
+      "properties": {
+        "name": "Itomang",
+        "psgc": "501611007",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9522179,
+          14.1583344
+        ]
+      },
+      "properties": {
+        "name": "San Jose",
+        "psgc": "501611011",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9014996,
+          14.1153816
+        ]
+      },
+      "properties": {
+        "name": "Santa Cruz",
+        "psgc": "501611013",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9296796,
+          14.1465769
+        ]
+      },
+      "properties": {
+        "name": "San Francisco",
+        "psgc": "501611009",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9353147,
+          14.1609325
+        ]
+      },
+      "properties": {
+        "name": "Santa Elena",
+        "psgc": "501611014",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9014996,
+          14.1407511
+        ]
+      },
+      "properties": {
+        "name": "San Isidro",
+        "psgc": "501611010",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9141816,
+          14.1451495
+        ]
+      },
+      "properties": {
+        "name": "Santo Ni\u00f1o",
+        "psgc": "501611015",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9578517,
+          14.1473232
+        ]
+      },
+      "properties": {
+        "name": "San Nicolas",
+        "psgc": "501611012",
+        "municipality": "Talisay",
+        "municipality_psgc": "501611000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.953462,
+          14.4125545
+        ]
+      },
+      "properties": {
+        "name": "Banocboc",
+        "psgc": "501612002",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9240443,
+          14.1880391
+        ]
+      },
+      "properties": {
+        "name": "Calangcawan Norte",
+        "psgc": "501612005",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9155906,
+          14.1614252
+        ]
+      },
+      "properties": {
+        "name": "Calangcawan Sur",
+        "psgc": "501612006",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9465838,
+          14.484342
+        ]
+      },
+      "properties": {
+        "name": "Mangcawayan",
+        "psgc": "501612009",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8845878,
+          14.2296551
+        ]
+      },
+      "properties": {
+        "name": "Aguit-It",
+        "psgc": "501612001",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8958627,
+          14.1872968
+        ]
+      },
+      "properties": {
+        "name": "Mangcayo",
+        "psgc": "501612008",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.904318,
+          14.2037656
+        ]
+      },
+      "properties": {
+        "name": "Cagbalogo",
+        "psgc": "501612004",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8733117,
+          14.2263124
+        ]
+      },
+      "properties": {
+        "name": "Matango",
+        "psgc": "501612011",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8563952,
+          14.2594018
+        ]
+      },
+      "properties": {
+        "name": "Manlucugan",
+        "psgc": "501612010",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9184086,
+          14.4582338
+        ]
+      },
+      "properties": {
+        "name": "Pinagtigasan",
+        "psgc": "501612013",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8845878,
+          14.1636456
+        ]
+      },
+      "properties": {
+        "name": "Guinacutan",
+        "psgc": "501612007",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9092499,
+          14.1744527
+        ]
+      },
+      "properties": {
+        "name": "Barangay I ",
+        "psgc": "501612014",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9064317,
+          14.1748857
+        ]
+      },
+      "properties": {
+        "name": "Barangay II ",
+        "psgc": "501612015",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9078408,
+          14.2216287
+        ]
+      },
+      "properties": {
+        "name": "Sabang",
+        "psgc": "501612017",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8789499,
+          14.1848181
+        ]
+      },
+      "properties": {
+        "name": "Napilihan",
+        "psgc": "501612012",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9053748,
+          14.1734619
+        ]
+      },
+      "properties": {
+        "name": "Barangay III ",
+        "psgc": "501612016",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8845878,
+          14.148418
+        ]
+      },
+      "properties": {
+        "name": "Santo Domingo",
+        "psgc": "501612018",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.9184086,
+          14.2041347
+        ]
+      },
+      "properties": {
+        "name": "Sula",
+        "psgc": "501612020",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          122.8733117,
+          14.2059964
+        ]
+      },
+      "properties": {
+        "name": "Singi",
+        "psgc": "501612019",
+        "municipality": "Vinzons",
+        "municipality_psgc": "501612000",
+        "province": "Camarines Norte"
+      }
+    }
+  ]
+}

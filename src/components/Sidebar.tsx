@@ -12,13 +12,14 @@ const MUNICIPALITIES = Object.keys(barangaysData).map(key => {
   const lats = data.barangays.map((b: any) => b.lat);
   const lngs = data.barangays.map((b: any) => b.lng);
   const centerLat = lats.reduce((a: number,b: number) => a + b, 0) / lats.length;
-  const centerLng = lngs.reduce((a: number,b: number) => a + b, 0) / lngs.length;
-  
+  const centerLng = lngs.reduce((a: number,b: number) => a + b, 0) / lats.length;
+
   return {
     name: key,
     center: [centerLat, centerLng] as [number, number],
     zoom: 13,
-    barangays: data.barangays.map((b: any) => b.name)
+    barangays: data.barangays.map((b: any) => b.name),
+    barangaysFull: data.barangays
   };
 });
 
@@ -142,13 +143,16 @@ export default function Sidebar() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setSelectedBrgy(val);
-                    
+
                     const mun = MUNICIPALITIES.find(m => m.name === selectedMun);
                     if (mun) {
                       if (val === 'ALL') {
                         flyTo(mun.center, mun.zoom);
                       } else {
-                        flyTo(mun.center, 15); // Zoom tighter for localized barangays
+                        const brgy = mun.barangaysFull?.find((b: any) => b.name === val);
+                        if (brgy) {
+                          flyTo([brgy.lat, brgy.lng], 15);
+                        }
                       }
                     }
                   }}
