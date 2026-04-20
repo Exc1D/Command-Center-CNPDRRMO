@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
+
+@theme {
+  --color-surface: #f8f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container: #e6eeff;
+  --color-surface-container-highest: #d5e3fc;
+  --color-primary: #b70011;
+  --color-primary-container: #dc2626;
+  --color-on-primary: #ffffff;
+  --color-on-surface: #0d1c2e;
+  --color-outline-variant: #e6bdb8;
+  --color-tertiary: #005e91;
+  --color-error-container: #ffdad6;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  overscroll-behavior: none;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+}
+
+.shadow-ambient {
+  box-shadow: 0 12px 40px rgba(13, 28, 46, 0.06);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-container));
+  color: var(--color-on-primary);
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 24px rgba(183, 0, 17, 0.2);
+}
+
+/* Customizing Geoman Controls for Editorial Resilience */
+.leaflet-bar {
+  border: none !important;
+  box-shadow: 0 12px 40px rgba(13, 28, 46, 0.06) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem !important;
+  background: transparent !important;
+}
+.leaflet-bar a {
+  background-color: var(--color-surface-container-lowest) !important;
+  color: var(--color-on-surface) !important;
+  border: none !important;
+  border-radius: 0.375rem !important;
+  width: 44px !important;
+  height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 4px 12px rgba(13, 28, 46, 0.04) !important;
+}
+.leaflet-bar a:hover {
+  background-color: var(--color-surface-container) !important;
+  color: var(--color-tertiary) !important;
+}
+.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+  background-color: var(--color-surface-container-lowest) !important;
+}
