@@ -33,7 +33,7 @@ interface BarangayGeoJSON {
 
 let barangayCache: BarangayGeoJSON | null = null;
 
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -47,7 +47,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-function getCentroid(geometry: any): { lat: number; lng: number } | null {
+export function getCentroid(geometry: any): { lat: number; lng: number } | null {
   if (!geometry) return null;
   if (geometry.type === 'Point') {
     return { lat: geometry.coordinates[1], lng: geometry.coordinates[0] };
