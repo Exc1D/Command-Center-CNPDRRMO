@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.19.3",
-    "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.15.1",
@@ -28,7 +27,6 @@
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.546.0",
-    "motion": "^12.23.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
@@ -50,7 +48,6 @@
     "@types/react": "^19.2.0",
     "@types/supertest": "^7.2.0",
     "@types/uuid": "^10.0.0",
-    "autoprefixer": "^10.4.21",
     "esbuild": "^0.28.0",
     "fake-indexeddb": "^4.0.2",
     "jsdom": "^24.1.3",
