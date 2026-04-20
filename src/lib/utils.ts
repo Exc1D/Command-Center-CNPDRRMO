@@ -32,7 +32,8 @@ interface BarangayGeoJSON {
   features: BarangayFeature[];
 }
 
-let barangayCache: BarangayGeoJSON | null = null;
+let barangayCache: { data: BarangayGeoJSON; timestamp: number } | null = null;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -77,11 +78,13 @@ export function getCentroid(geometry: any): { lat: number; lng: number } | null 
 }
 
 export async function loadBarangayGeoJSON(): Promise<BarangayGeoJSON> {
-  if (barangayCache) return barangayCache;
+  if (barangayCache && Date.now() - barangayCache.timestamp < CACHE_TTL_MS) {
+    return barangayCache.data;
+  }
   const response = await fetch('/baranggays.geojson');
   if (!response.ok) throw new Error(`Failed to load barangay data: ${response.status}`);
-  barangayCache = await response.json();
-  return barangayCache;
+  barangayCache = { data: await response.json(), timestamp: Date.now() };
+  return barangayCache.data;
 }
 
 export async function detectLocationFromGeometry(
