@@ -8,6 +8,8 @@ import { EditHazardModal } from "./components/EditHazardModal";
 import { AnalyticsPanel } from "./components/AnalyticsPanel";
 import { BarChart2, X } from "lucide-react";
 
+const SYNC_ERROR_AUTO_DISMISS_MS = 5000;
+
 export default function App() {
   const { setHazards, isAnalyticsOpen, setAnalyticsOpen, syncState, clearSyncError } = useStore();
   const [showSyncError, setShowSyncError] = useState(false);
@@ -19,7 +21,7 @@ export default function App() {
       const timer = setTimeout(() => {
         clearSyncError();
         setShowSyncError(false);
-      }, 5000);
+      }, SYNC_ERROR_AUTO_DISMISS_MS);
       return () => clearTimeout(timer);
     }
   }, [syncState.lastSyncError, clearSyncError]);

@@ -43,6 +43,12 @@ vi.mock('./store', () => ({
       }),
     }
   ),
+  SYNC_STATUS: {
+    SYNCED: 'synced',
+    PENDING_ADD: 'pending_add',
+    PENDING_UPDATE: 'pending_update',
+    PENDING_DELETE: 'pending_delete',
+  },
 }));
 
 vi.mock('axios', () => ({

@@ -61,6 +61,13 @@ export const DISASTER_TYPES = [
   { id: 'tsunami', label: 'Tsunami', color: '#0ea5e9' }
 ];
 
+export const SYNC_STATUS = {
+  SYNCED: 'synced',
+  PENDING_ADD: 'pending_add',
+  PENDING_UPDATE: 'pending_update',
+  PENDING_DELETE: 'pending_delete',
+} as const;
+
 export const useStore = create<AppState>((set) => ({
   hazards: [],
   filteredHazards: [],
