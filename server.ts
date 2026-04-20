@@ -3,9 +3,14 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import Database from "better-sqlite3";
+import { z } from "zod";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
+
+function generateErrorId() {
+  return `ERR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 app.use(express.json());
 
@@ -40,7 +45,12 @@ for (const mig of migrations) {
     db.prepare(mig.sql).run();
     console.log(`Migration added: ${mig.name}`);
   } catch (e) {
-    // Column already exists, ignore
+    if ((e as Error).message.includes('duplicate column name')) {
+      // Expected
+    } else {
+      console.error(`Migration failed for ${mig.name}:`, e);
+      throw e;
+    }
   }
 }
 
@@ -154,17 +164,48 @@ async function batchUpdateLocations() {
 }
 
 // API Routes
+const hazardSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(['flood', 'landslide', 'vehicular_accident', 'earthquake', 'storm_surge', 'tsunami']),
+  severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical']),
+  title: z.string().optional(),
+  municipality: z.string().optional(),
+  barangay: z.string().optional(),
+  notes: z.string().optional(),
+  geometry: z.object({ type: z.string(), coordinates: z.any() }),
+  dateAdded: z.string().datetime().optional(),
+});
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// PIN Verification
+app.post('/api/verify-pin', (req, res) => {
+  const { pin } = req.body;
+  const CORRECT_PIN = process.env.PIN_SECRET || '1234';
+  if (pin === CORRECT_PIN) {
+    res.json({ valid: true });
+  } else {
+    res.status(401).json({ valid: false });
+  }
+});
+
 app.get("/api/hazards", (req, res) => {
   try {
     const hazards = db.prepare('SELECT * FROM hazards').all();
     res.json(hazards);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch hazards' });
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to fetch hazards:`, error);
+    res.status(500).json({ error: 'Failed to fetch hazards', errorId });
   }
 });
 
 app.post("/api/hazards", (req, res) => {
   try {
+    const parsed = hazardSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
+    }
     const { id, type, severity, title, municipality, barangay, notes, geometry, dateAdded } = req.body;
     const stmt = db.prepare(`
       INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded)
@@ -173,7 +214,9 @@ app.post("/api/hazards", (req, res) => {
     stmt.run(id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded);
     res.json({ success: true, id });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to save hazard' });
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to save hazard:`, error);
+    res.status(500).json({ error: 'Failed to save hazard', errorId });
   }
 });
 
@@ -181,6 +224,10 @@ app.put("/api/hazards/:id", (req, res) => {
   try {
     const { id } = req.params;
     const { type, severity, title, municipality, barangay, notes, geometry, dateAdded } = req.body;
+
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid hazard ID format' });
+    }
 
     // Check if hazard exists
     const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id);
@@ -213,17 +260,26 @@ app.put("/api/hazards/:id", (req, res) => {
     );
     res.json({ success: true, id });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update hazard' });
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to update hazard:`, error);
+    res.status(500).json({ error: 'Failed to update hazard', errorId });
   }
 });
 
 app.delete("/api/hazards/:id", (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid hazard ID format' });
+    }
+
     db.prepare('DELETE FROM hazards WHERE id = ?').run(id);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete hazard' });
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to delete hazard:`, error);
+    res.status(500).json({ error: 'Failed to delete hazard', errorId });
   }
 });
 

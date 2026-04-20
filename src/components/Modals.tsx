@@ -269,21 +269,34 @@ export function PinModal() {
   const { isPinModalOpen, pinActionType, pinActionData, closePinModal, setHazards, setSelectedHazard, setMapAuthorized } = useStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
-
-  const CORRECT_PIN = '1234';
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (isPinModalOpen) {
       setPin('');
       setError(false);
+      setIsVerifying(false);
     }
   }, [isPinModalOpen]);
 
   useEffect(() => {
-    if (pin.length === 4) {
-      if (pin === CORRECT_PIN) {
+    if (pin.length === 4 && !isVerifying) {
+      verifyPin();
+    }
+  }, [pin]);
+
+  const verifyPin = async () => {
+    setIsVerifying(true);
+    try {
+      const response = await fetch('/api/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await response.json();
+      if (data.valid) {
         if (pinActionType === 'delete') {
-          handleDelete();
+          await handleDelete();
         } else if (pinActionType === 'unlock') {
           handleUnlock();
         }
@@ -294,14 +307,22 @@ export function PinModal() {
           setError(false);
         }, 500);
       }
+    } catch {
+      setError(true);
+      setTimeout(() => {
+        setPin('');
+        setError(false);
+      }, 500);
+    } finally {
+      setIsVerifying(false);
     }
-  }, [pin]);
+  };
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (!isPinModalOpen) return;
       if (e.key >= '0' && e.key <= '9') {
-        if (pin.length < 4 && !error) {
+        if (pin.length < 4 && !error && !isVerifying) {
           setPin(prev => prev + e.key);
         }
       } else if (e.key === 'Backspace') {
@@ -312,7 +333,7 @@ export function PinModal() {
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isPinModalOpen, pin, error]);
+  }, [isPinModalOpen, pin, error, isVerifying]);
 
   const handleDelete = async () => {
     if (pinActionData) {
@@ -330,7 +351,7 @@ export function PinModal() {
   };
 
   const handleKeyPress = (num: string) => {
-    if (pin.length < 4 && !error) {
+    if (pin.length < 4 && !error && !isVerifying) {
       setPin(prev => prev + num);
     }
   };
