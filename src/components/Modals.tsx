@@ -5,40 +5,62 @@ import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Edit3, X, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { detectLocationFromGeometry } from '../lib/utils';
 
 export function DropTagModal() {
   const { isDropTagModalOpen, dropTagTempGeometry, closeDropTagModal, setHazards } = useStore();
   const [type, setType] = useState('flood');
   const [severity, setSeverity] = useState('Moderate');
   const [title, setTitle] = useState('');
+  const [municipality, setMunicipality] = useState('');
+  const [barangay, setBarangay] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
 
   useEffect(() => {
     if (isDropTagModalOpen) {
       setType('flood');
       setSeverity('Moderate');
       setTitle('');
+      setMunicipality('');
+      setBarangay('');
       setNotes('');
+      setIsDetecting(true);
     }
   }, [isDropTagModalOpen]);
 
+  useEffect(() => {
+    if (isDropTagModalOpen && dropTagTempGeometry && !municipality && !barangay) {
+      detectLocationFromGeometry(dropTagTempGeometry).then((location) => {
+        if (location) {
+          setMunicipality(location.municipality);
+          setBarangay(location.barangay);
+        }
+        setIsDetecting(false);
+      });
+    }
+  }, [isDropTagModalOpen, dropTagTempGeometry, municipality, barangay]);
+
   const handleSave = async () => {
+    if (!municipality || !barangay) return;
     setIsSaving(true);
     const newHazard = {
       id: uuidv4(),
       type,
       severity,
       title: title.trim() || 'Untitled Zone',
+      municipality,
+      barangay,
       notes,
       geometry: dropTagTempGeometry,
       dateAdded: new Date().toISOString()
     };
-    
+
     await HazardAPI.addHazard(newHazard);
     const hazards = await HazardAPI.getAllHazards();
     setHazards(hazards);
-    
+
     setIsSaving(false);
     closeDropTagModal();
   };
@@ -68,13 +90,36 @@ export function DropTagModal() {
         <div className="space-y-4">
           <div>
             <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Area / Incident Title</label>
-            <input 
+            <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Brgy. Bagasbas Coastline"
               className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Municipality</label>
+              <input
+                type="text"
+                value={municipality}
+                onChange={(e) => setMunicipality(e.target.value)}
+                placeholder={isDetecting ? 'Detecting...' : 'Municipality'}
+                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Barangay</label>
+              <input
+                type="text"
+                value={barangay}
+                onChange={(e) => setBarangay(e.target.value)}
+                placeholder={isDetecting ? 'Detecting...' : 'Barangay'}
+                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
+              />
+            </div>
           </div>
 
           <div>
@@ -124,12 +169,12 @@ export function DropTagModal() {
         </div>
 
         <div className="mt-6">
-          <button 
+          <button
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || !municipality || !barangay}
             className="w-full py-3 btn-primary font-bold text-[11px] uppercase tracking-[0.05em] shadow-ambient disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isSaving ? 'Locking Data...' : 'Lock Zone Data'}
+            {isSaving ? 'Locking Data...' : !municipality || !barangay ? 'Location Required' : 'Lock Zone Data'}
           </button>
         </div>
       </motion.div>
