@@ -2,6 +2,8 @@ import { db, Hazard } from './db';
 import axios from 'axios';
 import { useStore, SYNC_STATUS } from './store';
 
+const OFFLINE_WARNING = 'Operating offline — data may not reflect recent changes';
+
 // A simple API wrapper to handle online/offline syncing
 
 export const HazardAPI = {
@@ -21,7 +23,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Failed to fetch from server, falling back to local DB.", e);
-      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
+      useStore.getState().setSyncError(OFFLINE_WARNING);
     }
     
     // Offline fallback
@@ -38,7 +40,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
+      useStore.getState().setSyncError(OFFLINE_WARNING);
       await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
     }
   },
@@ -53,7 +55,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
+      useStore.getState().setSyncError(OFFLINE_WARNING);
       await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
     }
   },
@@ -71,7 +73,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, marking for deletion locally.", e);
-      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
+      useStore.getState().setSyncError(OFFLINE_WARNING);
       const existing = await db.hazards.get(id);
       if (existing) {
         await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
