@@ -37,7 +37,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
-      await db.hazards.put({ ...hazard, syncStatus: 'pending_add' });
+      await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
     }
   },
 
@@ -51,7 +51,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
-      await db.hazards.put({ ...hazard, syncStatus: 'pending_update' });
+      await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
     }
   },
 
@@ -70,7 +70,7 @@ export const HazardAPI = {
       console.warn("Server unavailable, marking for deletion locally.", e);
       const existing = await db.hazards.get(id);
       if (existing) {
-        await db.hazards.put({ ...existing, syncStatus: 'pending_delete' });
+        await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
       }
     }
   },
