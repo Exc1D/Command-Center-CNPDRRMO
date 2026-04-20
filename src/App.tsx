@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "./lib/store";
 import { HazardAPI } from "./lib/api";
 import Sidebar from "./components/Sidebar";
@@ -6,10 +6,23 @@ import DangerMap from "./components/Map";
 import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
 import { EditHazardModal } from "./components/EditHazardModal";
 import { AnalyticsPanel } from "./components/AnalyticsPanel";
-import { BarChart2 } from "lucide-react";
+import { BarChart2, X } from "lucide-react";
 
 export default function App() {
-  const { setHazards, isAnalyticsOpen, setAnalyticsOpen } = useStore();
+  const { setHazards, isAnalyticsOpen, setAnalyticsOpen, syncState, clearSyncError } = useStore();
+  const [showSyncError, setShowSyncError] = useState(false);
+
+  // Watch for sync errors and show banner
+  useEffect(() => {
+    if (syncState.lastSyncError) {
+      setShowSyncError(true);
+      const timer = setTimeout(() => {
+        clearSyncError();
+        setShowSyncError(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [syncState.lastSyncError, clearSyncError]);
 
   useEffect(() => {
     // Initial fetch
@@ -33,6 +46,22 @@ export default function App() {
 
   return (
     <div className="w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
+      {/* Sync Error Banner */}
+      {showSyncError && syncState.lastSyncError && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
+          <span className="flex-1 text-sm font-medium">{syncState.lastSyncError}</span>
+          <button
+            onClick={() => {
+              clearSyncError();
+              setShowSyncError(false);
+            }}
+            className="p-1 hover:bg-error/20 rounded"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       <header className="h-20 bg-surface-container-lowest shadow-ambient flex items-center justify-between px-8 z-[60] relative">
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 flex items-center justify-center bg-surface-container rounded-full shadow-sm overflow-hidden">

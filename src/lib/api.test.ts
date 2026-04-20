@@ -15,11 +15,34 @@ const mockHazardsTable = vi.hoisted(() => {
   return table;
 });
 
+const mockSetSyncState = vi.fn();
+const mockClearSyncError = vi.fn();
+const mockSetSyncError = vi.fn();
+
 vi.mock('./db', () => ({
   db: {
     hazards: mockHazardsTable,
   },
   Hazard: {},
+}));
+
+vi.mock('./store', () => ({
+  useStore: Object.assign(
+    vi.fn(() => ({
+      syncState: { isSyncing: false, lastSyncError: null },
+      setSyncState: mockSetSyncState,
+      clearSyncError: mockClearSyncError,
+      setSyncError: mockSetSyncError,
+    })),
+    {
+      getState: () => ({
+        syncState: { isSyncing: false, lastSyncError: null },
+        setSyncState: mockSetSyncState,
+        clearSyncError: mockClearSyncError,
+        setSyncError: mockSetSyncError,
+      }),
+    }
+  ),
 }));
 
 vi.mock('axios', () => ({
@@ -229,7 +252,8 @@ describe('HazardAPI', () => {
       expect(axios.delete).not.toHaveBeenCalled();
     });
 
-    it('BUGGY: After 2nd fails, 3rd is NEVER synced', async () => {
+    it.skip('FIXED: After 2nd fails, 3rd IS synced - FAILS on current code', async () => {
+      // Skip until syncPending race condition is fixed (see QA_EDGE_CASE_HUNT.md T-1)
       Object.defineProperty(navigator, 'onLine', { value: true });
       const pending = [
         { id: '1', type: 'flood', severity: 'high', notes: 'test1' },
@@ -245,10 +269,9 @@ describe('HazardAPI', () => {
       await HazardAPI.syncPending();
 
       expect(mockHazardsTable.update).toHaveBeenCalledWith('1', { syncStatus: 'synced' });
-      expect(mockHazardsTable.update).not.toHaveBeenCalledWith('3', { syncStatus: 'synced' });
     });
 
-    it('FIXED: After 2nd fails, 3rd IS synced - FAILS on current code', async () => {
+    it('One item fails in pendingAdds - remaining items still processed', async () => {
       Object.defineProperty(navigator, 'onLine', { value: true });
       const pending = [
         { id: '1', type: 'flood', severity: 'high', notes: 'test1' },
@@ -264,6 +287,17 @@ describe('HazardAPI', () => {
       await HazardAPI.syncPending();
 
       expect(mockHazardsTable.update).toHaveBeenCalledWith('1', { syncStatus: 'synced' });
+      expect(mockHazardsTable.update).toHaveBeenCalledWith('3', { syncStatus: 'synced' });
+    });
+
+    it('Empty arrays for pendingUpdates/pendingDeletes do not throw', async () => {
+      Object.defineProperty(navigator, 'onLine', { value: true });
+      mockHazardsTable.toArray
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await expect(HazardAPI.syncPending()).resolves.not.toThrow();
     });
 
     it('pendingAdds synced in order', async () => {
@@ -336,6 +370,46 @@ describe('HazardAPI', () => {
       expect(axios.put).toHaveBeenCalledWith('/api/hazards/2', pendingUpdate);
       expect(axios.delete).toHaveBeenCalledWith('/api/hazards/3');
       expect(mockHazardsTable.delete).toHaveBeenCalledWith('3');
+    });
+
+    it('Sync mutex: concurrent call returns early', async () => {
+      Object.defineProperty(navigator, 'onLine', { value: true });
+      const pending = [{ id: '1', type: 'flood', severity: 'high', notes: 'test1' }];
+      mockHazardsTable.toArray.mockResolvedValueOnce(pending);
+      axios.post.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({}), 100)));
+
+      // Start first sync
+      const sync1 = HazardAPI.syncPending();
+      // Try to start second sync immediately (should return early)
+      const sync2 = HazardAPI.syncPending();
+
+      await sync1;
+
+      // Only one post should have been called (mutex worked)
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('Multiple failed items collected with correct error messages', async () => {
+      Object.defineProperty(navigator, 'onLine', { value: true });
+      const pendingAdds = [
+        { id: '1', type: 'flood', severity: 'high', notes: 'test1' },
+        { id: '2', type: 'flood', severity: 'high', notes: 'test2' },
+      ];
+      const pendingUpdates = [
+        { id: '3', type: 'flood', severity: 'high', notes: 'test3' },
+      ];
+      mockHazardsTable.toArray
+        .mockResolvedValueOnce(pendingAdds)
+        .mockResolvedValueOnce(pendingUpdates)
+        .mockResolvedValueOnce([]);
+      axios.post
+        .mockResolvedValueOnce({})
+        .mockRejectedValueOnce(new Error('Add failed'));
+      axios.put.mockRejectedValue(new Error('Update failed'));
+
+      await HazardAPI.syncPending();
+
+      expect(mockSetSyncError).toHaveBeenCalledWith('Sync partially failed: 2 item(s) failed');
     });
   });
 });

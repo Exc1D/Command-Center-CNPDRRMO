@@ -15,6 +15,12 @@ interface AppState {
   // Authorization
   isMapAuthorized: boolean;
 
+  // Sync state
+  syncState: { isSyncing: boolean; lastSyncError: string | null };
+  setSyncState: (s: { isSyncing: boolean; lastSyncError: string | null }) => void;
+  clearSyncError: () => void;
+  setSyncError: (msg: string) => void;
+
   // Modals state
   isDropTagModalOpen: boolean;
   dropTagTempGeometry: any | null; // From geoman
@@ -103,4 +109,10 @@ export const useStore = create<AppState>((set) => ({
   closePinModal: () => set({ isPinModalOpen: false, pinActionType: null, pinActionData: null }),
 
   setAnalyticsOpen: (val) => set({ isAnalyticsOpen: val }),
+
+  // Sync state
+  syncState: { isSyncing: false, lastSyncError: null },
+  setSyncState: (s) => set({ syncState: s }),
+  clearSyncError: () => set((state) => ({ syncState: { ...state.syncState, lastSyncError: null } })),
+  setSyncError: (msg) => set((state) => ({ syncState: { ...state.syncState, lastSyncError: msg } })),
 }));

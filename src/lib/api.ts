@@ -1,5 +1,6 @@
 import { db, Hazard } from './db';
 import axios from 'axios';
+import { useStore } from './store';
 
 // A simple API wrapper to handle online/offline syncing
 
@@ -77,27 +78,48 @@ export const HazardAPI = {
   // Called when internet comes back
   async syncPending() {
     if (!navigator.onLine) return;
+    const state = useStore.getState();
+    if (state.syncState.isSyncing) return; // Mutex guard
+
+    useStore.getState().setSyncState({ isSyncing: true, lastSyncError: null });
+
+    const failedItems: { id: string; type: string; error: string }[] = [];
 
     try {
-      const pendingAdds = await db.hazards.where('syncStatus').equals('pending_add').toArray();
+      const pendingAdds = (await db.hazards.where('syncStatus').equals('pending_add').toArray()) ?? [];
       for (const hazard of pendingAdds) {
-        await axios.post('/api/hazards', hazard);
-        await db.hazards.update(hazard.id, { syncStatus: 'synced' });
+        try {
+          await axios.post('/api/hazards', hazard);
+          await db.hazards.update(hazard.id, { syncStatus: 'synced' });
+        } catch (e) {
+          failedItems.push({ id: hazard.id, type: 'add', error: (e as Error).message });
+        }
       }
 
-      const pendingUpdates = await db.hazards.where('syncStatus').equals('pending_update').toArray();
+      const pendingUpdates = (await db.hazards.where('syncStatus').equals('pending_update').toArray()) ?? [];
       for (const hazard of pendingUpdates) {
-        await axios.put(`/api/hazards/${hazard.id}`, hazard);
-        await db.hazards.update(hazard.id, { syncStatus: 'synced' });
+        try {
+          await axios.put(`/api/hazards/${hazard.id}`, hazard);
+          await db.hazards.update(hazard.id, { syncStatus: 'synced' });
+        } catch (e) {
+          failedItems.push({ id: hazard.id, type: 'update', error: (e as Error).message });
+        }
       }
 
-      const pendingDeletes = await db.hazards.where('syncStatus').equals('pending_delete').toArray();
+      const pendingDeletes = (await db.hazards.where('syncStatus').equals('pending_delete').toArray()) ?? [];
       for (const hazard of pendingDeletes) {
-        await axios.delete(`/api/hazards/${hazard.id}`);
-        await db.hazards.delete(hazard.id);
+        try {
+          await axios.delete(`/api/hazards/${hazard.id}`);
+          await db.hazards.delete(hazard.id);
+        } catch (e) {
+          failedItems.push({ id: hazard.id, type: 'delete', error: (e as Error).message });
+        }
       }
-    } catch (e) {
-      console.error("Error during background sync", e);
+    } finally {
+      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: null });
+      if (failedItems.length > 0) {
+        useStore.getState().setSyncError(`Sync partially failed: ${failedItems.length} item(s) failed`);
+      }
     }
   }
 };
