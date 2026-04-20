@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Hazard } from './db';
+import { Hazard, EvacuationCenter } from './db';
 
 type BaseMapType = 'street' | 'topo' | 'satellite';
 
@@ -11,6 +11,7 @@ interface AppState {
   selectedHazard: Hazard | null;
   mapCenter: [number, number];
   mapZoom: number;
+  evacuationCenters: EvacuationCenter[];
   
   // Authorization
   isMapAuthorized: boolean;
@@ -37,6 +38,7 @@ interface AppState {
 
   // Actions
   setHazards: (h: Hazard[]) => void;
+  setEvacuationCenters: (c: EvacuationCenter[]) => void;
   toggleFilter: (type: string) => void;
   setBaseMap: (map: BaseMapType) => void;
   setSelectedHazard: (h: Hazard | null) => void;
@@ -76,6 +78,7 @@ export const useStore = create<AppState>((set) => ({
   selectedHazard: null,
   mapCenter: [14.1167, 122.9500] as [number, number], // Camarines Norte center approx
   mapZoom: 10,
+  evacuationCenters: [],
   
   isMapAuthorized: false,
 
@@ -95,6 +98,7 @@ export const useStore = create<AppState>((set) => ({
     hazards, 
     filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)) 
   })),
+  setEvacuationCenters: (evacuationCenters) => set({ evacuationCenters }),
   toggleFilter: (type) => set((state) => {
     const newFilters = state.activeFilters.includes(type)
       ? state.activeFilters.filter(f => f !== type)

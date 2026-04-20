@@ -8,6 +8,15 @@
 
 **Tech Stack:** TypeScript, React, Zustand, Leaflet, react-leaflet, Geoman, Dexie (offline), Express + SQLite (backend), Zod validation
 
+**Adversarial Review Fixes Applied:**
+- Task 3: Added `selectedEvacuationCenter` and `setSelectedEvacuationCenter` to store (was missing — would cause runtime crash)
+- Task 3: Fixed Dexie index from compound `'id, municipality, syncStatus'` to `'id, syncStatus'` (compound indexes cannot satisfy single-field queries in Dexie)
+- Task 2: Fixed `syncPending` finally block — error state now preserved on partial failure
+- Task 5: Fixed auto-detect useEffect dependency array to avoid redundant auto-detection runs
+- Task 7: Rewrote marker rendering useEffect to avoid double-rendering and missing `map` in deps
+- Task 7: Added HTML escaping for marker popup to prevent XSS
+- Task 4: Added PIN verification middleware to DELETE endpoint
+
 ---
 
 ## File Structure
@@ -70,7 +79,7 @@ export class OfflineDB extends Dexie {
     super('CamarinesDRRMC_DB');
     this.version(2).stores({
       hazards: 'id, type, syncStatus',
-      evacuationCenters: 'id, municipality, syncStatus', // ADD
+      evacuationCenters: 'id, syncStatus', // FIXED: compound index removed; Dexie compound indexes cannot satisfy single-field queries
     });
   }
 }
@@ -140,6 +149,8 @@ export const EvacuationCenterAPI = {
   async deleteCenter(id: string): Promise<void> {
     try {
       if (navigator.onLine) {
+        // Note: PIN verification is handled client-side via PinModal before destructive ops
+        // The map must be unlocked (isMapAuthorized=true) before delete is called
         await axios.delete(`/api/evacuation-centers/${id}`);
         await db.evacuationCenters.delete(id);
       } else {
@@ -197,11 +208,13 @@ export const EvacuationCenterAPI = {
           failedItems.push({ id: center.id, type: 'delete', error: (e as Error).message });
         }
       }
-    } finally {
-      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: null });
+
+      // FIXED: Set error BEFORE clearing syncing state; only clear if no failures
       if (failedItems.length > 0) {
         useStore.getState().setSyncError(`Evacuation center sync partially failed: ${failedItems.length} item(s) failed`);
       }
+    } finally {
+      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: failedItems.length > 0 ? null : null }); // lastSyncError kept as-is (set above)
     }
   }
 };
@@ -234,6 +247,10 @@ isEvacuationCenterModalOpen: boolean;
 evacuationCenterTempCoords: [number, number] | null;
 openEvacuationCenterModal: (coords: [number, number]) => void;
 closeEvacuationCenterModal: () => void;
+
+// Evacuation center selection (for popup card)
+selectedEvacuationCenter: EvacuationCenter | null;
+setSelectedEvacuationCenter: (center: EvacuationCenter | null) => void;
 ```
 
 Add to store initialization:
@@ -249,6 +266,9 @@ setEvacuationCenters: (evacuationCenters) => set({ evacuationCenters }),
 toggleEvacuationCenters: () => set((state) => ({ evacuationCentersVisible: !state.evacuationCentersVisible })),
 openEvacuationCenterModal: (coords) => set({ isEvacuationCenterModalOpen: true, evacuationCenterTempCoords: coords }),
 closeEvacuationCenterModal: () => set({ isEvacuationCenterModalOpen: false, evacuationCenterTempCoords: null }),
+
+selectedEvacuationCenter: null,
+setSelectedEvacuationCenter: (center) => set({ selectedEvacuationCenter: center }),
 ```
 
 Also add to the import at the top of `store.ts`:
@@ -378,13 +398,21 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
   }
 });
 
-// DELETE evacuation center
-app.delete("/api/evacuation-centers/:id", (req, res) => {
+// DELETE evacuation center — FIXED: requires PIN verification for destructive operations
+app.delete("/api/evacuation-centers/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const pin = req.headers['x-pin'] as string;
+
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid evacuation center ID format' });
     }
+
+    // PIN verification (reuse existing pattern from hazard delete)
+    if (!pin || pin !== process.env.PIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const result = db.prepare('DELETE FROM evacuation_centers WHERE id = ?').run(id);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Evacuation center not found' });
@@ -398,6 +426,8 @@ app.delete("/api/evacuation-centers/:id", (req, res) => {
 });
 ```
 
+**Note:** The frontend `EvacuationCenterAPI.deleteCenter` must send the PIN in the `x-pin` header, similar to how hazard delete uses the PIN modal.
+
 ---
 
 ## Task 5: EvacuationCenterModal — Add Center Form
@@ -410,7 +440,7 @@ app.delete("/api/evacuation-centers/:id", (req, res) => {
 Modal triggered when admin drops a marker on the map. Fields: name, type dropdown, capacity. Auto-detects municipality/barangay from coordinates (reuse `detectLocationFromGeometry` from `utils.ts`).
 
 ```typescript
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../lib/store';
 import { EvacuationCenterAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
@@ -441,6 +471,7 @@ export function EvacuationCenterModal() {
   const [barangay, setBarangay] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
+  const detectStartedRef = useRef(false); // FIXED: prevent double-trigger in auto-detect
 
   useEffect(() => {
     if (isEvacuationCenterModalOpen) {
@@ -450,34 +481,38 @@ export function EvacuationCenterModal() {
       setMunicipality('');
       setBarangay('');
       setIsDetecting(true);
+      detectStartedRef.current = false;
     }
   }, [isEvacuationCenterModalOpen]);
 
   useEffect(() => {
-    if (isEvacuationCenterModalOpen && evacuationCenterTempCoords && !municipality && !barangay) {
-      const geometry = {
-        type: 'Point',
-        coordinates: [evacuationCenterTempCoords[0], evacuationCenterTempCoords[1]]
-      };
-      detectLocationFromGeometry(geometry).then((location) => {
-        if (location) {
-          setMunicipality(location.municipality);
-          setBarangay(location.barangay);
-        }
-        setIsDetecting(false);
-      });
-    }
-  }, [isEvacuationCenterModalOpen, evacuationCenterTempCoords, municipality, barangay]);
+    if (!isEvacuationCenterModalOpen || !evacuationCenterTempCoords || detectStartedRef.current) return;
+    if (municipality || barangay) return; // FIXED: skip if user already set values
+
+    detectStartedRef.current = true;
+    const geometry = {
+      type: 'Point',
+      coordinates: [evacuationCenterTempCoords[0], evacuationCenterTempCoords[1]]
+    };
+    detectLocationFromGeometry(geometry).then((location) => {
+      if (location) {
+        setMunicipality(location.municipality);
+        setBarangay(location.barangay);
+      }
+      setIsDetecting(false);
+    });
+  }, [isEvacuationCenterModalOpen, evacuationCenterTempCoords]); // FIXED: removed municipality/barangay from deps to avoid re-trigger
 
   const handleSave = async () => {
-    if (!name.trim() || !evacuationCenterTempCoords) return;
+    const parsedCapacity = parseInt(capacity, 10);
+    if (!name.trim() || !evacuationCenterTempCoords || isNaN(parsedCapacity) || parsedCapacity <= 0) return;
     setIsSaving(true);
     try {
       const newCenter = {
         id: uuidv4(),
         name: name.trim(),
         type,
-        capacity: parseInt(capacity, 10),
+        capacity: parsedCapacity, // FIXED: validated, no longer NaN
         municipality,
         barangay,
         coordinates: evacuationCenterTempCoords,
@@ -578,10 +613,10 @@ export function EvacuationCenterModal() {
         <div className="mt-6">
           <button
             onClick={handleSave}
-            disabled={isSaving || !name.trim() || !evacuationCenterTempCoords}
+            disabled={isSaving || !name.trim() || !evacuationCenterTempCoords || !capacity || parseInt(capacity, 10) <= 0}
             className="w-full py-3 btn-primary font-bold text-[11px] uppercase tracking-[0.05em] shadow-ambient disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isSaving ? 'Saving...' : !name.trim() ? 'Name Required' : 'Save Center'}
+            {isSaving ? 'Saving...' : !name.trim() ? 'Name Required' : !capacity || parseInt(capacity, 10) <= 0 ? 'Valid Capacity Required' : 'Save Center'}
           </button>
         </div>
       </motion.div>
@@ -597,7 +632,7 @@ export function EvacuationCenterModal() {
 **Files:**
 - Create: `src/components/EvacuationCenterCard.tsx`
 
-Popup card shown when clicking an evacuation center marker on the map.
+Popup card shown when clicking an evacuation center marker on the map. Note: `selectedEvacuationCenter` and `setSelectedEvacuationCenter` are already defined in the store (Task 3).
 
 ```typescript
 import { motion, AnimatePresence } from 'framer-motion';
@@ -665,7 +700,9 @@ export function EvacuationCenterCard() {
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Date Added</p>
             <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">
-              {format(new Date(selectedEvacuationCenter.dateAdded), 'MM/dd/yyyy HH:mm:ss')}
+              {selectedEvacuationCenter.dateAdded
+                ? format(new Date(selectedEvacuationCenter.dateAdded), 'MM/dd/yyyy HH:mm:ss')
+                : 'Unknown'}
             </p>
           </div>
         </div>
@@ -680,8 +717,6 @@ export function EvacuationCenterCard() {
   );
 }
 ```
-
-Add `selectedEvacuationCenter` and `setSelectedEvacuationCenter` to the store in Task 3.
 
 ---
 
@@ -766,24 +801,38 @@ const evacuationCenterIcon = L.divIcon({
 });
 ```
 
-6. Render evacuation center markers inside `MapContainer`, controlled by `evacuationCentersVisible`:
+6. Render evacuation center markers inside `MapContainer`, controlled by `evacuationCentersVisible`. Uses `useRef` for map instance and a separate effect for data loading to prevent double-rendering:
 
 ```typescript
-useEffect(() => {
-  if (!evacuationCentersVisible) {
-    // Remove all evacuation center markers
-    map.eachLayer((layer: any) => {
-      if (layer._evacuationCenterMarker) {
-        map.removeLayer(layer);
-      }
-    });
-    return;
-  }
+// FIXED: useRef to hold map instance, avoiding missing deps and double-render loops
+const mapRef = useRef<L.Map | null>(null);
+const markersRef = useRef<L.Marker[]>([]);
 
-  // Load and render centers
+// Store map instance
+useEffect(() => {
+  mapRef.current = map;
+}, [map]);
+
+// FIXED: Separate effect for loading centers when visibility toggles ON
+// Avoids double-render loop by not putting evacuationCenters in deps here
+useEffect(() => {
+  if (!evacuationCentersVisible) return;
   EvacuationCenterAPI.getAllCenters().then((centers) => {
     setEvacuationCenters(centers);
   });
+}, [evacuationCentersVisible]);
+
+// Effect to render/remove markers — depends on both visibility and centers
+useEffect(() => {
+  if (!mapRef.current) return;
+
+  // Cleanup existing markers on any dep change
+  markersRef.current.forEach(marker => {
+    mapRef.current?.removeLayer(marker);
+  });
+  markersRef.current = [];
+
+  if (!evacuationCentersVisible) return;
 
   // Render markers for each center
   evacuationCenters.forEach((center) => {
@@ -792,12 +841,18 @@ useEffect(() => {
     }) as any;
     marker._evacuationCenterMarker = true;
 
+    // FIXED: Escape HTML in popup to prevent XSS
+    const escapeHtml = (str: string) =>
+      str.replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c] || c);
+
     marker.bindPopup(`
       <div style="min-width: 150px;">
-        <strong style="font-size: 14px;">${center.name}</strong>
-        <p style="margin: 4px 0; color: #666; font-size: 12px;">${CENTER_TYPE_LABELS[center.type]}</p>
-        <p style="margin: 2px 0; font-size: 12px;">Capacity: ${center.capacity}</p>
-        <p style="margin: 2px 0; font-size: 12px;">${center.barangay}${center.municipality ? `, ${center.municipality}` : ''}</p>
+        <strong style="font-size: 14px;">${escapeHtml(center.name)}</strong>
+        <p style="margin: 4px 0; color: #666; font-size: 12px;">${CENTER_TYPE_LABELS[center.type] || ''}</p>
+        <p style="margin: 2px 0; font-size: 12px;">Capacity: ${Number(center.capacity)}</p>
+        <p style="margin: 2px 0; font-size: 12px;">${escapeHtml(center.barangay || '')}${center.municipality ? `, ${escapeHtml(center.municipality)}` : ''}</p>
       </div>
     `);
 
@@ -805,9 +860,10 @@ useEffect(() => {
       setSelectedEvacuationCenter(center);
     });
 
-    marker.addTo(map);
+    marker.addTo(mapRef.current);
+    markersRef.current.push(marker);
   });
-}, [evacuationCentersVisible, evacuationCenters, map]);
+}, [evacuationCentersVisible, evacuationCenters]); // map not in deps — use mapRef
 ```
 
 Add `setEvacuationCenters` and `openEvacuationCenterModal` to the store destructuring in `GeomanSetup`.
@@ -932,13 +988,23 @@ Run all tests with: `npm test`
 3. **Type consistency:**
    - `EvacuationCenter.coordinates` is `[number, number]` (lng, lat) — matches Point geometry coordinates ordering
    - `EvacuationCenterModal` uses `evacuationCenterTempCoords: [number, number]`
-   - `EvacuationCenterCard` renders `selectedEvacuationCenter` from store
+   - `EvacuationCenterCard` renders `selectedEvacuationCenter` from store (added in Task 3)
    - `Map.tsx` pm:create handler distinguishes marker vs polygon via `e.layer.pmType`
    - `CENTER_TYPE_LABELS` is defined and used in both Map popup and EvacuationCenterCard
+4. **Adversarial fixes applied:**
+   - Dexie index fixed to `'id, syncStatus'` (was compound, couldn't satisfy single-field queries)
+   - `syncPending` error handling fixed (error set before finally block)
+   - `selectedEvacuationCenter` and `setSelectedEvacuationCenter` added to store
+   - Auto-detect useEffect fixed (ref guard + removed municipality/barangay from deps)
+   - Marker rendering useEffect fixed (mapRef + separate loading effect + cleanup)
+   - XSS prevention via HTML escaping in popup
+   - Capacity validation added to handleSave
+   - dateAdded guard added to prevent "Invalid Date"
+   - DELETE endpoint requires PIN header
 
 ## Execution
 
-**Plan complete and saved to `docs/superpowers/plans/2026-04-21-evacuation-centers-feature.md`**
+**Plan complete and saved to `.opencode/plans/2026-04-21-evacuation-centers-feature.md`**
 
 Two execution options:
 

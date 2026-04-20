@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore, DISASTER_TYPES } from './store';
 import { h1, h2, h3, h4 } from '../test/fixtures/hazards';
+import { ec1, ec2, ec3 } from '../test/fixtures/evacuationCenters';
 
 describe('useStore', () => {
   beforeEach(() => {
@@ -20,7 +21,8 @@ describe('useStore', () => {
       pinActionData: null,
       isAnalyticsOpen: false,
       isEditModalOpen: false,
-      editModalHazard: null
+      editModalHazard: null,
+      evacuationCenters: []
     });
   });
 
@@ -127,6 +129,28 @@ describe('useStore', () => {
       const state = useStore.getState();
       expect(state.isEditModalOpen).toBe(false);
       expect(state.editModalHazard).toBe(null);
+    });
+  });
+
+  describe('setEvacuationCenters', () => {
+    it('sets evacuationCenters array correctly', () => {
+      useStore.getState().setEvacuationCenters([ec1, ec2]);
+      const state = useStore.getState();
+      expect(state.evacuationCenters).toEqual([ec1, ec2]);
+    });
+
+    it('replaces existing evacuation centers', () => {
+      useStore.getState().setEvacuationCenters([ec1, ec2]);
+      useStore.getState().setEvacuationCenters([ec3]);
+      const state = useStore.getState();
+      expect(state.evacuationCenters).toEqual([ec3]);
+    });
+
+    it('handles empty array', () => {
+      useStore.getState().setEvacuationCenters([ec1]);
+      useStore.getState().setEvacuationCenters([]);
+      const state = useStore.getState();
+      expect(state.evacuationCenters).toEqual([]);
     });
   });
 });
