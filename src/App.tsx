@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "./lib/store";
 import { HazardAPI } from "./lib/api";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Sidebar from "./components/Sidebar";
 import DangerMap from "./components/Map";
 import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
@@ -122,11 +123,17 @@ export default function App() {
       </header>
 
       <main className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <ErrorBoundary fallback={<div className="flex items-center justify-center w-80 bg-surface-container text-tertiary">Sidebar failed</div>}>
+          <Sidebar />
+        </ErrorBoundary>
         <section className="flex-1 relative bg-surface flex items-center justify-center overflow-hidden">
-          <DangerMap />
+          <ErrorBoundary fallback={<div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">Map failed</div>}>
+            <DangerMap />
+          </ErrorBoundary>
           <PopUpCard />
-          <AnalyticsPanel />
+          <ErrorBoundary fallback={<div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">Analytics failed</div>}>
+            <AnalyticsPanel />
+          </ErrorBoundary>
         </section>
       </main>
 
