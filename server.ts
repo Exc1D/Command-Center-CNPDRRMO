@@ -179,9 +179,17 @@ const hazardSchema = z.object({
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // PIN Verification
+const CORRECT_PIN = process.env.PIN_SECRET;
+if (!CORRECT_PIN) {
+  console.error('PIN_SECRET environment variable is required');
+  process.exit(1);
+}
+
 app.post('/api/verify-pin', (req, res) => {
   const { pin } = req.body;
-  const CORRECT_PIN = process.env.PIN_SECRET || '1234';
+  if (typeof pin !== 'string' || pin.length !== 4) {
+    return res.status(400).json({ error: 'Invalid PIN format' });
+  }
   if (pin === CORRECT_PIN) {
     res.json({ valid: true });
   } else {
@@ -206,7 +214,7 @@ app.post("/api/hazards", (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
-    const { id, type, severity, title, municipality, barangay, notes, geometry, dateAdded } = req.body;
+    const { id, type, severity, title, municipality, barangay, notes, geometry, dateAdded } = parsed.data;
     const stmt = db.prepare(`
       INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -223,11 +231,18 @@ app.post("/api/hazards", (req, res) => {
 app.put("/api/hazards/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const { type, severity, title, municipality, barangay, notes, geometry, dateAdded } = req.body;
 
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid hazard ID format' });
     }
+
+    const updateSchema = hazardSchema.partial().omit({ id: true });
+    const parsed = updateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
+    }
+
+    const { type, severity, title, municipality, barangay, notes, geometry, dateAdded } = parsed.data;
 
     // Check if hazard exists
     const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id);
@@ -274,7 +289,10 @@ app.delete("/api/hazards/:id", (req, res) => {
       return res.status(400).json({ error: 'Invalid hazard ID format' });
     }
 
-    db.prepare('DELETE FROM hazards WHERE id = ?').run(id);
+    const result = db.prepare('DELETE FROM hazards WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Hazard not found' });
+    }
     res.json({ success: true });
   } catch (error) {
     const errorId = generateErrorId();

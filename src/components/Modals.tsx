@@ -269,12 +269,14 @@ export function PinModal() {
   const { isPinModalOpen, pinActionType, pinActionData, closePinModal, setHazards, setSelectedHazard, setMapAuthorized } = useStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const [operationError, setOperationError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (isPinModalOpen) {
       setPin('');
       setError(false);
+      setOperationError(false);
       setIsVerifying(false);
     }
   }, [isPinModalOpen]);
@@ -337,12 +339,19 @@ export function PinModal() {
 
   const handleDelete = async () => {
     if (pinActionData) {
-      await HazardAPI.deleteHazard(pinActionData);
-      const hazards = await HazardAPI.getAllHazards();
-      setHazards(hazards);
-      setSelectedHazard(null);
+      try {
+        await HazardAPI.deleteHazard(pinActionData);
+        const hazards = await HazardAPI.getAllHazards();
+        setHazards(hazards);
+        setSelectedHazard(null);
+        closePinModal();
+      } catch {
+        setOperationError(true);
+        setTimeout(() => {
+          setOperationError(false);
+        }, 500);
+      }
     }
-    closePinModal();
   };
 
   const handleUnlock = () => {
@@ -361,7 +370,7 @@ export function PinModal() {
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm">
       <motion.div 
-        animate={error ? { x: [-10, 10, -10, 10, 0] } : {}}
+        animate={error || operationError ? { x: [-10, 10, -10, 10, 0] } : {}}
         transition={{ duration: 0.3 }}
         className="w-80 bg-surface-container-lowest shadow-ambient rounded-xl p-8 relative border border-white/50"
       >
