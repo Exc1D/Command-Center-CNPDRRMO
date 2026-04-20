@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import Database from "better-sqlite3";
 
 const app = express();
@@ -45,7 +46,7 @@ for (const mig of migrations) {
 
 // Batch update: Auto-detect location for existing records without municipality
 async function batchUpdateLocations() {
-  const hazardsWithoutLocation = db.prepare('SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ""').all();
+  const hazardsWithoutLocation = db.prepare("SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''").all();
   if (hazardsWithoutLocation.length === 0) {
     console.log('No records need location batch update');
     return;
@@ -53,8 +54,6 @@ async function batchUpdateLocations() {
   console.log(`Batch updating location for ${hazardsWithoutLocation.length} records...`);
 
   // Load barangay GeoJSON
-  const fs = require('fs');
-  const path = require('path');
   const geojson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/baranggays.geojson'), 'utf8'));
 
   function haversineDistance(lat1, lon1, lat2, lon2) {

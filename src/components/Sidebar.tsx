@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { cn } from '../lib/utils';
-import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
@@ -202,20 +202,22 @@ export default function Sidebar() {
         <section>
           <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Active Filters</label>
           <div className="space-y-3">
-            {DISASTER_TYPES.map(type => (
-              <label key={type.id} className="flex items-center justify-between cursor-pointer group bg-surface-container-lowest p-3 rounded-xl shadow-ambient hover:bg-surface transition-colors">
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="checkbox"
-                    checked={activeFilters.includes(type.id)}
-                    onChange={() => toggleFilter(type.id)}
-                    className="w-4 h-4 rounded-sm border-outline-variant/30 bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface-container-lowest"
-                  />
-                  <span className="text-sm font-semibold text-on-surface">{type.label}</span>
-                </div>
-                <div className="w-3 h-3 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.1)]" style={{ backgroundColor: type.color }}></div>
-              </label>
-            ))}
+            {DISASTER_TYPES.map(type => {
+              const isActive = activeFilters.includes(type.id);
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => toggleFilter(type.id)}
+                  className={`w-full flex items-center justify-between cursor-pointer group p-3 rounded-xl shadow-ambient transition-all border-2 ${isActive ? 'border-primary bg-surface-container text-on-surface' : 'border-transparent bg-surface-container-lowest hover:bg-surface'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full transition-all" style={{ backgroundColor: type.color, boxShadow: isActive ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${type.color}` : 'none' }}></div>
+                    <span className="text-sm font-semibold">{type.label}</span>
+                  </div>
+                  <Check size={16} className={isActive ? 'text-primary' : 'text-transparent'} />
+                </button>
+              );
+            })}
           </div>
         </section>
 

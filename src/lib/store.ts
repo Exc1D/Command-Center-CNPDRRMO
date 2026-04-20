@@ -58,7 +58,7 @@ export const DISASTER_TYPES = [
 export const useStore = create<AppState>((set) => ({
   hazards: [],
   filteredHazards: [],
-  activeFilters: DISASTER_TYPES.map(t => t.id),
+  activeFilters: [],
   baseMap: 'street',
   selectedHazard: null,
   mapCenter: [14.1167, 122.9500] as [number, number], // Camarines Norte center approx
