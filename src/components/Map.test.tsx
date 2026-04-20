@@ -1,3 +1,18 @@
+/**
+ * Map Component Integration Tests
+ * 
+ * These tests verify the integration between the map event handlers (pm:remove, pm:edit)
+ * and the HazardAPI/store, WITHOUT rendering the actual Map component (which requires
+ * Leaflet/React-Leaflet that doesn't work in JSDOM).
+ * 
+ * The pm:remove and pm:edit handlers are defined in Map.tsx (lines 60-71 and 167-184).
+ * We test the handler patterns directly by simulating what they do:
+ *   - pm:remove: calls HazardAPI.deleteHazard(), then getAllHazards() to refresh store
+ *   - pm:edit:  calls HazardAPI.updateHazard(), then getAllHazards() to refresh store
+ * 
+ * This is NOT testing the visual map component — it's testing the business logic
+ * integration of the map event handlers with the data layer.
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HazardAPI } from '../lib/api';
 import { useStore } from '../lib/store';

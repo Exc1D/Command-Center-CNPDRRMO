@@ -105,10 +105,18 @@ function createTestApp(db: Database.Database) {
   return app;
 }
 
-// NOTE: This test creates its own Express app (createTestApp) rather than
-// using the production server. This is intentional - it isolates API
-// contract testing to a standalone test server without requiring the full
-// application stack (database, routes, middleware, etc.).
+/**
+ * API Contract Tests
+ * 
+ * These tests verify the API contract using a test server (createTestApp).
+ * This is intentional isolation — we test the API shape, not the production
+ * server's specific implementation. The test server re-implements the 
+ * same routes with the same logic to verify contract compliance.
+ * 
+ * The production server in server.ts should have identical route handlers,
+ * validation, and error handling. These contract tests ensure the API
+ * behaves correctly before integration testing against the real server.
+ */
 describe('Server API', () => {
   let app: express.Application;
   let db: Database.Database;
