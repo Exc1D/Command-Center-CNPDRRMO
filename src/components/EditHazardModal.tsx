@@ -47,10 +47,10 @@ export function EditHazardModal() {
       await HazardAPI.updateHazard(updatedHazard);
       const hazards = await HazardAPI.getAllHazards();
       setHazards(hazards);
+      closeEditModal();
     } finally {
       setIsSaving(false);
     }
-    closeEditModal();
   };
 
   if (!isEditModalOpen || !editModalHazard) return null;

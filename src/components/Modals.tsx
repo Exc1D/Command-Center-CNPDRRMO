@@ -61,10 +61,10 @@ export function DropTagModal() {
       await HazardAPI.addHazard(newHazard);
       const hazards = await HazardAPI.getAllHazards();
       setHazards(hazards);
+      closeDropTagModal();
     } finally {
       setIsSaving(false);
     }
-    closeDropTagModal();
   };
 
   if (!isDropTagModalOpen) return null;
