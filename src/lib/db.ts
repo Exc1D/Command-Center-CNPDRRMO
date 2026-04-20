@@ -5,6 +5,8 @@ export interface Hazard {
   type: string;
   severity: string;
   title?: string;
+  municipality?: string;
+  barangay?: string;
   notes: string;
   geometry: any; // GeoJSON geometry representation
   dateAdded: string;
