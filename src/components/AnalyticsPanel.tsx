@@ -2,8 +2,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { X, BarChart2, Table as TableIcon, List as ListIcon, Search } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
+
+const SEVERITY_COLORS: Record<string, string> = {
+  Minor: '#9ca3af',
+  Moderate: '#fbbf24',
+  Severe: '#f97316',
+  Critical: '#ef4444',
+};
 
 const SEVERITY_OPTIONS = [
   { id: 'Minor', label: 'Minor', bgClass: 'bg-surface-container', textClass: 'text-tertiary' },
@@ -20,12 +27,25 @@ export function AnalyticsPanel() {
 
   if (!isAnalyticsOpen) return null;
 
-  // Compute analytics data safely
-  const analyticsData = DISASTER_TYPES.map(t => ({
-    name: t.label,
-    count: filteredHazards.filter(h => h.type === t.id).length,
-    color: t.color
-  })).filter(d => d.count > 0);
+  const severityData = SEVERITY_OPTIONS.map(s => ({
+    name: s.id,
+    value: filteredHazards.filter(h => h.severity === s.id).length,
+    color: SEVERITY_COLORS[s.id],
+  })).filter(d => d.value > 0);
+
+  const summaryData = (() => {
+    const groups: Record<string, Record<string, number>> = {};
+    for (const h of filteredHazards) {
+      const loc = `${h.municipality || 'Unknown'}, ${h.barangay || 'Unknown'}`;
+      if (!groups[loc]) groups[loc] = {};
+      groups[loc][h.severity] = (groups[loc][h.severity] || 0) + 1;
+    }
+    return Object.entries(groups).map(([location, severities]) => ({
+      location,
+      severities,
+      total: Object.values(severities).reduce((a, b) => a + b, 0),
+    }));
+  })();
 
   return (
     <AnimatePresence>
@@ -72,38 +92,35 @@ export function AnalyticsPanel() {
         <div className="flex-1 overflow-y-auto p-6 bg-surface">
           {activeTab === 'chart' && (
             <div className="h-full flex flex-col">
-              <h3 className="text-sm font-bold text-on-surface mb-6 uppercase tracking-[0.05em]">Disaster Distribution</h3>
-              {analyticsData.length === 0 ? (
+              <h3 className="text-sm font-bold text-on-surface mb-6 uppercase tracking-[0.05em]">Severity Distribution</h3>
+              {severityData.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center text-on-surface/40 text-sm font-medium">No active data points</div>
               ) : (
                 <div className="flex-1 min-h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analyticsData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                      <XAxis 
-                        dataKey="name" 
-                        tick={{ fill: 'var(--color-on-surface)', opacity: 0.6, fontSize: 10, fontWeight: 600 }}
-                        axisLine={{ stroke: 'var(--color-outline-variant)', opacity: 0.3 }}
-                        tickLine={false}
-                        interval={0}
-                        angle={-45}
-                        textAnchor="end"
-                      />
-                      <YAxis 
-                        tick={{ fill: 'var(--color-on-surface)', opacity: 0.6, fontSize: 10, fontWeight: 600 }}
-                        axisLine={false}
-                        tickLine={false}
-                        allowDecimals={false}
-                      />
-                      <Tooltip 
-                        cursor={{ fill: 'var(--color-surface-container-low)' }}
-                        contentStyle={{ backgroundColor: 'var(--color-surface-container-highest)', border: '1px solid var(--color-outline-variant)', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
-                      />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {analyticsData.map((entry, index) => (
+                    <PieChart>
+                      <Pie
+                        data={severityData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        {severityData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
-                      </Bar>
-                    </BarChart>
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--color-surface-container-highest)', border: '1px solid var(--color-outline-variant)', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        height={36}
+                        formatter={(value) => <span style={{ color: 'var(--color-on-surface)', fontSize: '11px', fontWeight: 600 }}>{value}</span>}
+                      />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               )}
@@ -117,24 +134,33 @@ export function AnalyticsPanel() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-surface-container-low border-b border-outline-variant">
                     <tr>
-                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Type</th>
-                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Count</th>
+                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Location</th>
+                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Severity Level</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30">
-                    {DISASTER_TYPES.map(t => {
-                      const count = filteredHazards.filter(h => h.type === t.id).length;
-                      if (count === 0) return null;
-                      return (
-                        <tr key={t.id} className="hover:bg-surface-container-lowest transition-colors">
-                          <td className="p-3 font-semibold text-on-surface flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }}></span>
-                            {t.label}
-                          </td>
-                          <td className="p-3 font-bold text-on-surface/80">{count}</td>
-                        </tr>
-                      );
-                    })}
+                    {summaryData.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-surface-container-lowest transition-colors">
+                        <td className="p-3 font-semibold text-on-surface">{row.location}</td>
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(row.severities).map(([sev, count]) => (
+                              <span
+                                key={sev}
+                                className={`text-[9px] uppercase tracking-[0.05em] font-bold px-2 py-0.5 rounded-sm border ${
+                                  sev === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
+                                  sev === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
+                                  sev === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
+                                  'bg-surface-container text-tertiary border-transparent'
+                                }`}
+                              >
+                                {sev}: {count}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                     {filteredHazards.length === 0 && (
                       <tr>
                         <td colSpan={2} className="p-6 text-center text-on-surface/40 font-medium text-xs">No active data points</td>
