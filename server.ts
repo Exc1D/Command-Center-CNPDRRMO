@@ -18,11 +18,19 @@ db.prepare(`
     id TEXT PRIMARY KEY,
     type TEXT,
     severity TEXT,
+    title TEXT,
     notes TEXT,
     geometry TEXT,
     dateAdded TEXT
   )
 `).run();
+
+// Add title column if it doesn't exist (for existing databases)
+try {
+  db.prepare('ALTER TABLE hazards ADD COLUMN title TEXT').run();
+} catch (e) {
+  // Column already exists, ignore
+}
 
 // API Routes
 app.get("/api/hazards", (req, res) => {
@@ -36,12 +44,12 @@ app.get("/api/hazards", (req, res) => {
 
 app.post("/api/hazards", (req, res) => {
   try {
-    const { id, type, severity, notes, geometry, dateAdded } = req.body;
+    const { id, type, severity, title, notes, geometry, dateAdded } = req.body;
     const stmt = db.prepare(`
-      INSERT INTO hazards (id, type, severity, notes, geometry, dateAdded)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO hazards (id, type, severity, title, notes, geometry, dateAdded)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(id, type, severity, notes, JSON.stringify(geometry), dateAdded);
+    stmt.run(id, type, severity, title || '', notes, JSON.stringify(geometry), dateAdded);
     res.json({ success: true, id });
   } catch (error) {
     res.status(500).json({ error: 'Failed to save hazard' });
@@ -51,8 +59,8 @@ app.post("/api/hazards", (req, res) => {
 app.put("/api/hazards/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const { type, severity, notes, geometry, dateAdded } = req.body;
-    
+    const { type, severity, title, notes, geometry, dateAdded } = req.body;
+
     // Check if hazard exists
     const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id);
     if (!existing) {
@@ -60,18 +68,20 @@ app.put("/api/hazards/:id", (req, res) => {
     }
 
     const stmt = db.prepare(`
-      UPDATE hazards 
-      SET type = COALESCE(?, type), 
-          severity = COALESCE(?, severity), 
-          notes = COALESCE(?, notes), 
+      UPDATE hazards
+      SET type = COALESCE(?, type),
+          severity = COALESCE(?, severity),
+          title = COALESCE(?, title),
+          notes = COALESCE(?, notes),
           geometry = COALESCE(?, geometry),
           dateAdded = COALESCE(?, dateAdded)
       WHERE id = ?
     `);
     stmt.run(
-      type, 
-      severity, 
-      notes, 
+      type,
+      severity,
+      title,
+      notes,
       geometry ? JSON.stringify(geometry) : undefined,
       dateAdded,
       id

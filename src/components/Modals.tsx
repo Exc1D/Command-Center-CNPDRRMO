@@ -138,7 +138,7 @@ export function DropTagModal() {
 }
 
 export function PopUpCard() {
-  const { selectedHazard, setSelectedHazard, openPinModal, isMapAuthorized } = useStore();
+  const { selectedHazard, setSelectedHazard, openPinModal, openEditModal, isMapAuthorized } = useStore();
 
   if (!selectedHazard) return null;
 
@@ -199,9 +199,9 @@ export function PopUpCard() {
 
         {isMapAuthorized && (
           <div className="flex flex-col gap-3">
-            <button 
+            <button
               onClick={() => {
-                alert("Use the Geoman toolbar on the left to drag corners/edit coordinates. Geometry changes will be saved automatically upon completion.");
+                openEditModal(selectedHazard);
               }}
               className="w-full flex items-center justify-center gap-2 bg-transparent hover:bg-surface-container text-tertiary border border-surface-container py-2.5 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors rounded-md"
             >

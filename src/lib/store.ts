@@ -23,6 +23,12 @@ interface AppState {
   pinActionData: any;
   isAnalyticsOpen: boolean;
 
+  // Edit hazard modal
+  isEditModalOpen: boolean;
+  editModalHazard: Hazard | null;
+  openEditModal: (hazard: Hazard) => void;
+  closeEditModal: () => void;
+
   // Actions
   setHazards: (h: Hazard[]) => void;
   toggleFilter: (type: string) => void;
@@ -66,6 +72,11 @@ export const useStore = create<AppState>((set) => ({
   pinActionType: null,
   pinActionData: null,
   isAnalyticsOpen: false,
+
+  isEditModalOpen: false,
+  editModalHazard: null,
+  openEditModal: (hazard) => set({ isEditModalOpen: true, editModalHazard: hazard }),
+  closeEditModal: () => set({ isEditModalOpen: false, editModalHazard: null }),
 
   setHazards: (hazards) => set((state) => ({ 
     hazards, 

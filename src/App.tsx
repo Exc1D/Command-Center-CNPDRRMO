@@ -4,6 +4,7 @@ import { HazardAPI } from "./lib/api";
 import Sidebar from "./components/Sidebar";
 import DangerMap from "./components/Map";
 import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
+import { EditHazardModal } from "./components/EditHazardModal";
 import { AnalyticsPanel } from "./components/AnalyticsPanel";
 import { BarChart2 } from "lucide-react";
 
@@ -109,6 +110,7 @@ export default function App() {
 
       <DropTagModal />
       <PinModal />
+      <EditHazardModal />
     </div>
   );
 }

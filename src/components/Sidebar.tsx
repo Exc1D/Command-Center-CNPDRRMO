@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { cn } from '../lib/utils';
-import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
@@ -35,6 +36,7 @@ export default function Sidebar() {
   const [exporting, setExporting] = useState(false);
   const [selectedMun, setSelectedMun] = useState<string>('ALL');
   const [selectedBrgy, setSelectedBrgy] = useState<string>('ALL');
+  const [incidentLogsOpen, setIncidentLogsOpen] = useState(true);
 
   const handleExportPDF = async () => {
     setExporting(true);
@@ -219,55 +221,76 @@ export default function Sidebar() {
 
         {/* Recent Updates */}
         <section>
-          <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-tertiary" /> Incident Logs
-          </label>
-          <div className="space-y-4">
-            {filteredHazards.slice().sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()).slice(0, 5).map((h, i) => {
-              const typeDef = DISASTER_TYPES.find(t => t.id === h.type);
-              const bgClass = i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface';
-              return (
-                <div 
-                  key={h.id} 
-                  className={cn("p-4 rounded-xl cursor-pointer shadow-ambient transition-transform hover:-translate-y-1 relative overflow-hidden", bgClass)}
-                  onClick={() => {
-                     setSelectedHazard(h); // Open the hazard profile modal
-                     try {
-                       if (h.geometry.type === 'Polygon' && h.geometry.coordinates?.[0]?.[0]) {
-                          const coords = h.geometry.coordinates[0][0]; 
-                          if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                             storeFlyTo([coords[1], coords[0]], 14);
+          <button
+            onClick={() => setIncidentLogsOpen(!incidentLogsOpen)}
+            className="w-full flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3 hover:text-on-surface transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-tertiary" /> Incident Logs
+            </span>
+            <ChevronDown
+              size={14}
+              className={`text-on-surface/50 transition-transform duration-200 ${incidentLogsOpen ? 'rotate-180' : 'rotate-0'}`}
+            />
+          </button>
+          <AnimatePresence>
+            {incidentLogsOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-3">
+                  {filteredHazards.slice().sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()).slice(0, 5).map((h, i) => {
+                    const typeDef = DISASTER_TYPES.find(t => t.id === h.type);
+                    const bgClass = i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface';
+                    return (
+                      <div
+                        key={h.id}
+                        className={cn("p-4 rounded-xl cursor-pointer shadow-ambient transition-transform hover:-translate-y-1 relative overflow-hidden", bgClass)}
+                        onClick={() => {
+                          setSelectedHazard(h);
+                          try {
+                            if (h.geometry.type === 'Polygon' && h.geometry.coordinates?.[0]?.[0]) {
+                               const coords = h.geometry.coordinates[0][0];
+                               if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  storeFlyTo([coords[1], coords[0]], 14);
+                               }
+                            } else if (h.geometry.type === 'Point' && h.geometry.coordinates) {
+                               const coords = h.geometry.coordinates;
+                               if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  storeFlyTo([coords[1], coords[0]], 15);
+                               }
+                            } else if (h.geometry.type === 'LineString' && h.geometry.coordinates?.[0]) {
+                               const coords = h.geometry.coordinates[0];
+                               if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  storeFlyTo([coords[1], coords[0]], 14);
+                               }
+                            }
+                          } catch (e) {
+                            console.error("Invalid geometry for flyTo", e);
                           }
-                       } else if (h.geometry.type === 'Point' && h.geometry.coordinates) {
-                          const coords = h.geometry.coordinates;
-                          if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                             storeFlyTo([coords[1], coords[0]], 15);
-                          }
-                       } else if (h.geometry.type === 'LineString' && h.geometry.coordinates?.[0]) {
-                          const coords = h.geometry.coordinates[0];
-                          if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                             storeFlyTo([coords[1], coords[0]], 14);
-                          }
-                       }
-                     } catch (e) {
-                       console.error("Invalid geometry for flyTo", e);
-                     }
-                  }}
-                >
-                  <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: typeDef?.color || 'var(--color-primary)' }} />
-                  <div className="ml-2">
-                    <p className="text-[10px] text-on-surface/50 font-bold tracking-[0.05em] uppercase mb-1">{format(new Date(h.dateAdded), 'HH:mm - MMM d')}</p>
-                    <p className="text-sm font-display font-bold text-on-surface mb-1 leading-tight">{h.title || 'Untitled Area'}</p>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface/60 mb-1">{typeDef?.label} &middot; {h.severity}</p>
-                    <p className="text-xs text-on-surface/80 truncate">{h.notes || 'Status monitored.'}</p>
-                  </div>
+                        }}
+                      >
+                        <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: typeDef?.color || 'var(--color-primary)' }} />
+                        <div className="ml-2">
+                          <p className="text-[10px] text-on-surface/50 font-bold tracking-[0.05em] uppercase mb-1">{format(new Date(h.dateAdded), 'HH:mm - MMM d')}</p>
+                          <p className="text-sm font-display font-bold text-on-surface mb-1 leading-tight">{h.title || 'Untitled Area'}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface/60 mb-1">{typeDef?.label} &middot; {h.severity}</p>
+                          <p className="text-xs text-on-surface/80 truncate">{h.notes || 'Status monitored.'}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {filteredHazards.length === 0 && (
+                    <p className="text-[11px] text-on-surface/40 tracking-[0.05em] font-bold uppercase text-center py-6 bg-surface-container-lowest rounded-xl shadow-ambient">No Active Incidents</p>
+                  )}
                 </div>
-              )
-            })}
-            {filteredHazards.length === 0 && (
-              <p className="text-[11px] text-on-surface/40 tracking-[0.05em] font-bold uppercase text-center py-6 bg-surface-container-lowest rounded-xl shadow-ambient">No Active Incidents</p>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </section>
       </div>
 
