@@ -74,6 +74,28 @@ function createTestApp(db: Database.Database) {
         return res.status(404).json({ error: 'Hazard not found' });
       }
 
+      const { type, severity, title, municipality, barangay, notes, geometry } = req.body;
+      const stmt = db.prepare(`
+        UPDATE hazards SET
+          type = COALESCE(?, type),
+          severity = COALESCE(?, severity),
+          title = COALESCE(?, title),
+          municipality = COALESCE(?, municipality),
+          barangay = COALESCE(?, barangay),
+          notes = COALESCE(?, notes),
+          geometry = COALESCE(?, geometry)
+        WHERE id = ?
+      `);
+      stmt.run(
+        type || null,
+        severity || null,
+        title || null,
+        municipality || null,
+        barangay || null,
+        notes || null,
+        geometry ? JSON.stringify(geometry) : null,
+        id
+      );
       res.json({ success: true, id });
     } catch (error) {
       const errorId = generateErrorId();

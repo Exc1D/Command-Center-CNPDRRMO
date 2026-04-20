@@ -49,7 +49,11 @@ describe('Map - HazardAPI integration for pm:remove and pm:edit handlers', () =>
   });
 
   describe('pm:remove handler integration (HazardAPI.deleteHazard)', () => {
-    it('deleteHazard is called with correct hazardId', async () => {
+    it('HazardAPI.deleteHazard is called with correct hazardId (mock integration check)', async () => {
+      // NOTE: This test verifies the mock is correctly set up. It does NOT test the
+      // actual pm:remove handler from Map.tsx because rendering the Map component
+      // requires Leaflet/React-Leaflet which is not available in JSDOM.
+      // The pm:remove handler pattern is tested in the tests below.
       const hazardId = 'test-uuid';
 
       await HazardAPI.deleteHazard(hazardId);
