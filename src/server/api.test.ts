@@ -105,6 +105,10 @@ function createTestApp(db: Database.Database) {
   return app;
 }
 
+// NOTE: This test creates its own Express app (createTestApp) rather than
+// using the production server. This is intentional - it isolates API
+// contract testing to a standalone test server without requiring the full
+// application stack (database, routes, middleware, etc.).
 describe('Server API', () => {
   let app: express.Application;
   let db: Database.Database;

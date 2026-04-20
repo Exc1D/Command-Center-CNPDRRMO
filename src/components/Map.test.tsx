@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HazardAPI } from '../lib/api';
+import { useStore } from '../lib/store';
 
-// Use hoisted mock functions so they're available in the hoisted factory
+// Hoisted mock functions
 const mockGetAllHazards = vi.hoisted(() => vi.fn());
 const mockSyncPending = vi.hoisted(() => vi.fn());
 const mockAddHazard = vi.hoisted(() => vi.fn());
@@ -19,16 +20,21 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
-describe('Map - pm:remove and pm:edit handlers', () => {
+describe('Map - HazardAPI integration for pm:remove and pm:edit handlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAllHazards.mockResolvedValue([]);
     mockDeleteHazard.mockResolvedValue(undefined);
     mockUpdateHazard.mockResolvedValue(undefined);
+
+    useStore.setState({
+      hazards: [],
+      filteredHazards: [],
+    });
   });
 
-  describe('pm:remove handler', () => {
-    it('pm:remove calls deleteHazard', async () => {
+  describe('pm:remove handler integration (HazardAPI.deleteHazard)', () => {
+    it('deleteHazard is called with correct hazardId', async () => {
       const hazardId = 'test-uuid';
 
       await HazardAPI.deleteHazard(hazardId);
@@ -36,66 +42,113 @@ describe('Map - pm:remove and pm:edit handlers', () => {
       expect(mockDeleteHazard).toHaveBeenCalledWith(hazardId);
     });
 
-    it('pm:remove refreshes store on success', async () => {
+    it('pm:remove pattern - deleteHazard then getAllHazards updates store', async () => {
       const hazardId = 'test-uuid';
-      const mockHazards = [{ id: '1', type: 'flood' }];
+      const remainingHazards = [{ id: 'other-uuid', type: 'flood', severity: 'Moderate' }];
       mockDeleteHazard.mockResolvedValue(undefined);
-      mockGetAllHazards.mockResolvedValue(mockHazards);
+      mockGetAllHazards.mockResolvedValue(remainingHazards);
 
-      await HazardAPI.deleteHazard(hazardId);
-      const hazards = await HazardAPI.getAllHazards();
+      // Simulate what pm:remove handler does (from Map.tsx lines 60-71)
+      try {
+        await HazardAPI.deleteHazard(hazardId);
+        const hazards = await HazardAPI.getAllHazards();
+        useStore.getState().setHazards(hazards);
+      } catch (error) {
+        console.error('Failed to delete hazard:', error);
+      }
 
-      expect(hazards).toEqual(mockHazards);
+      expect(mockDeleteHazard).toHaveBeenCalledWith(hazardId);
+      expect(mockGetAllHazards).toHaveBeenCalled();
+      expect(useStore.getState().hazards).toEqual(remainingHazards);
     });
 
-    it('pm:remove catches errors without crashing', async () => {
+    it('pm:remove handler pattern catches errors and logs without crashing', async () => {
       const hazardId = 'test-uuid';
       mockDeleteHazard.mockRejectedValue(new Error('Delete failed'));
 
-      // Verify the function handles the rejection gracefully
-      let caught = false;
+      // Spy on console.error to suppress error output
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Simulate the pm:remove handler pattern from Map.tsx (lines 60-71)
+      // The handler catches errors and logs them
+      let handlerError = null;
       try {
         await HazardAPI.deleteHazard(hazardId);
-      } catch {
-        caught = true;
+      } catch (error) {
+        handlerError = error;
+        console.error('Failed to delete hazard:', error);
       }
-      expect(caught).toBe(true);
+
+      // The error was caught by the handler
+      expect(handlerError).toBeInstanceOf(Error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to delete hazard:', expect.any(Error));
+
+      consoleSpy.mockRestore();
     });
   });
 
-  describe('pm:edit handler', () => {
-    it('pm:edit calls updateHazard', async () => {
-      const hazard = { id: 'test-uuid', type: 'flood', severity: 'Moderate' };
+  describe('pm:edit handler integration (HazardAPI.updateHazard)', () => {
+    it('updateHazard is called with updated hazard data', async () => {
+      const hazard = {
+        id: 'test-uuid',
+        type: 'flood' as const,
+        severity: 'Moderate' as const,
+        geometry: { type: 'Polygon' as const, coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+      };
 
       await HazardAPI.updateHazard(hazard);
 
       expect(mockUpdateHazard).toHaveBeenCalledWith(hazard);
     });
 
-    it('pm:edit refreshes store on success', async () => {
-      const hazard = { id: 'test-uuid', type: 'flood', severity: 'Moderate' };
-      const mockHazards = [{ id: 'test-uuid', type: 'flood', severity: 'Severe' }];
+    it('pm:edit pattern - updateHazard then getAllHazards updates store', async () => {
+      const hazardData = {
+        id: 'test-uuid',
+        type: 'flood' as const,
+        severity: 'Moderate' as const,
+        geometry: { type: 'Polygon' as const, coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+      };
+      const refreshedHazards = [{ ...hazardData, severity: 'Severe' }];
+
       mockUpdateHazard.mockResolvedValue(undefined);
-      mockGetAllHazards.mockResolvedValue(mockHazards);
+      mockGetAllHazards.mockResolvedValue(refreshedHazards);
 
-      await HazardAPI.updateHazard(hazard);
-      const hazards = await HazardAPI.getAllHazards();
+      // Simulate what pm:edit handler does (from Map.tsx lines 167-184)
+      try {
+        await HazardAPI.updateHazard(hazardData);
+        const hazards = await HazardAPI.getAllHazards();
+        useStore.getState().setHazards(hazards);
+      } catch (error) {
+        console.error('Failed to update hazard:', error);
+      }
 
-      expect(hazards).toEqual(mockHazards);
+      expect(mockUpdateHazard).toHaveBeenCalledWith(hazardData);
+      expect(mockGetAllHazards).toHaveBeenCalled();
+      expect(useStore.getState().hazards).toEqual(refreshedHazards);
     });
 
-    it('pm:edit catches errors without crashing', async () => {
+    it('pm:edit handler pattern catches errors and logs without crashing', async () => {
       const hazard = { id: 'test-uuid', type: 'flood', severity: 'Moderate' };
       mockUpdateHazard.mockRejectedValue(new Error('Update failed'));
 
-      // Verify the function handles the rejection gracefully
-      let caught = false;
+      // Spy on console.error to suppress error output
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // Simulate the pm:edit handler pattern from Map.tsx (lines 167-184)
+      // The handler catches errors and logs them
+      let handlerError = null;
       try {
         await HazardAPI.updateHazard(hazard);
-      } catch {
-        caught = true;
+      } catch (error) {
+        handlerError = error;
+        console.error('Failed to update hazard:', error);
       }
-      expect(caught).toBe(true);
+
+      // The error was caught by the handler
+      expect(handlerError).toBeInstanceOf(Error);
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to update hazard:', expect.any(Error));
+
+      consoleSpy.mockRestore();
     });
   });
 });

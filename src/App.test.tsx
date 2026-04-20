@@ -1,7 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import App from './App';
 import { HazardAPI } from './lib/api';
+import { useStore } from './lib/store';
 
-// Use hoisted mock functions so they're available in the hoisted factory
+// Hoisted mock functions - must be declared before vi.mock()
 const mockGetAllHazards = vi.hoisted(() => vi.fn());
 const mockSyncPending = vi.hoisted(() => vi.fn());
 const mockAddHazard = vi.hoisted(() => vi.fn());
@@ -19,76 +23,138 @@ vi.mock('./lib/api', () => ({
   },
 }));
 
+// Mock framer-motion
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  },
+  AnimatePresence: ({ children }: any) => children,
+}));
+
+// Mock lucide-react with all icons used in App and child components
+vi.mock('lucide-react', async () => {
+  const actual = await import('lucide-react');
+  return {
+    ...actual,
+    BarChart2: () => <span data-testid="icon-bar-chart">BarChart2</span>,
+    X: () => <span data-testid="icon-x">X</span>,
+    Table: () => <span data-testid="icon-table">Table</span>,
+    Trash2: () => <span data-testid="icon-trash">Trash2</span>,
+    Edit3: () => <span data-testid="icon-edit">Edit3</span>,
+    AlertTriangle: () => <span data-testid="icon-alert">AlertTriangle</span>,
+    ShieldAlert: () => <span data-testid="icon-shield">ShieldAlert</span>,
+  };
+});
+
+// Mock Map component (requires leaflet which is hard to test)
+vi.mock('./components/Map', () => ({
+  default: () => <div data-testid="danger-map">Map</div>,
+}));
+
+// Mock Sidebar
+vi.mock('./components/Sidebar', () => ({
+  default: () => <div data-testid="sidebar">Sidebar</div>,
+}));
+
+// Mock ErrorBoundary
+vi.mock('./components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: any) => children,
+}));
+
+// Mock AnalyticsPanel
+vi.mock('./components/AnalyticsPanel', () => ({
+  AnalyticsPanel: () => <div data-testid="analytics-panel">AnalyticsPanel</div>,
+}));
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetAllHazards.mockResolvedValue([]);
     mockSyncPending.mockResolvedValue(undefined);
+
+    // Reset store to default state
+    useStore.setState({
+      hazards: [],
+      filteredHazards: [],
+      isAnalyticsOpen: false,
+      syncState: { isSyncing: false, lastSyncError: null },
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   describe('fetchHazards on mount', () => {
-    it('fetchHazards is called on mount and sets hazards', async () => {
+    it('getAllHazards is called via spy on component mount', async () => {
       const hazards = [{ id: '1', type: 'flood', severity: 'Moderate' }];
       mockGetAllHazards.mockResolvedValue(hazards);
 
-      const result = await HazardAPI.getAllHazards();
+      // Spy on the API method
+      const spy = vi.spyOn(HazardAPI, 'getAllHazards');
 
-      expect(mockGetAllHazards).toHaveBeenCalled();
-      expect(result).toEqual(hazards);
-    });
-  });
+      render(<App />);
 
-  describe('handleOnline', () => {
-    it('handleOnline catches syncPending errors without crashing', async () => {
-      mockSyncPending.mockRejectedValue(new Error('Sync failed'));
-
-      // Verify the function handles the rejection gracefully
-      let caught = false;
-      try {
-        await HazardAPI.syncPending();
-      } catch {
-        caught = true;
-      }
-      expect(caught).toBe(true);
+      await waitFor(() => {
+        expect(spy).toHaveBeenCalled();
+      });
     });
 
-    it('handleOnline refreshes hazards after successful sync', async () => {
+    it('renders App header when fetchHazards succeeds', async () => {
       const hazards = [{ id: '1', type: 'flood', severity: 'Moderate' }];
-      mockSyncPending.mockResolvedValue(undefined);
       mockGetAllHazards.mockResolvedValue(hazards);
 
-      await HazardAPI.syncPending();
-      const result = await HazardAPI.getAllHazards();
+      render(<App />);
 
-      expect(mockSyncPending).toHaveBeenCalled();
-      expect(mockGetAllHazards).toHaveBeenCalled();
-      expect(result).toEqual(hazards);
+      // Verify the header is rendered
+      expect(screen.getByText('COMMAND CENTER')).toBeInTheDocument();
+    });
+
+    it('renders App when fetchHazards fails (error is caught internally)', async () => {
+      mockGetAllHazards.mockRejectedValue(new Error('Network error'));
+
+      // Suppress console.error for this test
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      render(<App />);
+
+      // App should still render (error is caught internally)
+      await waitFor(() => {
+        expect(screen.getByText('COMMAND CENTER')).toBeInTheDocument();
+      });
+
+      consoleSpy.mockRestore();
     });
   });
 
-  describe('event listeners', () => {
-    it('online event listener is registered and cleaned up', () => {
+  describe('online event listener', () => {
+    it('online event listener is registered on mount', async () => {
+      mockGetAllHazards.mockResolvedValue([]);
+
       const addSpy = vi.spyOn(window, 'addEventListener');
-      const removeSpy = vi.spyOn(window, 'removeEventListener');
 
-      const handleOnline = vi.fn();
-      window.addEventListener('online', handleOnline);
-      window.removeEventListener('online', handleOnline);
+      render(<App />);
 
-      expect(addSpy).toHaveBeenCalledWith('online', handleOnline);
-      expect(removeSpy).toHaveBeenCalledWith('online', handleOnline);
+      await waitFor(() => {
+        // Check that 'online' listener was registered (not 'offline')
+        expect(addSpy).toHaveBeenCalledWith('online', expect.any(Function));
+      });
     });
+  });
 
-    it('offline event listener is registered and cleaned up', () => {
-      const addSpy = vi.spyOn(window, 'addEventListener');
-      const removeSpy = vi.spyOn(window, 'removeEventListener');
+  describe('Analytics toggle', () => {
+    it('analytics button exists and toggles state', async () => {
+      mockGetAllHazards.mockResolvedValue([]);
 
-      const handleOffline = vi.fn();
-      window.addEventListener('offline', handleOffline);
-      window.removeEventListener('offline', handleOffline);
+      render(<App />);
 
-      expect(addSpy).toHaveBeenCalledWith('offline', handleOffline);
-      expect(removeSpy).toHaveBeenCalledWith('offline', handleOffline);
+      const analyticsButton = screen.getByRole('button', { name: /view analytics/i });
+      expect(analyticsButton).toBeInTheDocument();
+
+      await userEvent.click(analyticsButton);
+
+      const state = useStore.getState();
+      expect(state.isAnalyticsOpen).toBe(true);
     });
   });
 });
