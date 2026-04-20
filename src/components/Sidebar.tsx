@@ -25,9 +25,9 @@ const MUNICIPALITIES = Object.keys(barangaysData).map(key => {
 });
 
 export default function Sidebar() {
-  const { 
-    baseMap, setBaseMap, 
-    activeFilters, toggleFilter, 
+  const {
+    baseMap, setBaseMap,
+    activeFilters, toggleFilter,
     flyTo, filteredHazards, flyTo: storeFlyTo,
     isMapAuthorized, setMapAuthorized,
     openPinModal, setSelectedHazard

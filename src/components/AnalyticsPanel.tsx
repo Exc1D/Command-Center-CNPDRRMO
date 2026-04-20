@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
-import { X, BarChart2, Table as TableIcon, List as ListIcon } from 'lucide-react';
+import { X, BarChart2, Table as TableIcon, List as ListIcon, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { format } from 'date-fns';
 
+const SEVERITY_OPTIONS = [
+  { id: 'Minor', label: 'Minor', bgClass: 'bg-surface-container', textClass: 'text-tertiary' },
+  { id: 'Moderate', label: 'Moderate', bgClass: 'bg-[#fef3c7]', textClass: 'text-[#ca8a04]' },
+  { id: 'Severe', label: 'Severe', bgClass: 'bg-[#ffe4cc]', textClass: 'text-[#ea580c]' },
+  { id: 'Critical', label: 'Critical', bgClass: 'bg-error-container', textClass: 'text-[var(--color-primary-container)]' },
+];
+
 export function AnalyticsPanel() {
-  const { isAnalyticsOpen, setAnalyticsOpen, filteredHazards } = useStore();
+  const { isAnalyticsOpen, setAnalyticsOpen, filteredHazards, flyTo, setSelectedHazard } = useStore();
   const [activeTab, setActiveTab] = useState<'chart' | 'table' | 'list'>('chart');
+  const [activeSeverities, setActiveSeverities] = useState<string[]>(['Minor', 'Moderate', 'Severe', 'Critical']);
+  const [searchQuery, setSearchQuery] = useState('');
 
   if (!isAnalyticsOpen) return null;
 
@@ -140,40 +149,106 @@ export function AnalyticsPanel() {
           {activeTab === 'list' && (
             <div className="h-full flex flex-col">
               <h3 className="text-sm font-bold text-on-surface mb-4 uppercase tracking-[0.05em]">Raw Feed</h3>
-              <div className="space-y-3">
+
+              <div className="mb-4 space-y-3">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/40" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search incidents..."
+                    className="w-full bg-surface-container-lowest border border-outline-variant pl-9 pr-3 py-2 text-sm rounded-lg text-on-surface placeholder:text-on-surface/40 focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {SEVERITY_OPTIONS.map(s => {
+                    const isActive = activeSeverities.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          setActiveSeverities(prev =>
+                            isActive ? prev.filter(x => x !== s.id) : [...prev, s.id]
+                          );
+                        }}
+                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.05em] rounded-sm border transition-all ${isActive ? `${s.bgClass} ${s.textClass} border-current` : 'bg-surface-container-lowest border-outline-variant text-on-surface/50 hover:bg-surface-container'}`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {filteredHazards.length === 0 ? (
                   <div className="p-6 text-center text-on-surface/40 font-medium text-xs bg-surface-container-lowest rounded-xl border border-outline-variant">No incidents reported</div>
                 ) : (
-                  filteredHazards.map(h => {
-                    const tDef = DISASTER_TYPES.find(t => t.id === h.type);
-                    return (
-                      <div key={h.id} className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/50 hover:border-outline-variant transition-colors group">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: tDef?.color }}></span>
-                            <span className="text-[10px] uppercase font-bold text-on-surface/60 tracking-[0.05em]">{tDef?.label}</span>
+                  filteredHazards
+                    .filter(h => activeSeverities.includes(h.severity))
+                    .filter(h => {
+                      if (!searchQuery.trim()) return true;
+                      const q = searchQuery.toLowerCase();
+                      return (h.title || '').toLowerCase().includes(q) || (h.notes || '').toLowerCase().includes(q);
+                    })
+                    .map(h => {
+                      const tDef = DISASTER_TYPES.find(t => t.id === h.type);
+                      return (
+                        <div
+                          key={h.id}
+                          onClick={() => {
+                            setSelectedHazard(h);
+                            try {
+                              if (h.geometry.type === 'Polygon' && h.geometry.coordinates?.[0]?.[0]) {
+                                const coords = h.geometry.coordinates[0][0];
+                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  flyTo([coords[1], coords[0]], 14);
+                                }
+                              } else if (h.geometry.type === 'Point' && h.geometry.coordinates) {
+                                const coords = h.geometry.coordinates;
+                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  flyTo([coords[1], coords[0]], 15);
+                                }
+                              } else if (h.geometry.type === 'LineString' && h.geometry.coordinates?.[0]) {
+                                const coords = h.geometry.coordinates[0];
+                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
+                                  flyTo([coords[1], coords[0]], 14);
+                                }
+                              }
+                            } catch (e) {
+                              console.error("Invalid geometry for flyTo", e);
+                            }
+                          }}
+                          className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/50 hover:border-outline-variant transition-colors group cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: tDef?.color }}></span>
+                              <span className="text-[10px] uppercase font-bold text-on-surface/60 tracking-[0.05em]">{tDef?.label}</span>
+                            </div>
+                            <span className={`text-[9px] uppercase tracking-[0.05em] font-bold px-2 py-0.5 rounded-sm border ${
+                              h.severity === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
+                              h.severity === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
+                              h.severity === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
+                              'bg-surface-container text-tertiary border-transparent'
+                            }`}>
+                              {h.severity}
+                            </span>
                           </div>
-                          <span className={`text-[9px] uppercase tracking-[0.05em] font-bold px-2 py-0.5 rounded-sm border ${
-                            h.severity === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
-                            h.severity === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
-                            h.severity === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
-                            'bg-surface-container text-tertiary border-transparent'
-                          }`}>
-                            {h.severity}
-                          </span>
+                          <h4 className="text-sm font-bold text-on-surface mb-2 leading-tight">{h.title || 'Untitled Incident'}</h4>
+                          {h.notes && (
+                            <p className="text-xs text-on-surface/70 leading-relaxed line-clamp-2 bg-surface-container-low p-2 rounded-sm mb-3">
+                              {h.notes}
+                            </p>
+                          )}
+                          <div className="text-[9px] uppercase font-bold text-on-surface/40 tracking-[0.05em]">
+                            Logged: {format(new Date(h.dateAdded), 'MM/dd/yyyy HH:mm')}
+                          </div>
                         </div>
-                        <h4 className="text-sm font-bold text-on-surface mb-2 leading-tight">{h.title || 'Untitled Incident'}</h4>
-                        {h.notes && (
-                          <p className="text-xs text-on-surface/70 leading-relaxed line-clamp-2 bg-surface-container-low p-2 rounded-sm mb-3">
-                            {h.notes}
-                          </p>
-                        )}
-                        <div className="text-[9px] uppercase font-bold text-on-surface/40 tracking-[0.05em]">
-                          Logged: {format(new Date(h.dateAdded), 'MM/dd/yyyy HH:mm')}
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 )}
               </div>
             </div>
