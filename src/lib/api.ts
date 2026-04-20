@@ -21,6 +21,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Failed to fetch from server, falling back to local DB.", e);
+      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
     }
     
     // Offline fallback
@@ -37,6 +38,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
+      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
       await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
     }
   },
@@ -51,6 +53,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, saving locally.", e);
+      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
       await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
     }
   },
@@ -68,6 +71,7 @@ export const HazardAPI = {
       }
     } catch (e) {
       console.warn("Server unavailable, marking for deletion locally.", e);
+      useStore.getState().setSyncError('Operating offline — data may not reflect recent changes');
       const existing = await db.hazards.get(id);
       if (existing) {
         await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });

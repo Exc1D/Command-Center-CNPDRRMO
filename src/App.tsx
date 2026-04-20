@@ -29,17 +29,24 @@ export default function App() {
   useEffect(() => {
     // Initial fetch
     const fetchHazards = async () => {
-      const hazards = await HazardAPI.getAllHazards();
-      setHazards(hazards);
+      try {
+        const hazards = await HazardAPI.getAllHazards();
+        setHazards(hazards);
+      } catch (error) {
+        console.error('Failed to load initial hazards:', error);
+      }
     };
     fetchHazards();
 
     // Setup network listeners for offline sync
-    const handleOnline = () => {
-      HazardAPI.syncPending().then(async () => {
+    const handleOnline = async () => {
+      try {
+        await HazardAPI.syncPending();
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
-      });
+      } catch (error) {
+        console.error('Sync failed after coming online:', error);
+      }
     };
 
     window.addEventListener("online", handleOnline);

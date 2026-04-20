@@ -59,9 +59,13 @@ function GeomanSetup() {
     map.on('pm:remove', async (e) => {
       const hazardId = (e.layer as any).hazardId;
       if (hazardId) {
-        await HazardAPI.deleteHazard(hazardId);
-        const hazards = await HazardAPI.getAllHazards();
-        useStore.getState().setHazards(hazards);
+        try {
+          await HazardAPI.deleteHazard(hazardId);
+          const hazards = await HazardAPI.getAllHazards();
+          useStore.getState().setHazards(hazards);
+        } catch (error) {
+          console.error('Failed to delete hazard:', error);
+        }
       }
     });
 
@@ -169,9 +173,13 @@ export default function DangerMap() {
         geometry: newGeom,
       };
       
-      await HazardAPI.updateHazard(updatedHazard);
-      const hazards = await HazardAPI.getAllHazards();
-      useStore.getState().setHazards(hazards);
+      try {
+        await HazardAPI.updateHazard(updatedHazard);
+        const hazards = await HazardAPI.getAllHazards();
+        useStore.getState().setHazards(hazards);
+      } catch (error) {
+        console.error('Failed to update hazard:', error);
+      }
     });
   };
 
