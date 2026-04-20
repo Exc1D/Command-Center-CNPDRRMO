@@ -31,23 +31,25 @@ export function EditHazardModal() {
     if (!editModalHazard) return;
     setIsSaving(true);
 
-    const updatedHazard = {
-      id: editModalHazard.id,
-      type,
-      severity,
-      title: title.trim() || editModalHazard.title || 'Untitled Zone',
-      municipality,
-      barangay,
-      notes,
-      geometry: editModalHazard.geometry,
-      dateAdded: editModalHazard.dateAdded,
-    };
+    try {
+      const updatedHazard = {
+        id: editModalHazard.id,
+        type,
+        severity,
+        title: title.trim() || editModalHazard.title || 'Untitled Zone',
+        municipality,
+        barangay,
+        notes,
+        geometry: editModalHazard.geometry,
+        dateAdded: editModalHazard.dateAdded,
+      };
 
-    await HazardAPI.updateHazard(updatedHazard);
-    const hazards = await HazardAPI.getAllHazards();
-    setHazards(hazards);
-
-    setIsSaving(false);
+      await HazardAPI.updateHazard(updatedHazard);
+      const hazards = await HazardAPI.getAllHazards();
+      setHazards(hazards);
+    } finally {
+      setIsSaving(false);
+    }
     closeEditModal();
   };
 

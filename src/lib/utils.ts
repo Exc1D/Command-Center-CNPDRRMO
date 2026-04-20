@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { MAP_CONFIG } from './constants';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -78,6 +79,7 @@ export function getCentroid(geometry: any): { lat: number; lng: number } | null 
 export async function loadBarangayGeoJSON(): Promise<BarangayGeoJSON> {
   if (barangayCache) return barangayCache;
   const response = await fetch('/baranggays.geojson');
+  if (!response.ok) throw new Error(`Failed to load barangay data: ${response.status}`);
   barangayCache = await response.json();
   return barangayCache;
 }
@@ -102,7 +104,7 @@ export async function detectLocationFromGeometry(
     const bLng = bCoords[0];
     const dist = haversineDistance(centroid.lat, centroid.lng, bLat, bLng);
 
-    if (dist < 0.5) {
+    if (dist < MAP_CONFIG.DETECTION_THRESHOLD_KM) {
       detectedBarangays.push({
         name: feature.properties.name,
         municipality: feature.properties.municipality,

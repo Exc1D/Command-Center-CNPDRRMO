@@ -5,6 +5,7 @@ import '@geoman-io/leaflet-geoman-free';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { HazardAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import { MAP_CONFIG } from '../lib/constants';
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -186,8 +187,8 @@ export default function DangerMap() {
   return (
     <div className="w-full h-full relative z-0 bg-surface">
       <MapContainer 
-        center={[14.1167, 122.9500]} 
-        zoom={10} 
+        center={MAP_CONFIG.PROVINCE_CENTER}
+        zoom={MAP_CONFIG.DEFAULT_ZOOM} 
         style={{ height: "100%", width: "100%", background: 'transparent' }}
         zoomControl={false}
       >

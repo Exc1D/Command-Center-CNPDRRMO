@@ -1,0 +1,7 @@
+export const MAP_CONFIG = {
+  PROVINCE_CENTER: [14.1167, 122.9500] as [number, number],
+  DEFAULT_ZOOM: 10,
+  BARANGAY_ZOOM: 15,
+  MUNICIPALITY_ZOOM: 13,
+  DETECTION_THRESHOLD_KM: 0.5,
+} as const;

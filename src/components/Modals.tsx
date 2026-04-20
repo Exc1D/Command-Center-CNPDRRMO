@@ -45,23 +45,25 @@ export function DropTagModal() {
   const handleSave = async () => {
     if (!municipality || !barangay) return;
     setIsSaving(true);
-    const newHazard = {
-      id: uuidv4(),
-      type,
-      severity,
-      title: title.trim() || 'Untitled Zone',
-      municipality,
-      barangay,
-      notes,
-      geometry: dropTagTempGeometry,
-      dateAdded: new Date().toISOString()
-    };
+    try {
+      const newHazard = {
+        id: uuidv4(),
+        type,
+        severity,
+        title: title.trim() || 'Untitled Zone',
+        municipality,
+        barangay,
+        notes,
+        geometry: dropTagTempGeometry,
+        dateAdded: new Date().toISOString()
+      };
 
-    await HazardAPI.addHazard(newHazard);
-    const hazards = await HazardAPI.getAllHazards();
-    setHazards(hazards);
-
-    setIsSaving(false);
+      await HazardAPI.addHazard(newHazard);
+      const hazards = await HazardAPI.getAllHazards();
+      setHazards(hazards);
+    } finally {
+      setIsSaving(false);
+    }
     closeDropTagModal();
   };
 

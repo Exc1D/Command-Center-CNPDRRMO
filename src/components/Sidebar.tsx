@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { cn } from '../lib/utils';
+import { MAP_CONFIG } from '../lib/constants';
 import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -121,10 +122,10 @@ export default function Sidebar() {
                   setSelectedMun(val);
                   setSelectedBrgy('ALL');
                   if (val === 'ALL') {
-                    flyTo([14.1167, 122.9500], 10);
+                    flyTo(MAP_CONFIG.PROVINCE_CENTER, MAP_CONFIG.DEFAULT_ZOOM);
                   } else {
                     const loc = MUNICIPALITIES.find(m => m.name === val);
-                    if (loc) flyTo(loc.center, loc.zoom);
+                    if (loc) flyTo(loc.center, MAP_CONFIG.MUNICIPALITY_ZOOM);
                   }
                 }}
               >
@@ -153,7 +154,7 @@ export default function Sidebar() {
                       } else {
                         const brgy = mun.barangaysFull?.find((b: any) => b.name === val);
                         if (brgy) {
-                          flyTo([brgy.lat, brgy.lng], 15);
+                          flyTo([brgy.lat, brgy.lng], MAP_CONFIG.BARANGAY_ZOOM);
                         }
                       }
                     }
