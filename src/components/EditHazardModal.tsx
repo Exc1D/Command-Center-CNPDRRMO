@@ -10,6 +10,8 @@ export function EditHazardModal() {
   const [type, setType] = useState('flood');
   const [severity, setSeverity] = useState('Moderate');
   const [title, setTitle] = useState('');
+  const [municipality, setMunicipality] = useState('');
+  const [barangay, setBarangay] = useState('');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -18,6 +20,8 @@ export function EditHazardModal() {
       setType(editModalHazard.type || 'flood');
       setSeverity(editModalHazard.severity || 'Moderate');
       setTitle(editModalHazard.title || '');
+      setMunicipality(editModalHazard.municipality || '');
+      setBarangay(editModalHazard.barangay || '');
       setNotes(editModalHazard.notes || '');
       setMapAuthorized(true);
     }
@@ -32,6 +36,8 @@ export function EditHazardModal() {
       type,
       severity,
       title: title.trim() || editModalHazard.title || 'Untitled Zone',
+      municipality,
+      barangay,
       notes,
       geometry: editModalHazard.geometry,
       dateAdded: editModalHazard.dateAdded,
@@ -79,6 +85,29 @@ export function EditHazardModal() {
               placeholder="e.g. Brgy. Bagasbas Coastline"
               className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Municipality</label>
+              <input
+                type="text"
+                value={municipality}
+                onChange={(e) => setMunicipality(e.target.value)}
+                placeholder="Municipality"
+                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Barangay</label>
+              <input
+                type="text"
+                value={barangay}
+                onChange={(e) => setBarangay(e.target.value)}
+                placeholder="Barangay"
+                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
+              />
+            </div>
           </div>
 
           <div>
