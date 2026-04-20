@@ -121,6 +121,7 @@ describe('detectLocationFromGeometry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => MOCK_BARANGAY_GEOJSON,
     }) as any;
   });
