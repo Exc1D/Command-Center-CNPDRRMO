@@ -2,7 +2,31 @@
 
 **Camarines Norte Provincial Disaster Risk Reduction & Management Office**
 
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#license)
+
 A real-time hazard tracking and management system for the Province of Camarines Norte, Philippines. Enables field operatives to report, monitor, and analyze disaster events with offline-first capability.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [Deployment](#deployment)
+- [API Reference](#api-endpoints)
+- [Sync Mechanism](#sync-mechanism)
+- [Hazard Types](#hazard-types)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+---
 
 ## Features
 
@@ -14,6 +38,8 @@ A real-time hazard tracking and management system for the Province of Camarines 
 - **PDF Report Export** — Generate mission-ready PDF reports with map snapshots via html2canvas + jsPDF
 - **PIN-Protected Operations** — Map editing requires authorization to prevent unauthorized modifications
 - **Real-Time Sync Status** — Visual indicator of sync state between local database and server
+
+---
 
 ## Tech Stack
 
@@ -32,6 +58,26 @@ A real-time hazard tracking and management system for the Province of Camarines 
 **Backend**
 - Express.js
 - better-sqlite3 (SQLite)
+
+---
+
+## Quick Start
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Command-Center-CNPDRRMO
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+App opens at `http://localhost:5173` with server on port `3001`.
+
+---
 
 ## Getting Started
 
@@ -68,31 +114,181 @@ npm start
 
 Runs the built Express server from `dist/server.cjs`.
 
+---
+
 ## Project Structure
 
 ```
-src/
-├── App.tsx              # Root component with layout
-├── main.tsx             # Entry point
-├── index.css            # Global styles + Tailwind
-├── components/
-│   ├── Sidebar.tsx      # Navigation, filters, incident logs
-│   ├── Map.tsx          # Leaflet map with hazard layers
-│   ├── Modals.tsx       # DropTag, Pin, PopUp modals
-│   ├── EditHazardModal.tsx
-│   └── AnalyticsPanel.tsx
-└── lib/
-    ├── db.ts            # Dexie IndexedDB schema
-    ├── api.ts           # Online/offline API wrapper
-    ├── store.ts         # Zustand state + disaster types
-    ├── utils.ts         # Utility functions
-    └── barangays.json   # All 287 barangays with coordinates
+Command-Center-CNPDRRMO/
+├── src/
+│   ├── App.tsx              # Root component with layout
+│   ├── main.tsx             # Entry point
+│   ├── index.css             # Global styles + Tailwind
+│   ├── components/
+│   │   ├── Sidebar.tsx       # Navigation, filters, incident logs
+│   │   ├── Map.tsx           # Leaflet map with hazard layers
+│   │   ├── Modals.tsx        # DropTag, Pin, PopUp modals
+│   │   ├── EditHazardModal.tsx
+│   │   └── AnalyticsPanel.tsx
+│   └── lib/
+│       ├── db.ts             # Dexie IndexedDB schema
+│       ├── api.ts            # Online/offline API wrapper
+│       ├── store.ts          # Zustand state + disaster types
+│       ├── utils.ts          # Utility functions
+│       └── barangays.json    # All 287 barangays with coordinates
+├── server.ts                 # Express server entry point
+├── esbuild.config.ts         # Server bundler config
+├── vite.config.ts            # Vite configuration
+├── public/                   # Static assets
+└── dist/                     # Built output
 ```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `3001` |
+| `NODE_ENV` | Environment mode | `development` |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `http://localhost:5173` |
+| `EDIT_PIN` | PIN for authorizing map edits | `123456` |
+
+### Map Tiles
+
+The app uses free tile layers. For production, consider:
+
+- **ESRI Satellite** — Requires no API key (currently used)
+- **Mapbox** — Sign up at [mapbox.com](https://www.mapbox.com/) for custom tiles
+- **Google Maps** — Requires GCP project and API key
+
+To switch tile providers, edit `src/components/Map.tsx`.
+
+---
+
+## Deployment
+
+### Railway (Recommended)
+
+1. Push to GitHub
+2. Connect repository to [Railway](https://railway.app)
+3. Railway auto-detects Node.js + SQLite
+4. Set environment variables in Railway dashboard
+5. Deploy
+
+**Note:** Railway's starter tier includes ephemeral filesystem. SQLite works for development; for production with persistent storage, use Railway's persistent disk or a managed PostgreSQL instance.
+
+### Render
+
+1. Create `render.yaml` in root:
+
+```yaml
+services:
+  - type: web
+    name: command-center
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - NODE_ENV: production
+```
+
+2. Connect to Render and deploy
+
+### Docker
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+RUN npm run build
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+```bash
+docker build -t cnpdrrmo .
+docker run -p 3001:3001 cnpdrrmo
+```
+
+### Static Frontend Only (GitHub Pages / Vercel / Netlify)
+
+If hosting frontend separately from backend:
+
+```bash
+npm run build
+```
+
+The compiled frontend is in `dist/` (Vite output) alongside the bundled server. Serve `dist/public/` as static files.
+
+**Vercel Example:**
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/hazards` | Fetch all hazards |
+| POST | `/api/hazards` | Create a hazard |
+| PUT | `/api/hazards/:id` | Update a hazard |
+| DELETE | `/api/hazards/:id` | Delete a hazard |
+
+### Response Format
+
+All responses return JSON:
+
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Errors:
+
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
+```
+
+---
+
+## Sync Mechanism
+
+The app operates in three states per record:
+
+| State | Description |
+|-------|-------------|
+| `synced` | Confirmed on server |
+| `pending_add` | Created offline, awaiting sync |
+| `pending_update` | Modified offline, awaiting sync |
+| `pending_delete` | Marked for deletion, awaiting sync |
+
+When the browser regains connectivity (`online` event), `HazardAPI.syncPending()` uploads all pending changes automatically.
+
+---
 
 ## Hazard Types
 
 | ID | Label | Color |
-|---|---|---|
+|----|-------|-------|
 | `flood` | Flood | `#1d4ed8` |
 | `storm_surge` | Storm Surge | `#0369a1` |
 | `landslide` | Landslide | `#f59e0b` |
@@ -100,25 +296,31 @@ src/
 | `earthquake` | Earthquake Fault | `#991b1b` |
 | `tsunami` | Tsunami | `#0ea5e9` |
 
-## API Endpoints
+---
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/hazards` | Fetch all hazards |
-| POST | `/api/hazards` | Create a hazard |
-| PUT | `/api/hazards/:id` | Update a hazard |
-| DELETE | `/api/hazards/:id` | Delete a hazard |
+## Troubleshooting
 
-## Sync Mechanism
+### `better-sqlite3` fails to build on deployment
+```bash
+npm rebuild better-sqlite3
+```
 
-The app operates in three states per record:
-- `synced` — confirmed on server
-- `pending_add` — created offline, awaiting sync
-- `pending_update` — modified offline, awaiting sync
-- `pending_delete` — marked for deletion, awaiting sync
+### Port already in use
+Set `PORT` environment variable to a different value:
+```bash
+PORT=3002 npm start
+```
 
-When the browser goes online (`online` event), `HazardAPI.syncPending()` uploads all pending changes.
+### Database locked errors
+Ensure only one instance of the server is running. SQLite does not support concurrent writers.
+
+### Map tiles not loading
+Check network connectivity. Free tile servers may have rate limits in production.
+
+---
 
 ## License
 
-Private — Provincial Disaster Risk Reduction & Management Office, Camarines Norte
+Proprietary — Provincial Disaster Risk Reduction & Management Office, Camarines Norte
+
+Unauthorized reproduction or distribution is prohibited.
