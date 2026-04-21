@@ -6,6 +6,8 @@ import Sidebar from "./components/Sidebar";
 import DangerMap from "./components/Map";
 import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
 import { EditHazardModal } from "./components/EditHazardModal";
+import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
+import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
 import { AnalyticsPanel } from "./components/AnalyticsPanel";
 import { BarChart2, X } from "lucide-react";
 
@@ -182,6 +184,8 @@ export default function App() {
       <DropTagModal />
       <PinModal />
       <EditHazardModal />
+      <EvacuationCenterModal />
+      <EvacuationCenterCard />
     </div>
   );
 }
