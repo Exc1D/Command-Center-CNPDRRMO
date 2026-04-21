@@ -34,10 +34,11 @@ A real-time hazard tracking and management system for the Province of Camarines 
 - **Offline-First Architecture** — IndexedDB via Dexie stores data locally; syncs automatically when connectivity returns
 - **Multi-Layer Topography** — Switch between street (OSM), topographic contour, and ESRI satellite layers
 - **Barangay-Level Targeting** — Navigate to any of the 287 barangays across 12 municipalities
-- **Analytics Dashboard** — Visualize hazard distribution and trends with Recharts
+- **Analytics Dashboard** — Visualize hazard distribution and trends with Recharts (Chart, Table, and List views)
 - **PDF Report Export** — Generate mission-ready PDF reports with map snapshots via html2canvas + jsPDF
 - **PIN-Protected Operations** — Map editing requires authorization to prevent unauthorized modifications
 - **Real-Time Sync Status** — Visual indicator of sync state between local database and server
+- **Evacuation Center Management** — Add, view, and manage evacuation shelters with capacity tracking, type classification, and automatic location detection
 
 ---
 
@@ -125,21 +126,27 @@ Command-Center-CNPDRRMO/
 │   ├── main.tsx             # Entry point
 │   ├── index.css             # Global styles + Tailwind
 │   ├── components/
-│   │   ├── Sidebar.tsx       # Navigation, filters, incident logs
+│   │   ├── Sidebar.tsx       # Navigation, filters, incident logs, PDF export
 │   │   ├── Map.tsx           # Leaflet map with hazard layers
 │   │   ├── Modals.tsx        # DropTag, Pin, PopUp modals
 │   │   ├── EditHazardModal.tsx
-│   │   └── AnalyticsPanel.tsx
-│   └── lib/
-│       ├── db.ts             # Dexie IndexedDB schema
-│       ├── api.ts            # Online/offline API wrapper
-│       ├── store.ts          # Zustand state + disaster types
-│       ├── utils.ts          # Utility functions
-│       └── barangays.json    # All 287 barangays with coordinates
-├── server.ts                 # Express server entry point
+│   │   ├── AnalyticsPanel.tsx
+│   │   ├── EvacuationCenterModal.tsx
+│   │   ├── EvacuationCenterCard.tsx
+│   │   └── ErrorBoundary.tsx
+│   ├── lib/
+│   │   ├── db.ts             # Dexie IndexedDB schema (Hazards + EvacuationCenters)
+│   │   ├── api.ts            # Online/offline API wrapper (HazardAPI + EvacuationCenterAPI)
+│   │   ├── store.ts          # Zustand state + disaster types
+│   │   ├── utils.ts          # Utility functions
+│   │   └── barangays.json    # All 287 barangays with coordinates
+│   └── test/                 # Test fixtures and setup
+├── server.ts                 # Express server with SQLite + API routes
 ├── esbuild.config.ts         # Server bundler config
 ├── vite.config.ts            # Vite configuration
-├── public/                   # Static assets
+├── public/
+│   ├── baranggays.geojson    # Barangay boundary data
+│   └── PDRRMO.jpg           # Logo
 └── dist/                     # Built output
 ```
 
@@ -157,10 +164,10 @@ cp .env.example .env
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PORT` | Server port | `3001` |
+| `PIN_SECRET` | PIN for authorizing map edits and evacuation center deletion | (required) |
+| `PORT` | Server port | `3000` |
 | `NODE_ENV` | Environment mode | `development` |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `http://localhost:5173` |
-| `EDIT_PIN` | PIN for authorizing map edits | `123456` |
 
 ### Map Tiles
 
@@ -241,6 +248,8 @@ vercel --prod
 
 ## API Endpoints
 
+### Hazards
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/hazards` | Fetch all hazards |
@@ -248,25 +257,32 @@ vercel --prod
 | PUT | `/api/hazards/:id` | Update a hazard |
 | DELETE | `/api/hazards/:id` | Delete a hazard |
 
+### Evacuation Centers
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/evacuation-centers` | Fetch all evacuation centers |
+| POST | `/api/evacuation-centers` | Create a new evacuation center |
+| PUT | `/api/evacuation-centers/:id` | Update an evacuation center |
+| DELETE | `/api/evacuation-centers/:id` | Delete an evacuation center (requires PIN) |
+
+### Other
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/verify-pin` | Verify authorization PIN |
+
 ### Response Format
 
-All responses return JSON:
+All responses return JSON. Successful responses return data directly (arrays or objects). Errors include an `error` field:
 
 ```json
 {
-  "success": true,
-  "data": { ... }
-}
-```
-
-Errors:
-
-```json
-{
-  "success": false,
   "error": "Error message"
 }
 ```
+
+POST/PUT operations return `{ success: true, id: "uuid" }`.
 
 ---
 
@@ -295,6 +311,25 @@ When the browser regains connectivity (`online` event), `HazardAPI.syncPending()
 | `vehicular_accident` | Vehicular Accident | `#dc2626` |
 | `earthquake` | Earthquake Fault | `#991b1b` |
 | `tsunami` | Tsunami | `#0ea5e9` |
+
+### Severity Levels
+
+| Level | Description |
+|-------|-------------|
+| `Minor` | Minimal impact, local monitoring required |
+| `Moderate` | Localized damage, coordination needed |
+| `Severe` | Significant damage, provincial response activated |
+| `Critical` | Mass casualty potential, full mobilization required |
+
+## Evacuation Center Types
+
+| ID | Label |
+|----|-------|
+| `school` | School |
+| `barangay_hall` | Barangay Hall |
+| `church` | Church |
+| `covered_court` | Covered Court |
+| `other` | Other |
 
 ---
 
