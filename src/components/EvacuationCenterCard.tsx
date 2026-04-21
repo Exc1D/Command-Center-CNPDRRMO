@@ -31,7 +31,7 @@ export function EvacuationCenterCard() {
             <h3 className="text-xl font-display font-bold text-on-surface leading-tight">
               {selectedEvacuationCenter.name}
             </h3>
-            <p className="text-xs font-semibold text-on-surface/60 mb-3">{CENTER_TYPE_LABELS[selectedEvacuationCenter.type]}</p>
+            <p className="text-xs font-semibold text-on-surface/60 mb-3">{CENTER_TYPE_LABELS[selectedEvacuationCenter.type] ?? 'Other'}</p>
           </div>
           <button
             onClick={() => setSelectedEvacuationCenter(null)}

@@ -235,7 +235,7 @@ export default function Sidebar() {
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-[#059669]" />
+              <div className="w-3 h-3 rounded-full bg-[#059669] transition-all" />
               <span className="text-sm font-semibold">Show Centers</span>
             </div>
             <Check size={16} className={evacuationCentersVisible ? 'text-[#059669]' : 'text-transparent'} />

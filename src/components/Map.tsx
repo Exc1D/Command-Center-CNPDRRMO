@@ -15,7 +15,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const CENTER_TYPE_LABELS: Record<string, string> = {
+export function escapeHtml(str: string): string {
+  return str.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c] || c);
+}
+
+export const CENTER_TYPE_LABELS: Record<string, string> = {
   school: 'School',
   barangay_hall: 'Barangay Hall',
   church: 'Church',
@@ -85,13 +91,15 @@ function GeomanSetup() {
       const layer = e.layer;
       const geojson = (layer as any).toGeoJSON();
 
-      if ((e.layer as any).pmType === 'Marker') {
+      // FIXED: Use instanceof check for more reliable marker detection
+      // Geoman's pmType may not be set yet at this point, so check the layer class directly
+      if (layer instanceof L.Marker) {
         // Evacuation center marker
         map.removeLayer(layer);
         const coords: [number, number] = [geojson.geometry.coordinates[0], geojson.geometry.coordinates[1]];
         openEvacuationCenterModal(coords);
       } else {
-        // Hazard polygon/polyline
+        // Hazard polygon/polyline/rectangle
         map.removeLayer(layer);
         openDropTagModal(geojson.geometry);
       }
@@ -157,16 +165,16 @@ function EvacuationCenterMarkersHandler() {
 
     if (!evacuationCentersVisible) return;
 
+    const escapeHtml = (str: string) =>
+      str.replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c] || c);
+
     evacuationCenters.forEach((center) => {
       const marker = L.marker([center.coordinates[1], center.coordinates[0]], {
         icon: evacuationCenterIcon
       }) as any;
       marker._evacuationCenterMarker = true;
-
-      const escapeHtml = (str: string) =>
-        str.replace(/[&<>"']/g, (c) => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[c] || c);
 
       marker.bindPopup(`
         <div style="min-width: 150px;">

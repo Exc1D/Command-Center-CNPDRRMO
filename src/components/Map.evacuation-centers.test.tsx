@@ -1,6 +1,6 @@
 /**
  * EvacuationCenterMarkersHandler Tests
- * 
+ *
  * Tests the marker rendering logic for evacuation center map markers.
  * Since the handler uses useMap() (react-leaflet) which requires Leaflet context
  * not available in JSDOM, we test the handler's integration with the store
@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EvacuationCenterAPI } from '../lib/api';
 import { useStore } from '../lib/store';
 import { ec1, ec2 } from '../test/fixtures/evacuationCenters';
+import { CENTER_TYPE_LABELS, escapeHtml } from '../components/Map';
 
 const mockGetAllCenters = vi.hoisted(() => vi.fn());
 
@@ -40,14 +41,14 @@ describe('EvacuationCenterMarkersHandler', () => {
 
       await EvacuationCenterAPI.getAllCenters();
       const fetchedCenters = await EvacuationCenterAPI.getAllCenters();
-      
+
       expect(mockGetAllCenters).toHaveBeenCalled();
       expect(fetchedCenters).toEqual(centers);
     });
 
     it('does not fetch centers when visibility is false', () => {
       useStore.setState({ evacuationCentersVisible: false });
-      
+
       expect(mockGetAllCenters).not.toHaveBeenCalled();
     });
 
@@ -85,12 +86,12 @@ describe('EvacuationCenterMarkersHandler', () => {
 
     it('marker cleanup occurs when evacuationCenters changes', () => {
       useStore.setState({ evacuationCenters: [ec1] });
-      
+
       const currentMarkers = useStore.getState().evacuationCenters;
       expect(currentMarkers).toHaveLength(1);
-      
+
       useStore.setState({ evacuationCenters: [ec1, ec2] });
-      
+
       const updatedMarkers = useStore.getState().evacuationCenters;
       expect(updatedMarkers).toHaveLength(2);
     });
@@ -99,91 +100,55 @@ describe('EvacuationCenterMarkersHandler', () => {
   describe('XSS prevention in popup', () => {
     it('escapeHtml function prevents XSS in name field', () => {
       const maliciousName = '<script>alert("xss")</script>';
-      const escapeHtml = (str: string) =>
-        str.replace(/[&<>"']/g, (c) => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[c] || c);
 
       const escaped = escapeHtml(maliciousName);
-      
+
       expect(escaped).not.toContain('<script>');
       expect(escaped).toContain('&lt;script&gt;');
     });
 
     it('escapeHtml function handles special characters in barangay', () => {
       const maliciousBarangay = "Test<script>alert('xss')</script>";
-      const escapeHtml = (str: string) =>
-        str.replace(/[&<>"']/g, (c) => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[c] || c);
 
       const escaped = escapeHtml(maliciousBarangay);
-      
+
       expect(escaped).not.toContain('<script>');
       expect(escaped).toContain('&lt;script&gt;');
     });
 
     it('escapeHtml function handles municipality with quotes', () => {
       const municipalityWithQuotes = 'Test "quoted" municipality';
-      const escapeHtml = (str: string) =>
-        str.replace(/[&<>"']/g, (c) => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[c] || c);
 
       const escaped = escapeHtml(municipalityWithQuotes);
-      
+
       expect(escaped).toContain('&quot;quoted&quot;');
       expect(escaped).not.toContain('"quoted"');
     });
 
     it('escapeHtml preserves safe characters', () => {
       const safeString = 'San Jose Elementary School';
-      const escapeHtml = (str: string) =>
-        str.replace(/[&<>"']/g, (c) => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[c] || c);
 
       const escaped = escapeHtml(safeString);
-      
+
       expect(escaped).toBe(safeString);
     });
   });
 
   describe('center type labels', () => {
     it('returns correct label for school type', () => {
-      const CENTER_TYPE_LABELS: Record<string, string> = {
-        school: 'School',
-        barangay_hall: 'Barangay Hall',
-        church: 'Church',
-        covered_court: 'Covered Court',
-        other: 'Other',
-      };
-      
       expect(CENTER_TYPE_LABELS['school']).toBe('School');
     });
 
     it('returns correct label for barangay_hall type', () => {
-      const CENTER_TYPE_LABELS: Record<string, string> = {
-        school: 'School',
-        barangay_hall: 'Barangay Hall',
-        church: 'Church',
-        covered_court: 'Covered Court',
-        other: 'Other',
-      };
-      
       expect(CENTER_TYPE_LABELS['barangay_hall']).toBe('Barangay Hall');
     });
 
     it('returns undefined for unknown type', () => {
-      const CENTER_TYPE_LABELS: Record<string, string> = {
-        school: 'School',
-        barangay_hall: 'Barangay Hall',
-        church: 'Church',
-        covered_court: 'Covered Court',
-        other: 'Other',
-      };
-      
       expect(CENTER_TYPE_LABELS['unknown_type']).toBeUndefined();
+    });
+
+    it('returns Other for unmapped type', () => {
+      expect(CENTER_TYPE_LABELS['community_center'] ?? 'Other').toBe('Other');
     });
   });
 });

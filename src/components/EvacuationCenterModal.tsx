@@ -61,8 +61,9 @@ export function EvacuationCenterModal() {
     });
   }, [isEvacuationCenterModalOpen, evacuationCenterTempCoords]);
 
+  const parsedCapacity = capacity ? parseInt(capacity, 10) : NaN;
+
   const handleSave = async () => {
-    const parsedCapacity = parseInt(capacity, 10);
     if (!name.trim() || !evacuationCenterTempCoords || isNaN(parsedCapacity) || parsedCapacity <= 0) return;
     setIsSaving(true);
     try {
@@ -171,10 +172,10 @@ export function EvacuationCenterModal() {
         <div className="mt-6">
           <button
             onClick={handleSave}
-            disabled={isSaving || !name.trim() || !evacuationCenterTempCoords || !capacity || parseInt(capacity, 10) <= 0}
+            disabled={isSaving || !name.trim() || !evacuationCenterTempCoords || isNaN(parsedCapacity) || parsedCapacity <= 0}
             className="w-full py-3 btn-primary font-bold text-[11px] uppercase tracking-[0.05em] shadow-ambient disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {isSaving ? 'Saving...' : !name.trim() ? 'Name Required' : !capacity || parseInt(capacity, 10) <= 0 ? 'Valid Capacity Required' : 'Save Center'}
+            {isSaving ? 'Saving...' : !name.trim() ? 'Name Required' : isNaN(parsedCapacity) || parsedCapacity <= 0 ? 'Valid Capacity Required' : 'Save Center'}
           </button>
         </div>
       </motion.div>
