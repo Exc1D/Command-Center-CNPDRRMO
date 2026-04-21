@@ -121,6 +121,10 @@ export const HazardAPI = {
           failedItems.push({ id: hazard.id, type: 'delete', error: (e as Error).message });
         }
       }
+
+      if (failedItems.length > 0) {
+        useStore.getState().setSyncError(`Sync partially failed: ${failedItems.length} item(s) failed`);
+      }
     } finally {
       useStore.getState().setSyncState({ isSyncing: false, lastSyncError: null });
     }
