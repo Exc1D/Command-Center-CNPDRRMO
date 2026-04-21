@@ -12,7 +12,19 @@ interface AppState {
   mapCenter: [number, number];
   mapZoom: number;
   evacuationCenters: EvacuationCenter[];
+  evacuationCentersVisible: boolean;
+  toggleEvacuationCenters: () => void;
   
+  // Evacuation center modal
+  isEvacuationCenterModalOpen: boolean;
+  evacuationCenterTempCoords: [number, number] | null;
+  openEvacuationCenterModal: (coords: [number, number]) => void;
+  closeEvacuationCenterModal: () => void;
+
+  // Evacuation center selection (for popup card)
+  selectedEvacuationCenter: EvacuationCenter | null;
+  setSelectedEvacuationCenter: (center: EvacuationCenter | null) => void;
+
   // Authorization
   isMapAuthorized: boolean;
 
@@ -79,7 +91,17 @@ export const useStore = create<AppState>((set) => ({
   mapCenter: [14.1167, 122.9500] as [number, number], // Camarines Norte center approx
   mapZoom: 10,
   evacuationCenters: [],
-  
+  evacuationCentersVisible: false,
+  toggleEvacuationCenters: () => set((state) => ({ evacuationCentersVisible: !state.evacuationCentersVisible })),
+
+  isEvacuationCenterModalOpen: false,
+  evacuationCenterTempCoords: null,
+  openEvacuationCenterModal: (coords) => set({ isEvacuationCenterModalOpen: true, evacuationCenterTempCoords: coords }),
+  closeEvacuationCenterModal: () => set({ isEvacuationCenterModalOpen: false, evacuationCenterTempCoords: null }),
+
+  selectedEvacuationCenter: null,
+  setSelectedEvacuationCenter: (center) => set({ selectedEvacuationCenter: center }),
+
   isMapAuthorized: false,
 
   isDropTagModalOpen: false,
