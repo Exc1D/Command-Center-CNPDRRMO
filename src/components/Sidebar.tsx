@@ -202,7 +202,7 @@ export default function Sidebar() {
 
         {/* Hazard Filters */}
         <section>
-          <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Active Filters</label>
+          <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Hazard Filters</label>
           <div className="space-y-3">
             {DISASTER_TYPES.map(type => {
               const isActive = activeFilters.includes(type.id);
@@ -223,9 +223,9 @@ export default function Sidebar() {
           </div>
         </section>
 
-        {/* Evacuation Centers Toggle */}
+        {/* Facilities Toggle */}
         <section>
-          <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Evacuation Centers</label>
+          <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Facilities</label>
           <button
             onClick={toggleEvacuationCenters}
             className={`w-full flex items-center justify-between cursor-pointer group p-3 rounded-xl shadow-ambient transition-all border-2 ${
@@ -236,7 +236,7 @@ export default function Sidebar() {
           >
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-[#059669] transition-all" />
-              <span className="text-sm font-semibold">Show Centers</span>
+              <span className="text-sm font-semibold">Evacuation Center</span>
             </div>
             <Check size={16} className={evacuationCentersVisible ? 'text-[#059669]' : 'text-transparent'} />
           </button>
