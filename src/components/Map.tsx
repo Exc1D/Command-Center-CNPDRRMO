@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, useMap, GeoJSON, FeatureGroup } from 'react-le
 import L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
 import { useStore, DISASTER_TYPES } from '../lib/store';
-import { HazardAPI } from '../lib/api';
+import { HazardAPI, EvacuationCenterAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import { MAP_CONFIG } from '../lib/constants';
 
@@ -15,11 +15,43 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
+const CENTER_TYPE_LABELS: Record<string, string> = {
+  school: 'School',
+  barangay_hall: 'Barangay Hall',
+  church: 'Church',
+  covered_court: 'Covered Court',
+  other: 'Other',
+};
+
+const evacuationCenterIcon = L.divIcon({
+  className: 'evacuation-center-marker',
+  html: `<div style="
+    background: #059669;
+    width: 32px;
+    height: 32px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  ">
+    <svg style="transform: rotate(45deg); width: 16px; height: 16px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  </div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+});
+
 function GeomanSetup() {
   const map = useMap();
   const openDropTagModal = useStore(state => state.openDropTagModal);
+  const openEvacuationCenterModal = useStore(state => state.openEvacuationCenterModal);
   const isMapAuthorized = useStore(state => state.isMapAuthorized);
-  
+
   useEffect(() => {
     if (!isMapAuthorized) {
       if (map.pm) map.pm.removeControls();
@@ -29,7 +61,7 @@ function GeomanSetup() {
     // Add Geoman controls
     map.pm.addControls({
       position: 'topleft',
-      drawMarker: false,
+      drawMarker: true,  // Enable marker drawing for evacuation centers
       drawCircleMarker: false,
       drawPolyline: true,
       drawRectangle: true,
@@ -52,8 +84,17 @@ function GeomanSetup() {
     map.on('pm:create', (e) => {
       const layer = e.layer;
       const geojson = (layer as any).toGeoJSON();
-      map.removeLayer(layer);
-      openDropTagModal(geojson.geometry);
+
+      if ((e.layer as any).pmType === 'Marker') {
+        // Evacuation center marker
+        map.removeLayer(layer);
+        const coords: [number, number] = [geojson.geometry.coordinates[0], geojson.geometry.coordinates[1]];
+        openEvacuationCenterModal(coords);
+      } else {
+        // Hazard polygon/polyline
+        map.removeLayer(layer);
+        openDropTagModal(geojson.geometry);
+      }
     });
 
     // Enable delete shape feature wired natively to our database
@@ -75,7 +116,7 @@ function GeomanSetup() {
       map.off('pm:create');
       map.off('pm:remove');
     };
-  }, [map, openDropTagModal, isMapAuthorized]);
+  }, [map, openDropTagModal, openEvacuationCenterModal, isMapAuthorized]);
 
   return null;
 }
@@ -92,11 +133,67 @@ function FlyToHandler() {
   return null;
 }
 
+function EvacuationCenterMarkersHandler() {
+  const map = useMap();
+  const evacuationCentersVisible = useStore(state => state.evacuationCentersVisible);
+  const evacuationCenters = useStore(state => state.evacuationCenters);
+  const setEvacuationCenters = useStore(state => state.setEvacuationCenters);
+  const setSelectedEvacuationCenter = useStore(state => state.setSelectedEvacuationCenter);
+
+  const markersRef = useRef<L.Marker[]>([]);
+
+  useEffect(() => {
+    if (!evacuationCentersVisible) return;
+    EvacuationCenterAPI.getAllCenters().then((centers) => {
+      setEvacuationCenters(centers);
+    });
+  }, [evacuationCentersVisible, setEvacuationCenters]);
+
+  useEffect(() => {
+    markersRef.current.forEach(marker => {
+      map.removeLayer(marker);
+    });
+    markersRef.current = [];
+
+    if (!evacuationCentersVisible) return;
+
+    evacuationCenters.forEach((center) => {
+      const marker = L.marker([center.coordinates[1], center.coordinates[0]], {
+        icon: evacuationCenterIcon
+      }) as any;
+      marker._evacuationCenterMarker = true;
+
+      const escapeHtml = (str: string) =>
+        str.replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c] || c);
+
+      marker.bindPopup(`
+        <div style="min-width: 150px;">
+          <strong style="font-size: 14px;">${escapeHtml(center.name)}</strong>
+          <p style="margin: 4px 0; color: #666; font-size: 12px;">${CENTER_TYPE_LABELS[center.type] || ''}</p>
+          <p style="margin: 2px 0; font-size: 12px;">Capacity: ${Number(center.capacity)}</p>
+          <p style="margin: 2px 0; font-size: 12px;">${escapeHtml(center.barangay || '')}${center.municipality ? `, ${escapeHtml(center.municipality)}` : ''}</p>
+        </div>
+      `);
+
+      marker.on('click', () => {
+        setSelectedEvacuationCenter(center);
+      });
+
+      marker.addTo(map);
+      markersRef.current.push(marker);
+    });
+  }, [evacuationCentersVisible, evacuationCenters, map, setSelectedEvacuationCenter]);
+
+  return null;
+}
+
 export default function DangerMap() {
   const baseMap = useStore(state => state.baseMap);
   const filteredHazards = useStore(state => state.filteredHazards);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
-  
+
   const mapUrls = {
     street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     topo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
@@ -199,6 +296,7 @@ export default function DangerMap() {
         />
         <GeomanSetup />
         <FlyToHandler />
+        <EvacuationCenterMarkersHandler />
 
         <FeatureGroup>
           {filteredHazards.map(hazard => {
