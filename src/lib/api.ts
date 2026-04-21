@@ -242,7 +242,8 @@ export const EvacuationCenterAPI = {
         useStore.getState().setSyncError(`Evacuation center sync partially failed: ${failedItems.length} item(s) failed`);
       }
     } finally {
-      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: null });
+      // Only reset isSyncing; preserve lastSyncError (set above if failures occurred)
+      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: failedItems.length > 0 ? useStore.getState().syncState.lastSyncError : null });
     }
   }
 };

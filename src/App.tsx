@@ -12,7 +12,13 @@ import { BarChart2, X } from "lucide-react";
 const SYNC_ERROR_AUTO_DISMISS_MS = 5000;
 
 export default function App() {
-  const { setHazards, isAnalyticsOpen, setAnalyticsOpen, syncState, clearSyncError } = useStore();
+  const {
+    setHazards,
+    isAnalyticsOpen,
+    setAnalyticsOpen,
+    syncState,
+    clearSyncError,
+  } = useStore();
   const [showSyncError, setShowSyncError] = useState(false);
 
   // Watch for sync errors and show banner
@@ -34,7 +40,7 @@ export default function App() {
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
       } catch (error) {
-        console.error('Failed to load initial hazards:', error);
+        console.error("Failed to load initial hazards:", error);
       }
     };
     fetchHazards();
@@ -46,7 +52,7 @@ export default function App() {
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
       } catch (error) {
-        console.error('Sync failed after coming online:', error);
+        console.error("Sync failed after coming online:", error);
       }
     };
 
@@ -59,7 +65,9 @@ export default function App() {
       {/* Sync Error Banner */}
       {showSyncError && syncState.lastSyncError && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
-          <span className="flex-1 text-sm font-medium">{syncState.lastSyncError}</span>
+          <span className="flex-1 text-sm font-medium">
+            {syncState.lastSyncError}
+          </span>
           <button
             onClick={() => {
               clearSyncError();
@@ -123,15 +131,33 @@ export default function App() {
       </header>
 
       <main className="flex-1 flex overflow-hidden">
-        <ErrorBoundary fallback={<div className="flex items-center justify-center w-80 bg-surface-container text-tertiary">Sidebar failed</div>}>
+        <ErrorBoundary
+          fallback={
+            <div className="flex items-center justify-center w-80 bg-surface-container text-tertiary">
+              Sidebar failed
+            </div>
+          }
+        >
           <Sidebar />
         </ErrorBoundary>
         <section className="flex-1 relative bg-surface flex items-center justify-center overflow-hidden">
-          <ErrorBoundary fallback={<div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">Map failed</div>}>
+          <ErrorBoundary
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">
+                Map failed
+              </div>
+            }
+          >
             <DangerMap />
           </ErrorBoundary>
           <PopUpCard />
-          <ErrorBoundary fallback={<div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">Analytics failed</div>}>
+          <ErrorBoundary
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">
+                Analytics failed
+              </div>
+            }
+          >
             <AnalyticsPanel />
           </ErrorBoundary>
         </section>
@@ -140,10 +166,10 @@ export default function App() {
       <footer className="h-12 bg-surface-container-low flex items-center px-8 justify-between z-50">
         <div className="flex items-center gap-6">
           <div className="text-[11px] text-on-surface/60 uppercase tracking-[0.05em] font-bold">
-            Activity Feed:
+            © 2026 PDRRMO Camarines Norte
           </div>
           <div className="text-[11px] text-on-surface/80">
-            Vigilant curation active. Ready for field data.
+            Government of Camarines Norte - All rights reserved.
           </div>
         </div>
         <div className="flex gap-4">

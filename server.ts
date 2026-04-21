@@ -55,6 +55,19 @@ for (const mig of migrations) {
   }
 }
 
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS evacuation_centers (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    type TEXT,
+    capacity INTEGER,
+    municipality TEXT,
+    barangay TEXT,
+    coordinates TEXT,
+    dateAdded TEXT
+  )
+`).run();
+
 // Batch update: Auto-detect location for existing records without municipality
 async function batchUpdateLocations() {
   const hazardsWithoutLocation = db.prepare("SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''").all();
@@ -174,6 +187,17 @@ const hazardSchema = z.object({
   barangay: z.string().optional(),
   notes: z.string().optional(),
   geometry: z.object({ type: z.string(), coordinates: z.any() }),
+  dateAdded: z.string().datetime().optional(),
+});
+
+const evacuationCenterSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  type: z.enum(['school', 'barangay_hall', 'church', 'covered_court', 'other']),
+  capacity: z.number().int().positive(),
+  municipality: z.string().optional(),
+  barangay: z.string().optional(),
+  coordinates: z.tuple([z.number(), z.number()]),
   dateAdded: z.string().datetime().optional(),
 });
 
@@ -299,6 +323,107 @@ app.delete("/api/hazards/:id", (req, res) => {
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to delete hazard:`, error);
     res.status(500).json({ error: 'Failed to delete hazard', errorId });
+  }
+});
+
+app.get("/api/evacuation-centers", (req, res) => {
+  try {
+    const centers = db.prepare('SELECT * FROM evacuation_centers').all();
+    res.json(centers);
+  } catch (error) {
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to fetch evacuation centers:`, error);
+    res.status(500).json({ error: 'Failed to fetch evacuation centers', errorId });
+  }
+});
+
+app.post("/api/evacuation-centers", (req, res) => {
+  try {
+    const parsed = evacuationCenterSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid evacuation center data', details: parsed.error.flatten() });
+    }
+    const { id, name, type, capacity, municipality, barangay, coordinates, dateAdded } = parsed.data;
+    const stmt = db.prepare(`
+      INSERT INTO evacuation_centers (id, name, type, capacity, municipality, barangay, coordinates, dateAdded)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded);
+    res.json({ success: true, id });
+  } catch (error) {
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to save evacuation center:`, error);
+    res.status(500).json({ error: 'Failed to save evacuation center', errorId });
+  }
+});
+
+app.put("/api/evacuation-centers/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid evacuation center ID format' });
+    }
+    const updateSchema = evacuationCenterSchema.partial().omit({ id: true });
+    const parsed = updateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
+    }
+    const { name, type, capacity, municipality, barangay, coordinates, dateAdded } = parsed.data;
+    const existing = db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Evacuation center not found' });
+    }
+    const stmt = db.prepare(`
+      UPDATE evacuation_centers
+      SET name = COALESCE(?, name),
+          type = COALESCE(?, type),
+          capacity = COALESCE(?, capacity),
+          municipality = COALESCE(?, municipality),
+          barangay = COALESCE(?, barangay),
+          coordinates = COALESCE(?, coordinates),
+          dateAdded = COALESCE(?, dateAdded)
+      WHERE id = ?
+    `);
+    stmt.run(
+      name,
+      type,
+      capacity,
+      municipality,
+      barangay,
+      coordinates ? JSON.stringify(coordinates) : undefined,
+      dateAdded,
+      id
+    );
+    res.json({ success: true, id });
+  } catch (error) {
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to update evacuation center:`, error);
+    res.status(500).json({ error: 'Failed to update evacuation center', errorId });
+  }
+});
+
+app.delete("/api/evacuation-centers/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const pin = req.headers['x-pin'] as string;
+
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ error: 'Invalid evacuation center ID format' });
+    }
+
+    if (!pin || pin !== process.env.PIN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const result = db.prepare('DELETE FROM evacuation_centers WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Evacuation center not found' });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    const errorId = generateErrorId();
+    console.error(`[${errorId}] Failed to delete evacuation center:`, error);
+    res.status(500).json({ error: 'Failed to delete evacuation center', errorId });
   }
 });
 
