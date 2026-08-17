@@ -82,7 +82,7 @@ type ObjectAction = 'duplicate' | 'front' | 'back' | 'lock' | 'delete';
 function renderObject(
   object: PlanningObject,
   group: L.LayerGroup,
-  options: { published?: boolean; editable?: boolean; selected?: boolean; onSelect?: (event: L.LeafletMouseEvent) => void; onChange?: (change: Partial<PlanningObject>) => void; onAction?: (action: ObjectAction) => void },
+  options: { published?: boolean; editable?: boolean; selected?: boolean; onSelect?: (event: L.LeafletMouseEvent) => void; onChange?: (change: Partial<PlanningObject>) => boolean; onAction?: (action: ObjectAction) => void },
 ) {
   const published = options.published ?? false;
   const pathStyle: L.PathOptions = {
@@ -132,19 +132,26 @@ function renderObject(
     if (layer instanceof L.Marker) {
       layer.on('dragend', () => {
         const point = layer.getLatLng();
-        options.onChange?.({ coordinates: [[point.lng, point.lat]] });
+        if (options.onChange?.({ coordinates: [[point.lng, point.lat]] }) === false) layer.setLatLng(latLngs(object.coordinates)[0]);
       });
     } else if (options.selected && (layer as any).pm) {
       if (object.kind === 'freehand') {
         (layer as any).pm.enableLayerDrag();
-        layer.on('pm:dragend', () => options.onChange?.({ coordinates: coordinates(layer as L.Polyline) }));
+        layer.on('pm:dragend', () => {
+          if (options.onChange?.({ coordinates: coordinates(layer as L.Polyline) }) === false) (layer as L.Polyline).setLatLngs(latLngs(object.coordinates));
+        });
       } else {
         (layer as any).pm.enable({ allowSelfIntersection: false });
         layer.on('pm:edit', () => {
           if (layer instanceof L.Circle) {
             const center = layer.getLatLng();
-            options.onChange?.({ coordinates: [[center.lng, center.lat]], radiusMeters: layer.getRadius() });
-          } else options.onChange?.({ coordinates: coordinates(layer as L.Polyline) });
+            if (options.onChange?.({ coordinates: [[center.lng, center.lat]], radiusMeters: layer.getRadius() }) === false) {
+              layer.setLatLng(latLngs(object.coordinates)[0]);
+              layer.setRadius(object.radiusMeters ?? 50);
+            }
+          } else if (options.onChange?.({ coordinates: coordinates(layer as L.Polyline) }) === false) {
+            (layer as L.Polyline).setLatLngs(latLngs(object.coordinates));
+          }
         });
       }
     }
@@ -171,7 +178,7 @@ function renderObject(
     });
     marker.on('dragend', () => {
       const point = marker.getLatLng();
-      options.onChange?.({ labelPosition: [point.lng, point.lat] });
+      if (options.onChange?.({ labelPosition: [point.lng, point.lat] }) === false) marker.setLatLng(latLngs([anchor])[0]);
     });
     marker.addTo(group);
     if (object.labelPosition) L.polyline(latLngs([object.coordinates[0], object.labelPosition]), { color: object.style.color, weight: 1, dashArray: '3 3' }).addTo(group);
@@ -188,7 +195,7 @@ export function PlanningMapLayer() {
   const eraserCursorRef = useRef<L.Circle | null>(null);
   const [province, setProvince] = useState<ProvinceGeoJSON | null>(null);
   const scenario = planning.history?.present;
-  const canEdit = authorized && (planning.temporary || planning.lockAcquired);
+  const canEdit = authorized && (planning.temporary || planning.lockAcquired || !navigator.onLine);
 
   useEffect(() => {
     fetch(provinceBoundaryUrl).then(response => response.json()).then(setProvince).catch(() => planning.setMessage('Province boundary could not be loaded'));
@@ -219,26 +226,28 @@ export function PlanningMapLayer() {
           planning.select(shift ? [...new Set([...planning.selectedIds, object.id])] : [object.id]);
         },
         onChange: change => {
-          if (!province) return planning.setMessage('Province boundary is still loading');
+          if (!province) { planning.setMessage('Province boundary is still loading'); return false; }
           const nextCoordinates = change.coordinates ?? object.coordinates;
-          const inside = object.kind === 'circle'
+          const shapeInside = object.kind === 'circle'
             ? circleInsideProvince(nextCoordinates[0], change.radiusMeters ?? object.radiusMeters ?? 50, province)
             : pathInsideProvince(nextCoordinates, province);
-          if (!inside) return planning.setMessage('Planning objects must remain inside Camarines Norte');
+          const inside = shapeInside && (!change.labelPosition || pathInsideProvince([change.labelPosition], province));
+          if (!inside) { planning.setMessage('Planning objects must remain inside Camarines Norte'); return false; }
           planning.updateObject(object.id, change);
+          return true;
         },
-        onAction: action => {
+        onAction: canEdit && !scenario.layers[object.layer].locked ? action => {
           if (action === 'duplicate') return planning.addObject({ ...structuredClone(object), id: crypto.randomUUID(), order: scenario.objects.length });
           if (action === 'lock') return planning.updateObject(object.id, { locked: !object.locked });
           if (action === 'delete') return planning.removeObjects([object.id]);
           const orders = scenario.objects.map(item => item.order);
           planning.updateObject(object.id, { order: action === 'front' ? Math.max(...orders) + 1 : Math.min(...orders) - 1 });
-        },
+        } : undefined,
       }));
   }, [map, scenario, planning.selectedIds, planning.tool, canEdit, province]);
 
   useEffect(() => {
-    if (!scenario || !canEdit || !province) return;
+    if (!scenario || !canEdit || !province || (planning.tool !== 'box-select' && scenario.layers.drawings.locked)) return;
     map.pm.disableDraw();
     const toolMap: Partial<Record<typeof planning.tool, string>> = { 'box-select': 'Rectangle', line: 'Line', polygon: 'Polygon', rectangle: 'Rectangle', circle: 'Circle' };
     const geomanTool = toolMap[planning.tool];
@@ -308,7 +317,7 @@ export function PlanningMapLayer() {
   }, [map, planning.tool, planning.style, canEdit, scenario?.objects.length, province]);
 
   useEffect(() => {
-    if (!scenario || !canEdit || !province || !['freehand', 'eraser'].includes(planning.tool)) {
+    if (!scenario || !canEdit || !province || scenario.layers.drawings.locked || !['freehand', 'eraser'].includes(planning.tool)) {
       map.dragging.enable();
       temporaryRef.current?.remove();
       eraserCursorRef.current?.remove();
@@ -377,6 +386,8 @@ export function PlanningMapLayer() {
 
   useEffect(() => {
     if (!scenario || !canEdit || !province || !['symbol', 'text'].includes(planning.tool)) return;
+    const targetLayer = planning.tool === 'symbol' ? 'symbols' : 'labels';
+    if (scenario.layers[targetLayer].locked) return;
     const click = (event: L.LeafletMouseEvent) => {
       const point: [number, number] = [event.latlng.lng, event.latlng.lat];
       if (!pathInsideProvince([point], province)) return planning.setMessage('Planning objects must remain inside Camarines Norte');

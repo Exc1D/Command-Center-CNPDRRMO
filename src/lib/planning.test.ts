@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { circleInsideProvince, createHistory, createPlanningScenario, eraseStroke, exportScenario, formatMeasurement, getSymbolTotals, importScenario, pathInsideProvince, pushHistory, smoothStroke, undoHistory, validateForPublish } from './planning';
+import { circleInsideProvince, createHistory, createPlanningScenario, eraseStroke, exportScenario, formatMeasurement, getSymbolTotals, importPlanningFile, importScenario, pathInsideProvince, planningScenarioSchema, pushHistory, smoothStroke, undoHistory, validateForPublish } from './planning';
 
 describe('planning documents', () => {
   it('creates a blank draft with the fixed planning layers', () => {
@@ -53,6 +53,12 @@ describe('planning documents', () => {
     expect(parts.flat()).not.toContainEqual([122.9502, 14.1]);
   });
 
+  it('erases through a long smoothed segment even when its endpoints miss the eraser', () => {
+    const parts = eraseStroke([[122.95, 14.1], [122.952, 14.1]], [[122.951, 14.1]], 10);
+
+    expect(parts).toHaveLength(2);
+  });
+
   it('rejects a route that leaves the province between valid endpoints', () => {
     const province = {
       type: 'FeatureCollection' as const,
@@ -104,9 +110,22 @@ describe('planning documents', () => {
     expect(imported.draftVersion).toBe(0);
   });
 
+  it('round-trips bundled symbol templates', () => {
+    const template = { id: crypto.randomUUID(), name: 'EOC team', symbolKey: 'eoc', color: '#ff0000', size: 'large' as const, updatedAt: new Date().toISOString() };
+
+    expect(importPlanningFile(exportScenario(createPlanningScenario('Plan'), [template])).templates).toEqual([template]);
+  });
+
   it('blocks publication of an empty scenario', () => {
     const result = validateForPublish(createPlanningScenario('Typhoon evacuation'));
 
     expect(result.errors).toContain('Add at least one planning object');
+  });
+
+  it('rejects planning objects that cannot be rendered safely', () => {
+    const scenario = createPlanningScenario('Broken import');
+    scenario.objects = [{ id: crypto.randomUUID(), kind: 'circle', layer: 'drawings', coordinates: [], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0 }];
+
+    expect(planningScenarioSchema.safeParse(scenario).success).toBe(false);
   });
 });

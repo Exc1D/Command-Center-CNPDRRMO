@@ -33,18 +33,20 @@ import { PlanningAPI } from '../lib/planningApi';
 import {
   exportScenario,
   getSymbolTotals,
-  importScenario,
+  importPlanningFile,
   PLANNING_SYMBOLS,
   validateForPublish,
   type PlanningLayer,
   type PlanningObject,
   type PlanningScenario,
   type PlanningTemplate,
+  type ProvinceGeoJSON,
 } from '../lib/planning';
 import { usePlanningStore, type PlanningTool } from '../lib/planningStore';
 import { DISASTER_TYPES, SUSCEPTIBILITY_LEVELS, useStore } from '../lib/store';
 import { MAP_CONFIG } from '../lib/constants';
 import barangaysData from '../lib/barangays.json';
+import provinceBoundaryUrl from '../../Municipal Boundary.geojson?url';
 
 const MUNICIPALITIES = Object.entries(barangaysData).map(([name, raw]) => {
   const barangays = (raw as { barangays: Array<{ name: string; lat: number; lng: number }> }).barangays;
@@ -69,6 +71,12 @@ const TOOL_BUTTONS: Array<{ tool: PlanningTool; label: string; shortcut: string;
   { tool: 'eraser', label: 'Partial eraser', shortcut: 'E', icon: Eraser },
 ];
 
+function localDateTime(iso?: string) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 async function refreshScenarios() {
   usePlanningStore.getState().setScenarios(await PlanningAPI.list());
 }
@@ -81,6 +89,7 @@ export async function saveCurrentPlanningScenario() {
     state.setMessage('Scenario name is required');
     return;
   }
+  if (navigator.onLine && !state.temporary && !state.lockAcquired) return state.setMessage('Acquire the editing lock before saving');
   try {
     const operational = useStore.getState();
     const document = { ...scenario, mapState: {
@@ -93,7 +102,7 @@ export async function saveCurrentPlanningScenario() {
     } };
     const result = state.temporary
       ? { scenario: await PlanningAPI.create(document), conflicted: false }
-      : await PlanningAPI.save(document);
+      : await PlanningAPI.save(document, state.sessionId);
     state.markSaved(result.scenario);
     state.setMessage(result.conflicted ? 'Conflict preserved as a separate draft' : 'Scenario saved');
     if (navigator.onLine) {
@@ -149,10 +158,15 @@ export function PlanningSidebar() {
   const [symbolQuery, setSymbolQuery] = useState('');
   const [selectedMunicipality, setSelectedMunicipality] = useState('ALL');
   const [templates, setTemplates] = useState<PlanningTemplate[]>([]);
+  const [province, setProvince] = useState<ProvinceGeoJSON | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const scenario = planning.history?.present;
 
-  useEffect(() => { refreshScenarios(); PlanningAPI.templates().then(setTemplates); }, []);
+  useEffect(() => {
+    refreshScenarios();
+    PlanningAPI.templates().then(setTemplates);
+    fetch(provinceBoundaryUrl).then(response => response.json()).then(setProvince).catch(() => planning.setMessage('Province boundary could not be loaded'));
+  }, []);
 
   const scenarios = planning.scenarios.filter(item => {
     const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase());
@@ -180,6 +194,7 @@ export function PlanningSidebar() {
   };
 
   const updateMetadata = (change: Partial<PlanningScenario>) => planning.edit(current => ({ ...current, ...change }));
+  const canEdit = operational.isMapAuthorized && (planning.temporary || planning.lockAcquired || !navigator.onLine);
 
   if (!scenario) return null;
 
@@ -211,13 +226,13 @@ export function PlanningSidebar() {
 
         <section className="space-y-2">
           <label className="text-[10px] uppercase font-bold">Scenario details</label>
-          <input value={scenario.name} maxLength={120} onChange={event => updateMetadata({ name: event.target.value })} className="w-full bg-surface-container-lowest p-2 rounded text-sm" placeholder="Scenario name" />
-          <textarea value={scenario.notes} maxLength={4000} onChange={event => updateMetadata({ notes: event.target.value })} className="w-full bg-surface-container-lowest p-2 rounded text-sm resize-none" rows={2} placeholder="Objective / notes" />
+          <input disabled={!canEdit} value={scenario.name} maxLength={120} onChange={event => updateMetadata({ name: event.target.value })} className="w-full bg-surface-container-lowest p-2 rounded text-sm" placeholder="Scenario name" />
+          <textarea disabled={!canEdit} value={scenario.notes} maxLength={4000} onChange={event => updateMetadata({ notes: event.target.value })} className="w-full bg-surface-container-lowest p-2 rounded text-sm resize-none" rows={2} placeholder="Objective / notes" />
           <div className="grid grid-cols-2 gap-2">
-            <input aria-label="Valid from" type="datetime-local" value={scenario.validFrom?.slice(0, 16) ?? ''} onChange={event => updateMetadata({ validFrom: event.target.value ? new Date(event.target.value).toISOString() : undefined })} className="bg-surface-container-lowest p-2 rounded text-[10px]" />
-            <input aria-label="Valid until" type="datetime-local" value={scenario.validUntil?.slice(0, 16) ?? ''} onChange={event => updateMetadata({ validUntil: event.target.value ? new Date(event.target.value).toISOString() : undefined })} className="bg-surface-container-lowest p-2 rounded text-[10px]" />
+            <input disabled={!canEdit} aria-label="Valid from" type="datetime-local" value={localDateTime(scenario.validFrom)} onChange={event => updateMetadata({ validFrom: event.target.value ? new Date(event.target.value).toISOString() : undefined })} className="bg-surface-container-lowest p-2 rounded text-[10px]" />
+            <input disabled={!canEdit} aria-label="Valid until" type="datetime-local" value={localDateTime(scenario.validUntil)} onChange={event => updateMetadata({ validUntil: event.target.value ? new Date(event.target.value).toISOString() : undefined })} className="bg-surface-container-lowest p-2 rounded text-[10px]" />
           </div>
-          <select aria-label="Classification" value={scenario.classification ?? ''} onChange={event => updateMetadata({ classification: event.target.value ? event.target.value as PlanningScenario['classification'] : undefined })} className="w-full bg-surface-container-lowest p-2 rounded text-xs">
+          <select disabled={!canEdit} aria-label="Classification" value={scenario.classification ?? ''} onChange={event => updateMetadata({ classification: event.target.value ? event.target.value as PlanningScenario['classification'] : undefined })} className="w-full bg-surface-container-lowest p-2 rounded text-xs">
             <option value="">No classification</option><option>Internal</option><option>Restricted</option><option>Public</option>
           </select>
         </section>
@@ -225,9 +240,9 @@ export function PlanningSidebar() {
         <section>
           <label className="text-[10px] uppercase font-bold block mb-2">Planning layers</label>
           <div className="space-y-1">{(Object.keys(scenario.layers) as PlanningLayer[]).map(layer => <div key={layer} className="flex items-center gap-2 bg-surface-container-lowest rounded px-2 py-1 text-xs">
-            <input aria-label={`Show ${layer}`} type="checkbox" checked={scenario.layers[layer].visible} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], visible: event.target.checked } } }))} />
+            <input disabled={!canEdit} aria-label={`Show ${layer}`} type="checkbox" checked={scenario.layers[layer].visible} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], visible: event.target.checked } } }))} />
             <span className="flex-1 capitalize">{layer}</span>
-            <label className="flex items-center gap-1 text-[9px]"><input aria-label={`Lock ${layer}`} type="checkbox" checked={scenario.layers[layer].locked} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], locked: event.target.checked } } }))} /><Lock size={10} /></label>
+            <label className="flex items-center gap-1 text-[9px]"><input disabled={!canEdit} aria-label={`Lock ${layer}`} type="checkbox" checked={scenario.layers[layer].locked} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], locked: event.target.checked } } }))} /><Lock size={10} /></label>
           </div>)}</div>
         </section>
 
@@ -285,7 +300,16 @@ export function PlanningSidebar() {
           <input ref={importInput} type="file" accept=".cnplan,application/json" hidden onChange={async event => {
             const file = event.target.files?.[0];
             if (!file) return;
-            try { planning.load(importScenario(await file.text()), true); planning.setMessage('Imported as a new draft'); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Invalid scenario file'); }
+            try {
+              if (!province) throw new Error('Province boundary is still loading');
+              const imported = importPlanningFile(await file.text(), province);
+              planning.load(imported.scenario, true);
+              if (operational.isMapAuthorized) {
+                await Promise.all(imported.templates.map(template => PlanningAPI.saveTemplate(template)));
+                setTemplates(await PlanningAPI.templates());
+              } else setTemplates(current => [...new Map([...current, ...imported.templates].map(template => [template.id, template])).values()]);
+              planning.setMessage(`Imported as a new draft${imported.templates.length ? ` with ${imported.templates.length} template${imported.templates.length === 1 ? '' : 's'}` : ''}`);
+            } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Invalid scenario file'); }
             event.target.value = '';
           }} />
         </section>
@@ -293,17 +317,17 @@ export function PlanningSidebar() {
       <div className="p-4 border-t border-outline-variant/30 space-y-2">
         {planning.message && <button onClick={() => planning.setMessage(null)} className="w-full text-left text-[10px] p-2 bg-surface-container-highest rounded flex justify-between">{planning.message}<X size={12} /></button>}
         <div className="flex gap-2">
-          <button disabled={!operational.isMapAuthorized} onClick={saveCurrentPlanningScenario} className="flex-1 btn-primary py-2 text-xs disabled:opacity-40"><Save size={14} className="inline mr-1" />Save</button>
-          <button disabled={planning.temporary || !operational.isMapAuthorized || !navigator.onLine} onClick={async () => {
+          <button disabled={!canEdit} onClick={saveCurrentPlanningScenario} className="flex-1 btn-primary py-2 text-xs disabled:opacity-40"><Save size={14} className="inline mr-1" />Save</button>
+          <button disabled={planning.temporary || !canEdit || !navigator.onLine} onClick={async () => {
             const validation = validateForPublish(scenario);
             if (validation.errors.length) return planning.setMessage(validation.errors.join('. '));
             if (validation.warnings.length && !confirm(`${validation.warnings.join('. ')}. Publish anyway?`)) return;
-            try { const published = await PlanningAPI.publish(scenario.id); planning.setMessage(`Published revision ${published.revision}`); await refreshScenarios(); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Publish failed'); }
+            try { const published = await PlanningAPI.publish(scenario.id, planning.sessionId); planning.setMessage(`Published revision ${published.revision}`); await refreshScenarios(); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Publish failed'); }
           }} aria-label="Publish scenario" title="Publish scenario" className="px-3 bg-tertiary text-white rounded text-xs disabled:opacity-40"><Upload size={14} /></button>
         </div>
         {!planning.temporary && <div className="flex gap-2">
-          <button onClick={async () => { planning.edit(current => ({ ...current, archivedAt: current.archivedAt ? undefined : new Date().toISOString() })); await saveCurrentPlanningScenario(); }} className="flex-1 p-2 bg-surface-container-lowest rounded text-[10px]"><Archive size={12} className="inline mr-1" />{scenario.archivedAt ? 'Restore' : 'Archive'}</button>
-          <button onClick={async () => { const typed = prompt(`Type “${scenario.name}” to permanently delete it.`); if (typed !== scenario.name) return; try { await PlanningAPI.remove(scenario); planning.newBoard(); await refreshScenarios(); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Could not delete scenario'); } }} className="flex-1 p-2 bg-error-container text-on-error-container rounded text-[10px]"><Trash2 size={12} className="inline mr-1" />Delete</button>
+          <button disabled={!canEdit} onClick={async () => { planning.edit(current => ({ ...current, archivedAt: current.archivedAt ? undefined : new Date().toISOString() })); await saveCurrentPlanningScenario(); }} className="flex-1 p-2 bg-surface-container-lowest rounded text-[10px] disabled:opacity-40"><Archive size={12} className="inline mr-1" />{scenario.archivedAt ? 'Restore' : 'Archive'}</button>
+          <button disabled={!canEdit} onClick={async () => { const typed = prompt(`Type “${scenario.name}” to permanently delete it.`); if (typed !== scenario.name) return; try { await PlanningAPI.remove(scenario, planning.sessionId); planning.newBoard(); await refreshScenarios(); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Could not delete scenario'); } }} className="flex-1 p-2 bg-error-container text-on-error-container rounded text-[10px] disabled:opacity-40"><Trash2 size={12} className="inline mr-1" />Delete</button>
         </div>}
       </div>
     </aside>
@@ -314,6 +338,8 @@ export function PlanningOverlay() {
   const planning = usePlanningStore();
   const authorized = useStore(state => state.isMapAuthorized);
   const scenario = planning.history?.present;
+  const canEdit = authorized && (planning.temporary || planning.lockAcquired || !navigator.onLine);
+  const historyLocked = Boolean(scenario && Object.values(scenario.layers).some(layer => layer.locked));
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -327,12 +353,12 @@ export function PlanningOverlay() {
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveCurrentPlanningScenario(); return; }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? planning.redo() : planning.undo(); return; }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (canEdit) saveCurrentPlanningScenario(); return; }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (canEdit && !historyLocked) event.shiftKey ? planning.redo() : planning.undo(); return; }
       if (event.key === 'Escape') planning.setTool('select');
       const tool = TOOL_BUTTONS.find(item => item.shortcut.toLowerCase() === event.key.toLowerCase())?.tool;
-      if (tool && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.setTool(tool);
-      if ((event.key === 'Delete' || event.key === 'Backspace') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.removeObjects(planning.selectedIds);
+      if (tool && (canEdit || tool === 'pan' || tool === 'select') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.setTool(tool);
+      if (canEdit && (event.key === 'Delete' || event.key === 'Backspace') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.removeObjects(planning.selectedIds);
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
@@ -358,15 +384,17 @@ export function PlanningOverlay() {
     return () => clearInterval(timer);
   }, [scenario?.id, planning.lockAcquired, planning.sessionId]);
 
-  const canEdit = authorized && (planning.temporary || planning.lockAcquired);
   return (
     <>
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[700] bg-[#fff4ce] text-[#5f4500] border border-[#e2c764] rounded-full px-4 py-2 text-[10px] font-black tracking-widest shadow-lg">PLANNING MODE • {planning.dirty ? 'UNSAVED CHANGES' : planning.temporary ? 'TEMPORARY BOARD' : canEdit ? 'SAVED' : 'READ-ONLY LIVE PREVIEW'}</div>
       <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[700] bg-surface-container-highest rounded-xl shadow-lg p-1 flex gap-1 max-w-[calc(100%-2rem)] overflow-x-auto">
-        {TOOL_BUTTONS.map(({ tool, label, shortcut, icon: Icon }) => <button key={tool} disabled={!canEdit && tool !== 'pan' && tool !== 'select'} title={`${label} (${shortcut})`} onClick={() => planning.setTool(tool)} className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-30 ${planning.tool === tool ? 'bg-primary text-white' : 'hover:bg-surface-container'}`}><Icon size={17} /></button>)}
+        {TOOL_BUTTONS.map(({ tool, label, shortcut, icon: Icon }) => {
+          const layer: PlanningLayer | null = tool === 'symbol' ? 'symbols' : tool === 'text' ? 'labels' : ['freehand', 'line', 'polygon', 'rectangle', 'circle', 'eraser'].includes(tool) ? 'drawings' : null;
+          return <button key={tool} disabled={(!canEdit && tool !== 'pan' && tool !== 'select') || Boolean(layer && scenario?.layers[layer].locked)} title={`${label} (${shortcut})`} onClick={() => planning.setTool(tool)} className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-30 ${planning.tool === tool ? 'bg-primary text-white' : 'hover:bg-surface-container'}`}><Icon size={17} /></button>;
+        })}
         <span className="w-px bg-outline-variant/50 mx-1" />
-        <button title="Undo (Ctrl/Cmd+Z)" disabled={!canEdit || !planning.history?.past.length} onClick={planning.undo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Undo2 size={17} /></button>
-        <button title="Redo (Ctrl/Cmd+Shift+Z)" disabled={!canEdit || !planning.history?.future.length} onClick={planning.redo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Redo2 size={17} /></button>
+        <button title="Undo (Ctrl/Cmd+Z)" disabled={!canEdit || historyLocked || !planning.history?.past.length} onClick={planning.undo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Undo2 size={17} /></button>
+        <button title="Redo (Ctrl/Cmd+Shift+Z)" disabled={!canEdit || historyLocked || !planning.history?.future.length} onClick={planning.redo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Redo2 size={17} /></button>
         <input aria-label="Drawing color" type="color" value={planning.style.color} onChange={event => planning.setStyle({ color: event.target.value })} className="w-10 h-10 p-1 bg-transparent" />
         <select aria-label="Line style" value={planning.style.lineStyle} onChange={event => planning.setStyle({ lineStyle: event.target.value as typeof planning.style.lineStyle })} className="text-[10px] bg-surface-container rounded px-1"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
         <select aria-label="Line width" value={planning.style.width} onChange={event => planning.setStyle({ width: Number(event.target.value) })} className="text-[10px] bg-surface-container rounded px-1"><option value="2">Thin</option><option value="3">Medium</option><option value="6">Thick</option></select>
@@ -386,6 +414,7 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
   const object = selected.length === 1 ? selected[0] : null;
   const totals = useMemo(() => scenario ? getSymbolTotals(scenario.objects) : [], [scenario]);
   if (!scenario) return null;
+  canEdit = canEdit && (!object || !scenario.layers[object.layer].locked);
   return (
     <div className="absolute right-4 top-28 z-[650] w-64 bg-surface-container-highest rounded-xl shadow-lg p-4 max-h-[calc(100%-10rem)] overflow-y-auto">
       <div className="flex justify-between items-center mb-3"><h3 className="text-xs font-bold uppercase">{object ? 'Object properties' : 'Object inventory'}</h3>{object && <button aria-label="Close object properties" onClick={() => planning.select([])}><X size={14} /></button>}</div>
@@ -394,7 +423,7 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
         <div className="grid grid-cols-2 gap-2 mb-2"><label className="text-[9px] uppercase">Color<input aria-label="Object color" disabled={!canEdit} type="color" value={object.style.color} onChange={event => planning.updateObject(object.id, { style: { ...object.style, color: event.target.value } })} className="block w-full h-8" /></label><label className="text-[9px] uppercase">Width<select aria-label="Object width" disabled={!canEdit} value={object.style.width} onChange={event => planning.updateObject(object.id, { style: { ...object.style, width: Number(event.target.value) } })} className="block w-full h-8 bg-surface-container-lowest rounded"><option value="2">Thin</option><option value="3">Medium</option><option value="6">Thick</option></select></label></div>
         {!['symbol', 'text'].includes(object.kind) && <select aria-label="Object line style" disabled={!canEdit} value={object.style.lineStyle} onChange={event => planning.updateObject(object.id, { style: { ...object.style, lineStyle: event.target.value as PlanningObject['style']['lineStyle'] } })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>}
         {['polygon', 'rectangle', 'circle'].includes(object.kind) && <label className="text-[9px] uppercase block mb-2">Fill opacity<input aria-label="Object fill opacity" disabled={!canEdit} type="range" min="0" max="0.8" step="0.1" value={object.style.fillOpacity} onChange={event => planning.updateObject(object.id, { style: { ...object.style, fillOpacity: Number(event.target.value) } })} className="w-full" /></label>}
-        {object.kind === 'text' && <textarea disabled={!canEdit} value={object.text ?? ''} onChange={event => planning.updateObject(object.id, { text: event.target.value })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" />}
+        {object.kind === 'text' && <><textarea aria-label="Text content" disabled={!canEdit} value={object.text ?? ''} onChange={event => planning.updateObject(object.id, { text: event.target.value })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" /><select aria-label="Text size" disabled={!canEdit} value={object.textSize ?? 'medium'} onChange={event => planning.updateObject(object.id, { textSize: event.target.value as PlanningObject['textSize'] })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option>small</option><option>medium</option><option>large</option></select><div className="flex gap-4 mb-2"><label className="text-xs flex gap-1"><input disabled={!canEdit} type="checkbox" checked={Boolean(object.bold)} onChange={event => planning.updateObject(object.id, { bold: event.target.checked })} />Bold</label><label className="text-xs flex gap-1"><input disabled={!canEdit} type="checkbox" checked={Boolean(object.textBackground)} onChange={event => planning.updateObject(object.id, { textBackground: event.target.checked })} />Background</label></div></>}
         {object.kind === 'symbol' && <><label className="text-[9px] uppercase">Quantity</label><input disabled={!canEdit} type="number" min={1} value={object.quantity ?? 1} onChange={event => planning.updateObject(object.id, { quantity: Math.max(1, Number(event.target.value)) })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" /><textarea disabled={!canEdit} value={object.notes ?? ''} onChange={event => planning.updateObject(object.id, { notes: event.target.value })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" placeholder="Notes" /><select disabled={!canEdit} value={object.symbolSize ?? 'medium'} onChange={event => planning.updateObject(object.id, { symbolSize: event.target.value as PlanningObject['symbolSize'] })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option>small</option><option>medium</option><option>large</option></select></>}
         {object.kind === 'line' && <select disabled={!canEdit} value={object.arrows ?? 'end'} onChange={event => planning.updateObject(object.id, { arrows: event.target.value as PlanningObject['arrows'] })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option value="none">No arrows</option><option value="end">End arrow</option><option value="both">Both ends</option></select>}
         {['line', 'freehand', 'polygon', 'rectangle', 'circle'].includes(object.kind) && <label className="flex items-center gap-2 text-xs mb-2"><input disabled={!canEdit} type="checkbox" checked={Boolean(object.measurementPinned)} onChange={event => planning.updateObject(object.id, { measurementPinned: event.target.checked })} />Pin measurement</label>}

@@ -1,10 +1,10 @@
 import express, { Request, Response } from 'express';
 import type Database from 'better-sqlite3';
-import { planningScenarioSchema, planningTemplateSchema, validateForPublish, type PlanningRevision, type PlanningScenario } from '../lib/planning';
+import { planningScenarioSchema, planningTemplateSchema, scenarioInsideProvince, validateForPublish, type PlanningRevision, type PlanningScenario, type ProvinceGeoJSON } from '../lib/planning';
 
 const LOCK_TTL_MS = 15 * 60 * 1000;
 
-export function createPlanningRouter(db: Database.Database, isAuthorized: (request: Request) => boolean) {
+export function createPlanningRouter(db: Database.Database, isAuthorized: (request: Request) => boolean, province?: ProvinceGeoJSON) {
   // ponytail: locks and previews are process-local; move them to shared storage only when this server runs in multiple processes.
   const router = express.Router();
   const locks = new Map<string, { sessionId: string; expiresAt: number }>();
@@ -49,6 +49,11 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     return row ? planningScenarioSchema.parse(JSON.parse(row.document)) as PlanningScenario : null;
   };
 
+  const hasScenarioLock = (request: Request) => {
+    const lock = locks.get(request.params.id);
+    return Boolean(lock && lock.expiresAt > Date.now() && lock.sessionId === request.headers['x-planning-session']);
+  };
+
   const broadcast = (scenarioId: string, event: string, data: unknown) => {
     const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     viewers.get(scenarioId)?.forEach(response => response.write(payload));
@@ -72,6 +77,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
   router.post('/scenarios', requireAuthorization, (request, response) => {
     const parsed = planningScenarioSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Invalid scenario', details: parsed.error.flatten() });
+    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
     const scenario = { ...parsed.data, draftVersion: 1, updatedAt: new Date().toISOString() } as PlanningScenario;
     try {
       db.prepare(`INSERT INTO planning_scenarios
@@ -90,7 +96,9 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     if (!parsed.success || parsed.data.id !== request.params.id) return response.status(400).json({ error: 'Invalid scenario' });
     const current = getScenario(request.params.id);
     if (!current) return response.status(404).json({ error: 'Scenario not found' });
+    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     if (parsed.data.draftVersion !== current.draftVersion) return response.status(409).json({ error: 'Scenario changed', current });
+    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
     const scenario = { ...parsed.data, draftVersion: current.draftVersion + 1, updatedAt: new Date().toISOString() } as PlanningScenario;
     db.prepare(`UPDATE planning_scenarios SET
       name = ?, valid_from = ?, valid_until = ?, draft_version = ?, archived_at = ?, updated_at = ?, document = ? WHERE id = ?`)
@@ -103,6 +111,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
   router.delete('/scenarios/:id', requireAuthorization, (request, response) => {
     const current = getScenario(request.params.id);
     if (!current) return response.status(404).json({ error: 'Scenario not found' });
+    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     if (request.body?.name !== current.name) return response.status(400).json({ error: 'Type the scenario name to delete it' });
     db.prepare('DELETE FROM planning_revisions WHERE scenario_id = ?').run(current.id);
     db.prepare('DELETE FROM planning_scenarios WHERE id = ?').run(current.id);
@@ -126,6 +135,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
   router.post('/scenarios/:id/publish', requireAuthorization, (request, response) => {
     const scenario = getScenario(request.params.id);
     if (!scenario) return response.status(404).json({ error: 'Scenario not found' });
+    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     const validation = validateForPublish(scenario);
     if (validation.errors.length > 0) return response.status(400).json(validation);
     const revision = ((db.prepare('SELECT MAX(revision) AS revision FROM planning_revisions WHERE scenario_id = ?').get(scenario.id) as { revision: number | null }).revision ?? 0) + 1;
@@ -167,6 +177,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     const parsed = planningScenarioSchema.safeParse(request.body);
     const lock = locks.get(request.params.id);
     if (!parsed.success || parsed.data.id !== request.params.id) return response.status(400).json({ error: 'Invalid preview' });
+    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
     if (!lock || lock.expiresAt <= Date.now() || lock.sessionId !== request.headers['x-planning-session']) {
       return response.status(409).json({ error: 'Editing lock required' });
     }

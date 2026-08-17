@@ -43,6 +43,7 @@ export default function App() {
     // Initial fetch
     const fetchHazards = async () => {
       try {
+        try { await PlanningAPI.syncPending(usePlanningStore.getState().sessionId); } catch { /* cached drafts remain available */ }
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
       } catch (error) {
@@ -55,7 +56,7 @@ export default function App() {
     const handleOnline = async () => {
       try {
         await HazardAPI.syncPending();
-        await PlanningAPI.syncPending();
+        try { await PlanningAPI.syncPending(usePlanningStore.getState().sessionId); } catch { /* retry on the next online event */ }
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
       } catch (error) {

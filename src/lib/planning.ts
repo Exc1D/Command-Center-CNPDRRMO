@@ -247,10 +247,23 @@ export function eraseStroke(
   radiusMeters: number,
 ): [number, number][][] {
   if (eraserPath.length === 0) return [stroke.slice()];
+  const densify = (points: [number, number][]) => points.slice(1).reduce<[number, number][]>((dense, end, index) => {
+    const start = points[index];
+    // ponytail: cap interpolation per segment; raise it only if users draw continent-scale strokes.
+    const steps = Math.min(2_000, Math.max(1, Math.ceil(distanceMeters(start, end) / Math.max(1, radiusMeters / 2))));
+    for (let step = 1; step <= steps; step += 1) dense.push([
+      start[0] + (end[0] - start[0]) * step / steps,
+      start[1] + (end[1] - start[1]) * step / steps,
+    ]);
+    return dense;
+  }, points.length ? [points[0]] : []);
+  const denseStroke = densify(stroke);
+  const denseEraser = densify(eraserPath);
+  // ponytail: dense comparison is quadratic; add a spatial index only if field traces make erasing measurably slow.
   const parts: [number, number][][] = [];
   let current: [number, number][] = [];
-  for (const point of stroke) {
-    const erased = eraserPath.some(eraserPoint => distanceMeters(point, eraserPoint) <= radiusMeters);
+  for (const point of denseStroke) {
+    const erased = denseEraser.some(eraserPoint => distanceMeters(point, eraserPoint) <= radiusMeters);
     if (erased) {
       if (current.length >= 2) parts.push(current);
       current = [];
@@ -356,6 +369,13 @@ const planningObjectSchema = z.object({
   quantity: z.number().int().positive().max(100_000).optional(),
   notes: z.string().max(2_000).optional(),
   measurementPinned: z.boolean().optional(),
+}).superRefine((object, context) => {
+  const minimum = object.kind === 'symbol' || object.kind === 'text' || object.kind === 'circle' ? 1
+    : object.kind === 'line' || object.kind === 'freehand' ? 2 : 3;
+  if (object.coordinates.length < minimum) context.addIssue({ code: 'custom', path: ['coordinates'], message: `${object.kind} requires at least ${minimum} coordinate${minimum === 1 ? '' : 's'}` });
+  if (object.kind === 'circle' && object.radiusMeters === undefined) context.addIssue({ code: 'custom', path: ['radiusMeters'], message: 'Circle radius is required' });
+  if (object.kind === 'symbol' && !PLANNING_SYMBOLS.some(symbol => symbol.key === object.symbolKey)) context.addIssue({ code: 'custom', path: ['symbolKey'], message: 'Known symbol is required' });
+  if (object.kind === 'text' && !object.text?.trim()) context.addIssue({ code: 'custom', path: ['text'], message: 'Text content is required' });
 });
 
 export const planningScenarioSchema = z.object({
@@ -388,6 +408,17 @@ export const planningScenarioSchema = z.object({
   }
 });
 
+export function scenarioInsideProvince(scenario: PlanningScenario, province: ProvinceGeoJSON) {
+  return scenario.objects.every(object => {
+    const coordinates = ['polygon', 'rectangle'].includes(object.kind) && object.coordinates.length > 0
+      ? [...object.coordinates, object.coordinates[0]] : object.coordinates;
+    const geometryInside = object.kind === 'circle'
+      ? circleInsideProvince(object.coordinates[0], object.radiusMeters ?? 0, province)
+      : pathInsideProvince(coordinates, province);
+    return geometryInside && (!object.labelPosition || pointInsideProvince(object.labelPosition, province));
+  });
+}
+
 export const planningTemplateSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
@@ -416,16 +447,22 @@ export function exportScenario(scenario: PlanningScenario, templates: PlanningTe
   });
 }
 
-export function importScenario(raw: string) {
+export function importPlanningFile(raw: string, province?: ProvinceGeoJSON) {
   if (raw.length > 5_000_000) throw new Error('Scenario file exceeds the 5 MB limit');
   const imported = nativeScenarioSchema.parse(JSON.parse(raw));
-  return {
+  const scenario = {
     ...structuredClone(imported.scenario) as PlanningScenario,
     id: crypto.randomUUID(),
     draftVersion: 0,
     archivedAt: undefined,
     updatedAt: new Date().toISOString(),
   } satisfies PlanningScenario;
+  if (province && !scenarioInsideProvince(scenario, province)) throw new Error('Scenario contains objects outside Camarines Norte');
+  return { scenario, templates: structuredClone(imported.templates) as PlanningTemplate[] };
+}
+
+export function importScenario(raw: string, province?: ProvinceGeoJSON) {
+  return importPlanningFile(raw, province).scenario;
 }
 
 export function validateForPublish(scenario: PlanningScenario) {

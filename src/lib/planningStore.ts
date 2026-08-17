@@ -86,19 +86,21 @@ export const usePlanningStore = create<PlanningState>((set) => ({
     return { history: pushHistory(state.history, change(structuredClone(state.history.present))), dirty: true };
   }),
   addObject: object => set(state => {
-    if (!state.history) return state;
+    if (!state.history || state.history.present.layers[object.layer].locked) return state;
     const next = { ...state.history.present, objects: [...state.history.present.objects, object] };
     return { history: pushHistory(state.history, next), dirty: true, selectedIds: [object.id] };
   }),
   updateObject: (id, change) => set(state => {
     if (!state.history) return state;
+    const current = state.history.present.objects.find(object => object.id === id);
+    if (!current || state.history.present.layers[current.layer].locked) return state;
     const next = { ...state.history.present, objects: state.history.present.objects.map(object => object.id === id ? { ...object, ...change } : object) };
     return { history: pushHistory(state.history, next), dirty: true };
   }),
   removeObjects: ids => set(state => {
     if (!state.history) return state;
     const selected = new Set(ids);
-    const next = { ...state.history.present, objects: state.history.present.objects.filter(object => !selected.has(object.id) || object.locked) };
+    const next = { ...state.history.present, objects: state.history.present.objects.filter(object => !selected.has(object.id) || object.locked || state.history!.present.layers[object.layer].locked) };
     return { history: pushHistory(state.history, next), dirty: true, selectedIds: [] };
   }),
   setTool: tool => set({ tool }),
@@ -108,8 +110,8 @@ export const usePlanningStore = create<PlanningState>((set) => ({
   select: selectedIds => set({ selectedIds }),
   setSymbolKey: symbolKey => set({ symbolKey, tool: 'symbol' }),
   setSymbolSize: symbolSize => set({ symbolSize }),
-  undo: () => set(state => state.history?.past.length ? { history: undoHistory(state.history), dirty: true, selectedIds: [] } : state),
-  redo: () => set(state => state.history?.future.length ? { history: redoHistory(state.history), dirty: true, selectedIds: [] } : state),
+  undo: () => set(state => state.history?.past.length && !Object.values(state.history.present.layers).some(layer => layer.locked) ? { history: undoHistory(state.history), dirty: true, selectedIds: [] } : state),
+  redo: () => set(state => state.history?.future.length && !Object.values(state.history.present.layers).some(layer => layer.locked) ? { history: redoHistory(state.history), dirty: true, selectedIds: [] } : state),
   markSaved: scenario => set(state => ({
     history: state.history ? {
       past: state.history.past.map(item => ({ ...item, draftVersion: scenario.draftVersion })),

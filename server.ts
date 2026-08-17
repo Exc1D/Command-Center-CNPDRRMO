@@ -239,7 +239,8 @@ app.post('/api/verify-pin', (req, res) => {
   }
 });
 
-app.use('/api/planning', createPlanningRouter(db, hasOperationsSession));
+const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
+app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
 
 app.get("/api/hazards", (req, res) => {
   try {

@@ -6,11 +6,14 @@ const authorization = () => ({ Authorization: `Bearer ${sessionStorage.getItem('
 
 export const PlanningAPI = {
   async list(): Promise<Array<PlanningScenario & { publishedRevision?: number | null }>> {
+    const pending = await db.planningScenarios.filter(scenario => scenario.syncStatus?.startsWith('pending_') ?? false).toArray();
     if (navigator.onLine) {
       try {
         const response = await axios.get('/api/planning/scenarios');
-        await db.planningScenarios.bulkPut(response.data.map((scenario: PlanningScenario) => ({ ...scenario, syncStatus: 'synced' })));
-        return response.data;
+        const pendingIds = new Set(pending.map(scenario => scenario.id));
+        const server = (response.data as PlanningScenario[]).filter(scenario => !pendingIds.has(scenario.id));
+        await db.planningScenarios.bulkPut(server.map(scenario => ({ ...scenario, syncStatus: 'synced' })));
+        return [...server, ...pending.filter(scenario => scenario.syncStatus !== 'pending_delete')];
       } catch {
         // The saved offline list remains useful when the server is unavailable.
       }
@@ -33,14 +36,14 @@ export const PlanningAPI = {
     return local;
   },
 
-  async save(scenario: PlanningScenario): Promise<{ scenario: PlanningScenario; conflicted: boolean }> {
+  async save(scenario: PlanningScenario, sessionId?: string): Promise<{ scenario: PlanningScenario; conflicted: boolean }> {
     if (navigator.onLine) {
       try {
-        const response = await axios.put(`/api/planning/scenarios/${scenario.id}`, scenario, { headers: authorization() });
+        const response = await axios.put(`/api/planning/scenarios/${scenario.id}`, scenario, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' } });
         await db.planningScenarios.put({ ...response.data, syncStatus: 'synced' });
         return { scenario: response.data, conflicted: false };
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 409) {
+        if (axios.isAxiosError(error) && error.response?.status === 409 && error.response.data?.current) {
           const conflict = {
             ...scenario,
             id: crypto.randomUUID(),
@@ -49,6 +52,7 @@ export const PlanningAPI = {
             updatedAt: new Date().toISOString(),
           };
           const saved = await this.create(conflict);
+          await db.planningScenarios.delete(scenario.id);
           return { scenario: saved, conflicted: true };
         }
         if (axios.isAxiosError(error) && error.response?.status < 500) throw error;
@@ -59,18 +63,18 @@ export const PlanningAPI = {
     return { scenario: local, conflicted: false };
   },
 
-  async remove(scenario: PlanningScenario) {
+  async remove(scenario: PlanningScenario, sessionId?: string) {
     if (navigator.onLine) {
-      await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: authorization(), data: { name: scenario.name } });
+      await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' }, data: { name: scenario.name } });
       await db.planningScenarios.delete(scenario.id);
       return;
     }
     await db.planningScenarios.put({ ...scenario, syncStatus: 'pending_delete' });
   },
 
-  async publish(id: string): Promise<PlanningRevision & { warnings: string[] }> {
+  async publish(id: string, sessionId?: string): Promise<PlanningRevision & { warnings: string[] }> {
     if (!navigator.onLine) throw new Error('Publishing requires an internet connection');
-    const response = await axios.post(`/api/planning/scenarios/${id}/publish`, {}, { headers: authorization() });
+    const response = await axios.post(`/api/planning/scenarios/${id}/publish`, {}, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' } });
     await db.planningRevisions.put(response.data);
     return response.data;
   },
@@ -136,16 +140,16 @@ export const PlanningAPI = {
     } else if (template) await db.planningTemplates.put({ ...template, syncStatus: 'pending_delete' });
   },
 
-  async syncPending() {
+  async syncPending(sessionId: string = crypto.randomUUID()) {
     if (!navigator.onLine) return;
     const pending = await db.planningScenarios.filter(scenario => scenario.syncStatus?.startsWith('pending_') ?? false).toArray();
     for (const scenario of pending) {
       if (scenario.syncStatus === 'pending_delete') {
-        try { await this.remove(scenario); } catch { /* retry on the next online event */ }
+        try { await this.acquireLock(scenario.id, sessionId); await this.remove(scenario, sessionId); } catch { /* retry on the next online event */ }
       } else if (scenario.syncStatus === 'pending_add') {
         try { await this.create(scenario); } catch { /* retry on the next online event */ }
       } else {
-        try { await this.save(scenario); } catch { /* retry on the next online event */ }
+        try { await this.acquireLock(scenario.id, sessionId); await this.save(scenario, sessionId); } catch { /* retry on the next online event */ }
       }
     }
     const templates = await db.planningTemplates.filter(template => template.syncStatus?.startsWith('pending_') ?? false).toArray();

@@ -13,7 +13,9 @@ describe('planning server', () => {
     database = new Database(':memory:');
     app = express();
     app.use(express.json({ limit: '6mb' }));
-    app.use('/api/planning', createPlanningRouter(database, req => req.headers.authorization === 'Bearer valid'));
+    app.use('/api/planning', createPlanningRouter(database, req => req.headers.authorization === 'Bearer valid', {
+      features: [{ geometry: { type: 'Polygon', coordinates: [[[122, 13], [124, 13], [124, 15], [122, 15], [122, 13]]] } }],
+    }));
   });
 
   afterEach(() => database.close());
@@ -42,9 +44,10 @@ describe('planning server', () => {
   it('rejects a stale draft instead of overwriting newer work', async () => {
     const original = createPlanningScenario('Typhoon evacuation');
     const created = await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(original);
-    await request(app).put(`/api/planning/scenarios/${original.id}`).set('Authorization', 'Bearer valid').send({ ...created.body, notes: 'Newer work' });
+    await request(app).post(`/api/planning/scenarios/${original.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
+    await request(app).put(`/api/planning/scenarios/${original.id}`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one').send({ ...created.body, notes: 'Newer work' });
 
-    const stale = await request(app).put(`/api/planning/scenarios/${original.id}`).set('Authorization', 'Bearer valid').send({ ...created.body, notes: 'Stale work' });
+    const stale = await request(app).put(`/api/planning/scenarios/${original.id}`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one').send({ ...created.body, notes: 'Stale work' });
 
     expect(stale.status).toBe(409);
     expect(stale.body.current.notes).toBe('Newer work');
@@ -54,9 +57,10 @@ describe('planning server', () => {
     const original = createPlanningScenario('Typhoon evacuation');
     original.objects.push({ id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[122.95, 14.1]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0, symbolKey: 'eoc' });
     await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(original);
+    await request(app).post(`/api/planning/scenarios/${original.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
 
-    const first = await request(app).post(`/api/planning/scenarios/${original.id}/publish`).set('Authorization', 'Bearer valid');
-    const second = await request(app).post(`/api/planning/scenarios/${original.id}/publish`).set('Authorization', 'Bearer valid');
+    const first = await request(app).post(`/api/planning/scenarios/${original.id}/publish`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one');
+    const second = await request(app).post(`/api/planning/scenarios/${original.id}/publish`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one');
 
     expect(first.body.revision).toBe(1);
     expect(second.body.revision).toBe(2);
@@ -65,9 +69,10 @@ describe('planning server', () => {
   it('requires the exact scenario name for permanent deletion', async () => {
     const scenario = createPlanningScenario('Typhoon evacuation');
     await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
+    await request(app).post(`/api/planning/scenarios/${scenario.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
 
-    const rejected = await request(app).delete(`/api/planning/scenarios/${scenario.id}`).set('Authorization', 'Bearer valid').send({ name: 'Wrong' });
-    const deleted = await request(app).delete(`/api/planning/scenarios/${scenario.id}`).set('Authorization', 'Bearer valid').send({ name: scenario.name });
+    const rejected = await request(app).delete(`/api/planning/scenarios/${scenario.id}`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one').send({ name: 'Wrong' });
+    const deleted = await request(app).delete(`/api/planning/scenarios/${scenario.id}`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one').send({ name: scenario.name });
 
     expect(rejected.status).toBe(400);
     expect(deleted.status).toBe(200);
@@ -93,6 +98,24 @@ describe('planning server', () => {
       .put(`/api/planning/templates/${id}`)
       .set('Authorization', 'Bearer valid')
       .send({ id, name: 'Broken', symbolKey: 'eoc', color: 'red', size: 'large', updatedAt: new Date().toISOString() });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects scenario mutation without the active editing lock', async () => {
+    const scenario = createPlanningScenario('Locked plan');
+    const created = await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
+
+    const response = await request(app).put(`/api/planning/scenarios/${scenario.id}`).set('Authorization', 'Bearer valid').send(created.body);
+
+    expect(response.status).toBe(409);
+  });
+
+  it('rejects planning objects outside the province boundary', async () => {
+    const scenario = createPlanningScenario('Outside plan');
+    scenario.objects.push({ id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[0, 0]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0, symbolKey: 'eoc' });
+
+    const response = await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
 
     expect(response.status).toBe(400);
   });

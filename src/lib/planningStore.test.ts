@@ -15,4 +15,11 @@ describe('planning editor store', () => {
 
     expect(usePlanningStore.getState().history!.present.draftVersion).toBe(4);
   });
+
+  it('does not mutate objects on a locked planning layer', () => {
+    usePlanningStore.getState().edit(current => ({ ...current, layers: { ...current.layers, drawings: { ...current.layers.drawings, locked: true } } }));
+    usePlanningStore.getState().addObject({ id: crypto.randomUUID(), kind: 'line', layer: 'drawings', coordinates: [[122.9, 14.1], [123, 14.1]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0 });
+
+    expect(usePlanningStore.getState().history!.present.objects).toEqual([]);
+  });
 });

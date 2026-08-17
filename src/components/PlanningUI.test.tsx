@@ -35,4 +35,12 @@ describe('PlanningSidebar', () => {
     expect(usePlanningStore.getState().dirty).toBe(true);
     expect(screen.getByTitle('Emergency Operations Center')).toBeInTheDocument();
   });
+
+  it('disables scenario mutation for a read-only viewer', async () => {
+    useStore.setState({ isMapAuthorized: false });
+    render(<PlanningSidebar />);
+
+    expect(screen.getByPlaceholderText('Scenario name')).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /^save$/i })).toBeDisabled();
+  });
 });
