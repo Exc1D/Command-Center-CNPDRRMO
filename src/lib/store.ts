@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Hazard, EvacuationCenter } from './db';
+import type { PlanningScenario } from './planning';
 
 type BaseMapType = 'street' | 'topo' | 'satellite';
 
@@ -7,6 +8,7 @@ interface AppState {
   hazards: Hazard[];
   filteredHazards: Hazard[];
   activeFilters: string[];
+  activeSusceptibilityFilters: string[];
   baseMap: BaseMapType;
   selectedHazard: Hazard | null;
   mapCenter: [number, number];
@@ -52,9 +54,11 @@ interface AppState {
   setHazards: (h: Hazard[]) => void;
   setEvacuationCenters: (c: EvacuationCenter[]) => void;
   toggleFilter: (type: string) => void;
+  toggleSusceptibilityFilter: (level: string) => void;
   setBaseMap: (map: BaseMapType) => void;
   setSelectedHazard: (h: Hazard | null) => void;
   flyTo: (center: [number, number], zoom: number) => void;
+  applyPlanningMapState: (mapState: PlanningScenario['mapState']) => void;
   setMapAuthorized: (val: boolean) => void;
   
   openDropTagModal: (geom: any) => void;
@@ -75,6 +79,13 @@ export const DISASTER_TYPES = [
   { id: 'tsunami', label: 'Tsunami', color: '#0ea5e9' }
 ];
 
+export const SUSCEPTIBILITY_LEVELS = [
+  { id: 'Very High', label: 'Very High', color: '#001f3f' },
+  { id: 'High', label: 'High', color: '#7b2cbf' },
+  { id: 'Moderate', label: 'Moderate', color: '#d63384' },
+  { id: 'Low', label: 'Low', color: '#fccde5' }
+];
+
 export const SYNC_STATUS = {
   SYNCED: 'synced',
   PENDING_ADD: 'pending_add',
@@ -86,6 +97,7 @@ export const useStore = create<AppState>((set) => ({
   hazards: [],
   filteredHazards: [],
   activeFilters: [],
+  activeSusceptibilityFilters: [],
   baseMap: 'street',
   selectedHazard: null,
   mapCenter: [14.1167, 122.9500] as [number, number], // Camarines Norte center approx
@@ -116,10 +128,13 @@ export const useStore = create<AppState>((set) => ({
   openEditModal: (hazard) => set({ isEditModalOpen: true, editModalHazard: hazard }),
   closeEditModal: () => set({ isEditModalOpen: false, editModalHazard: null }),
 
-  setHazards: (hazards) => set((state) => ({ 
-    hazards, 
-    filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)) 
-  })),
+  setHazards: (hazards) => set((state) => {
+    let filtered = hazards.filter(h => state.activeFilters.includes(h.type));
+    if (state.activeFilters.includes('flood') && state.activeSusceptibilityFilters.length > 0) {
+      filtered = filtered.filter(h => state.activeSusceptibilityFilters.includes(h.susceptibility || ''));
+    }
+    return { hazards, filteredHazards: filtered };
+  }),
   setEvacuationCenters: (evacuationCenters) => set({ evacuationCenters }),
   toggleFilter: (type) => set((state) => {
     const newFilters = state.activeFilters.includes(type)
@@ -127,12 +142,40 @@ export const useStore = create<AppState>((set) => ({
       : [...state.activeFilters, type];
     return {
       activeFilters: newFilters,
-      filteredHazards: state.hazards.filter(h => newFilters.includes(h.type))
+      filteredHazards: state.hazards.filter(h => newFilters.includes(h.type)),
+      activeSusceptibilityFilters: newFilters.includes('flood') ? state.activeSusceptibilityFilters : []
     };
+  }),
+  toggleSusceptibilityFilter: (level) => set((state) => {
+    const newSuscepFilters = state.activeSusceptibilityFilters.includes(level)
+      ? state.activeSusceptibilityFilters.filter(f => f !== level)
+      : [...state.activeSusceptibilityFilters, level];
+    let filteredHazards = state.filteredHazards;
+    if (state.activeFilters.includes('flood')) {
+      if (newSuscepFilters.length > 0) {
+        filteredHazards = state.hazards.filter(h =>
+          state.activeFilters.includes(h.type) &&
+          (h.type !== 'flood' || newSuscepFilters.includes(h.susceptibility || ''))
+        );
+      } else {
+        filteredHazards = state.hazards.filter(h => state.activeFilters.includes(h.type));
+      }
+    }
+    return { activeSusceptibilityFilters: newSuscepFilters, filteredHazards };
   }),
   setBaseMap: (baseMap) => set({ baseMap }),
   setSelectedHazard: (selectedHazard) => set({ selectedHazard }),
   flyTo: (mapCenter, mapZoom) => set({ mapCenter, mapZoom }),
+  applyPlanningMapState: (mapState) => set(state => ({
+    mapCenter: mapState.center,
+    mapZoom: mapState.zoom,
+    baseMap: mapState.baseMap,
+    activeFilters: mapState.activeFilters,
+    activeSusceptibilityFilters: mapState.susceptibilityFilters,
+    evacuationCentersVisible: mapState.evacuationCentersVisible,
+    filteredHazards: state.hazards.filter(hazard => mapState.activeFilters.includes(hazard.type)
+      && (hazard.type !== 'flood' || mapState.susceptibilityFilters.length === 0 || mapState.susceptibilityFilters.includes(hazard.susceptibility ?? ''))),
+  })),
   setMapAuthorized: (isMapAuthorized) => set({ isMapAuthorized }),
   
   openDropTagModal: (geom) => set({ isDropTagModalOpen: true, dropTagTempGeometry: geom }),

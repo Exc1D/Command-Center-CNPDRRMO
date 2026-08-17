@@ -5,6 +5,8 @@ import path from "path";
 import fs from "fs";
 import Database from "better-sqlite3";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
+import { createPlanningRouter } from "./src/server/planning";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -13,7 +15,7 @@ function generateErrorId() {
   return `ERR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '6mb' }));
 
 // Set up SQLite Database
 const dbPath = path.resolve(process.cwd(), 'camarines_drrmc.db');
@@ -210,17 +212,34 @@ if (!CORRECT_PIN) {
   process.exit(1);
 }
 
+const operationsSessions = new Map<string, number>();
+
+function hasOperationsSession(request: express.Request) {
+  const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) return false;
+  const expiresAt = operationsSessions.get(token) ?? 0;
+  if (expiresAt <= Date.now()) {
+    operationsSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
 app.post('/api/verify-pin', (req, res) => {
   const { pin } = req.body;
   if (typeof pin !== 'string' || pin.length !== 4) {
     return res.status(400).json({ error: 'Invalid PIN format' });
   }
   if (pin === CORRECT_PIN) {
-    res.json({ valid: true });
+    const token = randomUUID();
+    operationsSessions.set(token, Date.now() + 8 * 60 * 60 * 1000);
+    res.json({ valid: true, token });
   } else {
     res.status(401).json({ valid: false });
   }
 });
+
+app.use('/api/planning', createPlanningRouter(db, hasOperationsSession));
 
 app.get("/api/hazards", (req, res) => {
   try {

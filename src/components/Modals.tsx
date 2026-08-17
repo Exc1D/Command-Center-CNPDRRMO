@@ -299,6 +299,7 @@ export function PinModal() {
       });
       const data = await response.json();
       if (data.valid) {
+        if (typeof data.token === 'string') sessionStorage.setItem('operationsToken', data.token);
         if (pinActionType === 'delete') {
           await handleDelete();
         } else if (pinActionType === 'unlock') {

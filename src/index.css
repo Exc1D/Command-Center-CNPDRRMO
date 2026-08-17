@@ -20,6 +20,96 @@
   --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
 }
 
+.planning-symbol-wrapper,
+.planning-text-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.planning-symbol {
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+  color: white;
+  display: grid;
+  place-items: center;
+  font: 800 9px/1 system-ui, sans-serif;
+}
+
+.planning-symbol--published {
+  border: 3px dashed #111827;
+  outline: 2px dashed white;
+}
+
+.planning-text {
+  display: inline-block;
+  min-width: max-content;
+  max-width: 240px;
+  white-space: pre-wrap;
+  text-shadow: 0 1px 2px white, 0 -1px 2px white, 1px 0 2px white, -1px 0 2px white;
+}
+
+.planning-text--background {
+  background: rgb(255 255 255 / 90%);
+  border-radius: 4px;
+  padding: 3px 5px;
+  text-shadow: none;
+}
+
+.planning-text--published::after {
+  content: " PLANNED";
+  border: 1px dashed currentColor;
+  border-radius: 3px;
+  font-size: 8px;
+  margin-left: 4px;
+  padding: 1px 3px;
+}
+
+.planning-path--published {
+  stroke-dasharray: 8 6;
+}
+
+.planning-arrow-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.planning-arrow {
+  display: block;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 18px;
+  text-shadow: 0 0 2px white;
+}
+
+.planning-arrow--published {
+  filter: drop-shadow(0 0 1px white);
+  opacity: 0.8;
+}
+
+.planning-measurement {
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid #64748b;
+  box-shadow: none;
+  color: #0f172a;
+  font: 700 10px/1 system-ui, sans-serif;
+  padding: 3px 5px;
+}
+
+.planning-context-menu {
+  display: grid;
+  min-width: 120px;
+}
+
+.planning-context-menu button {
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.planning-context-menu button:hover {
+  background: #eff4ff;
+}
+
 body {
   margin: 0;
   overscroll-behavior: none;

@@ -9,7 +9,10 @@ import { EditHazardModal } from "./components/EditHazardModal";
 import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
 import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
 import { AnalyticsPanel } from "./components/AnalyticsPanel";
-import { BarChart2, X } from "lucide-react";
+import { PlanningOverlay, PlanningSidebar, PublishedPlansControl } from "./components/PlanningUI";
+import { usePlanningStore } from "./lib/planningStore";
+import { PlanningAPI } from "./lib/planningApi";
+import { BarChart2, MapPinned, X } from "lucide-react";
 
 const SYNC_ERROR_AUTO_DISMISS_MS = 5000;
 
@@ -22,6 +25,7 @@ export default function App() {
     clearSyncError,
   } = useStore();
   const [showSyncError, setShowSyncError] = useState(false);
+  const planning = usePlanningStore();
 
   // Watch for sync errors and show banner
   useEffect(() => {
@@ -51,6 +55,7 @@ export default function App() {
     const handleOnline = async () => {
       try {
         await HazardAPI.syncPending();
+        await PlanningAPI.syncPending();
         const hazards = await HazardAPI.getAllHazards();
         setHazards(hazards);
       } catch (error) {
@@ -129,6 +134,26 @@ export default function App() {
             />{" "}
             View Analytics
           </button>
+          <button
+            onClick={() => {
+              if (planning.isPlanningMode) {
+                if (planning.dirty && !confirm('Discard unsaved planning changes?')) return;
+                const scenario = planning.history?.present;
+                if (scenario && planning.lockAcquired) PlanningAPI.releaseLock(scenario.id, planning.sessionId).catch(() => {});
+                if (planning.dirty) {
+                  const saved = planning.scenarios.find(item => item.id === scenario?.id);
+                  saved ? planning.load(saved) : planning.newBoard();
+                }
+                planning.exit();
+              } else {
+                planning.enter();
+                setAnalyticsOpen(false);
+              }
+            }}
+            className={`h-10 px-4 flex items-center gap-2 rounded-md text-[11px] font-bold uppercase tracking-[0.05em] ${planning.isPlanningMode ? 'bg-[#8a5d00] text-white' : 'bg-surface-container text-on-surface'}`}
+          >
+            <MapPinned size={16} /> {planning.isPlanningMode ? 'Exit Planning' : 'Planning Mode'}
+          </button>
         </div>
       </header>
 
@@ -140,7 +165,7 @@ export default function App() {
             </div>
           }
         >
-          <Sidebar />
+          {planning.isPlanningMode ? <PlanningSidebar /> : <Sidebar />}
         </ErrorBoundary>
         <section className="flex-1 relative bg-surface flex items-center justify-center overflow-hidden">
           <ErrorBoundary
@@ -150,7 +175,7 @@ export default function App() {
               </div>
             }
           >
-            <DangerMap />
+          <DangerMap />
           </ErrorBoundary>
           <PopUpCard />
           <ErrorBoundary
@@ -160,8 +185,9 @@ export default function App() {
               </div>
             }
           >
-            <AnalyticsPanel />
+          <AnalyticsPanel />
           </ErrorBoundary>
+          {planning.isPlanningMode ? <PlanningOverlay /> : <PublishedPlansControl />}
         </section>
       </main>
 

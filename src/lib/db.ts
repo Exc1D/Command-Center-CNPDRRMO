@@ -1,10 +1,12 @@
 import Dexie, { Table } from 'dexie';
+import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './planning';
 
 export interface Hazard {
   id: string;
   type: string;
   severity: string;
   title?: string;
+  susceptibility?: string;
   municipality?: string;
   barangay?: string;
   notes: string;
@@ -28,12 +30,22 @@ export interface EvacuationCenter {
 export class OfflineDB extends Dexie {
   hazards!: Table<Hazard, string>;
   evacuationCenters!: Table<EvacuationCenter, string>;
+  planningScenarios!: Table<PlanningScenario & { syncStatus?: string }, string>;
+  planningRevisions!: Table<PlanningRevision, string>;
+  planningTemplates!: Table<PlanningTemplate & { syncStatus?: string }, string>;
 
   constructor() {
     super('CamarinesDRRMC_DB');
     this.version(2).stores({
       hazards: 'id, type, syncStatus',
       evacuationCenters: 'id, syncStatus',
+    });
+    this.version(3).stores({
+      hazards: 'id, type, syncStatus',
+      evacuationCenters: 'id, syncStatus',
+      planningScenarios: 'id, archivedAt, updatedAt, syncStatus',
+      planningRevisions: 'id, scenarioId, revision, publishedAt',
+      planningTemplates: 'id, name, updatedAt, syncStatus',
     });
   }
 }

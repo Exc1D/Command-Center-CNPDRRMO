@@ -2,10 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap, GeoJSON, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
-import { useStore, DISASTER_TYPES } from '../lib/store';
+import { useStore, DISASTER_TYPES, SUSCEPTIBILITY_LEVELS } from '../lib/store';
 import { HazardAPI, EvacuationCenterAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import { MAP_CONFIG } from '../lib/constants';
+import { usePlanningStore } from '../lib/planningStore';
+import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
+import floodSusceptibilityUrl from '../../CamarinesNorte_FloodPerMunicipality.geojson?url';
+
+const SUSCEP_STYLES: Record<string, { color: string; fillOpacity: number }> = {
+  'Very High': { color: '#001f3f', fillOpacity: 0.35 },
+  'High': { color: '#7b2cbf', fillOpacity: 0.35 },
+  'Moderate': { color: '#d63384', fillOpacity: 0.35 },
+  'Low': { color: '#fccde5', fillOpacity: 0.4 }
+};
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -201,6 +211,55 @@ export default function DangerMap() {
   const baseMap = useStore(state => state.baseMap);
   const filteredHazards = useStore(state => state.filteredHazards);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
+  const activeFilters = useStore(state => state.activeFilters);
+  const [susceptibilityGeoJSON, setSusceptibilityGeoJSON] = useState<any>(null);
+  const isPlanningMode = usePlanningStore(state => state.isPlanningMode);
+
+  useEffect(() => {
+    if (activeFilters.includes('flood')) {
+      fetch(floodSusceptibilityUrl)
+        .then(res => res.json())
+        .then(data => setSusceptibilityGeoJSON(data))
+        .catch(err => console.error('Failed to load flood susceptibility data:', err));
+    } else {
+      setSusceptibilityGeoJSON(null);
+    }
+  }, [activeFilters]);
+
+  const suscepStyle = (feature: any) => {
+    const suscep = feature?.properties?.Suscep;
+    const style = SUSCEP_STYLES[suscep] || { color: '#999', fillOpacity: 0.2 };
+    return {
+      color: style.color,
+      weight: 1,
+      opacity: 0.6,
+      fillColor: style.color,
+      fillOpacity: style.fillOpacity
+    };
+  };
+
+  const onEachSuscepFeature = (feature: any, layer: L.Layer) => {
+    const suscep = feature?.properties?.Suscep;
+    const municipality = feature?.properties?.Municipali;
+    const label = `${municipality}: ${suscep || 'Unknown'}`;
+
+    layer.bindTooltip(label, {
+      permanent: false,
+      direction: 'center',
+      className: 'susceptibility-tooltip'
+    });
+
+    layer.on({
+      mouseover: (e) => {
+        const target = e.target;
+        target.setStyle({ fillOpacity: 0.6, weight: 2 });
+      },
+      mouseout: (e) => {
+        const target = e.target;
+        target.setStyle(suscepStyle(feature));
+      }
+    });
+  };
 
   const mapUrls = {
     street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -302,9 +361,22 @@ export default function DangerMap() {
           url={mapUrls[baseMap]}
           attribution="&copy; DRRMC Camarines Norte"
         />
-        <GeomanSetup />
+        {!isPlanningMode && <GeomanSetup />}
+        {isPlanningMode && <PlanningMapLayer />}
+        <PublishedPlanningLayers />
+        <MapScaleControl />
         <FlyToHandler />
         <EvacuationCenterMarkersHandler />
+
+        {susceptibilityGeoJSON && (
+          <GeoJSON
+            key="susceptibility-layer"
+            data={susceptibilityGeoJSON}
+            style={suscepStyle}
+            onEachFeature={onEachSuscepFeature}
+            pane="overlayPane"
+          />
+        )}
 
         <FeatureGroup>
           {filteredHazards.map(hazard => {

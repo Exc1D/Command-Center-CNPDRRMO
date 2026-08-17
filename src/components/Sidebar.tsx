@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, DISASTER_TYPES } from '../lib/store';
+import { useStore, DISASTER_TYPES, SUSCEPTIBILITY_LEVELS } from '../lib/store';
 import { cn } from '../lib/utils';
 import { MAP_CONFIG } from '../lib/constants';
 import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown, Check } from 'lucide-react';
@@ -29,6 +29,7 @@ export default function Sidebar() {
   const {
     baseMap, setBaseMap,
     activeFilters, toggleFilter,
+    activeSusceptibilityFilters, toggleSusceptibilityFilter,
     flyTo, filteredHazards, flyTo: storeFlyTo,
     isMapAuthorized, setMapAuthorized,
     openPinModal, setSelectedHazard,
@@ -90,6 +91,7 @@ export default function Sidebar() {
           <button 
             onClick={() => {
               if (isMapAuthorized) {
+                sessionStorage.removeItem('operationsToken');
                 setMapAuthorized(false);
               } else {
                 openPinModal('unlock');
@@ -222,6 +224,39 @@ export default function Sidebar() {
             })}
           </div>
         </section>
+
+        {/* Susceptibility Filter - only show when Flood is active */}
+        {activeFilters.includes('flood') && (
+          <section>
+            <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Flood Susceptibility</label>
+            <div className="space-y-2 pl-2">
+              {SUSCEPTIBILITY_LEVELS.map(level => {
+                const isActive = activeSusceptibilityFilters.includes(level.id);
+                return (
+                  <button
+                    key={level.id}
+                    onClick={() => toggleSusceptibilityFilter(level.id)}
+                    className={`w-full flex items-center gap-3 cursor-pointer group p-2 rounded-lg transition-all ${isActive ? 'bg-surface-container-lowest' : 'hover:bg-surface'}`}
+                  >
+                    <div
+                      className="w-4 h-4 rounded border-2 flex items-center justify-center transition-all"
+                      style={{
+                        borderColor: level.color,
+                        backgroundColor: isActive ? level.color : 'transparent'
+                      }}
+                    >
+                      {isActive && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className="text-sm font-medium" style={{ color: level.color }}>{level.label}</span>
+                  </button>
+                );
+              })}
+              {activeSusceptibilityFilters.length === 0 && (
+                <p className="text-[10px] text-on-surface/40 italic pl-1">Select levels to filter flood zones</p>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Facilities Toggle */}
         <section>
