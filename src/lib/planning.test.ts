@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { circleInsideProvince, createHistory, createPlanningScenario, eraseStroke, exportScenario, formatMeasurement, getSymbolTotals, importPlanningFile, importScenario, pathInsideProvince, planningScenarioSchema, pushHistory, smoothStroke, undoHistory, validateForPublish } from './planning';
+import { circleInsideProvince, createHistory, createPlanningScenario, DEFAULT_PLANNING_STYLE, erasePlanningObjects, eraserTouchesObject, eraseStroke, exportScenario, formatMeasurement, getSymbolTotals, importPlanningFile, importScenario, pathInsideProvince, planningScenarioSchema, pushHistory, smoothStroke, undoHistory, validateForPublish } from './planning';
 
 describe('planning documents', () => {
   it('creates a blank draft with the fixed planning layers', () => {
@@ -54,9 +54,57 @@ describe('planning documents', () => {
   });
 
   it('erases through a long smoothed segment even when its endpoints miss the eraser', () => {
-    const parts = eraseStroke([[122.95, 14.1], [122.952, 14.1]], [[122.951, 14.1]], 10);
+    const parts = eraseStroke([[120, 14.1], [130, 14.1]], [[123.14159, 14.1]], 1);
 
     expect(parts).toHaveLength(2);
+    expect(parts.flat()).toHaveLength(4);
+  });
+
+  it('hits the visible footprint of point symbols', () => {
+    const scenario = createPlanningScenario('Symbols');
+    const symbol: typeof scenario.objects[number] = { id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[122.95, 14.1]], style: { ...DEFAULT_PLANNING_STYLE }, locked: false, order: 0, symbolKey: 'ambulance' };
+
+    expect(eraserTouchesObject(symbol, [[122.9502, 14.1]], 5)).toBe(false);
+    expect(eraserTouchesObject(symbol, [[122.9502, 14.1]], 5, 20)).toBe(true);
+  });
+
+  it('leaves an untouched stroke at its original resolution', () => {
+    const stroke: [number, number][] = [[122.95, 14.1], [122.952, 14.1]];
+
+    expect(eraseStroke(stroke, [[123, 15]], 10)).toEqual([stroke]);
+  });
+
+  it('cuts open paths, removes touched objects, and skips locks in one eraser action', () => {
+    const style = { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' as const };
+    const scenario = createPlanningScenario('Eraser');
+    scenario.objects = [
+      { id: '00000000-0000-4000-8000-000000000001', kind: 'line', layer: 'drawings', coordinates: [[122.95, 14.1], [122.952, 14.1]], style, locked: false, order: 0 },
+      { id: '00000000-0000-4000-8000-000000000002', kind: 'polygon', layer: 'drawings', coordinates: [[122.9508, 14.0998], [122.9512, 14.0998], [122.951, 14.1002]], style, locked: false, order: 1 },
+      { id: '00000000-0000-4000-8000-000000000003', kind: 'symbol', layer: 'symbols', coordinates: [[122.951, 14.1]], style, locked: false, order: 2, symbolKey: 'ambulance' },
+      { id: '00000000-0000-4000-8000-000000000004', kind: 'circle', layer: 'drawings', coordinates: [[122.951, 14.1]], radiusMeters: 50, style, locked: true, order: 3 },
+      { id: '00000000-0000-4000-8000-000000000005', kind: 'text', layer: 'labels', coordinates: [[122.951, 14.1]], text: 'Locked label', style, locked: false, order: 4 },
+    ];
+    scenario.layers.labels.locked = true;
+
+    const result = erasePlanningObjects(scenario.objects, [[122.951, 14.1]], 10, scenario.layers);
+
+    expect(result.objects.filter(object => object.kind === 'line')).toHaveLength(2);
+    expect(result.objects.some(object => object.kind === 'polygon')).toBe(false);
+    expect(result.objects.some(object => object.kind === 'symbol')).toBe(false);
+    expect(result.objects.some(object => object.kind === 'circle')).toBe(true);
+    expect(result.objects.some(object => object.kind === 'text')).toBe(true);
+    expect(result).toMatchObject({ erased: 3, skipped: 2 });
+  });
+
+  it('keeps a route intact when splitting it would exceed the object limit', () => {
+    const scenario = createPlanningScenario('Full plan');
+    const line: typeof scenario.objects[number] = { id: crypto.randomUUID(), kind: 'line', layer: 'drawings', coordinates: [[122.95, 14.1], [122.952, 14.1]], style: { ...DEFAULT_PLANNING_STYLE }, locked: false, order: 0 };
+    scenario.objects = [line, ...Array.from({ length: 4_999 }, (_, index): typeof line => ({ ...line, id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[123.5, 15]], symbolKey: 'ambulance', order: index + 1 }))];
+
+    const result = erasePlanningObjects(scenario.objects, [[122.951, 14.1]], 5, scenario.layers);
+
+    expect(result.objects).toBe(scenario.objects);
+    expect(result).toMatchObject({ erased: 0, limitReached: true });
   });
 
   it('rejects a route that leaves the province between valid endpoints', () => {

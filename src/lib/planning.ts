@@ -76,37 +76,37 @@ export interface PlanningTemplate {
 }
 
 export const PLANNING_SYMBOLS = [
-  { key: 'eoc', label: 'Emergency Operations Center', category: 'Command', glyph: 'EOC' },
-  { key: 'icp', label: 'Incident Command Post', category: 'Command', glyph: 'ICP' },
-  { key: 'staging', label: 'Staging Area', category: 'Command', glyph: 'S' },
-  { key: 'checkpoint', label: 'Checkpoint', category: 'Command', glyph: 'CP' },
-  { key: 'evacuation-center', label: 'Evacuation Center', category: 'Life Safety', glyph: 'EC' },
-  { key: 'medical-post', label: 'Medical Post', category: 'Life Safety', glyph: '+' },
-  { key: 'search-rescue', label: 'Search and Rescue', category: 'Life Safety', glyph: 'SAR' },
-  { key: 'fire-service', label: 'Fire Service', category: 'Life Safety', glyph: 'FS' },
-  { key: 'police', label: 'Police / Security', category: 'Life Safety', glyph: 'P' },
-  { key: 'relief-goods', label: 'Relief Goods', category: 'Logistics', glyph: 'RG' },
-  { key: 'food', label: 'Food', category: 'Logistics', glyph: 'F' },
-  { key: 'water', label: 'Water', category: 'Logistics', glyph: 'W' },
-  { key: 'temporary-shelter', label: 'Temporary Shelter', category: 'Logistics', glyph: 'TS' },
-  { key: 'warehouse', label: 'Warehouse', category: 'Logistics', glyph: 'WH' },
-  { key: 'ambulance', label: 'Ambulance', category: 'Transport', glyph: 'A' },
-  { key: 'rescue-truck', label: 'Rescue Truck', category: 'Transport', glyph: 'RT' },
-  { key: 'rescue-boat', label: 'Rescue Boat', category: 'Transport', glyph: 'RB' },
-  { key: 'helicopter', label: 'Helicopter / Helispot', category: 'Transport', glyph: 'H' },
-  { key: 'pickup-point', label: 'Pickup Point', category: 'Transport', glyph: 'PU' },
-  { key: 'road-closure', label: 'Road Closure', category: 'Access & Impact', glyph: 'X' },
-  { key: 'damaged-bridge', label: 'Damaged Bridge', category: 'Access & Impact', glyph: 'DB' },
-  { key: 'stranded-people', label: 'Stranded People', category: 'Access & Impact', glyph: 'SP' },
-  { key: 'affected-structure', label: 'Affected Structure', category: 'Access & Impact', glyph: 'AS' },
-  { key: 'power-outage', label: 'Power Outage', category: 'Access & Impact', glyph: 'PO' },
-  { key: 'flood', label: 'Projected Flood', category: 'Projected Hazard', glyph: 'FL' },
-  { key: 'storm-surge', label: 'Projected Storm Surge', category: 'Projected Hazard', glyph: 'SS' },
-  { key: 'landslide', label: 'Projected Landslide', category: 'Projected Hazard', glyph: 'LS' },
-  { key: 'earthquake', label: 'Projected Earthquake Impact', category: 'Projected Hazard', glyph: 'EQ' },
-  { key: 'tsunami', label: 'Projected Tsunami Impact', category: 'Projected Hazard', glyph: 'TSU' },
-  { key: 'vehicular-incident', label: 'Projected Vehicular Incident', category: 'Projected Hazard', glyph: 'VI' },
-  { key: 'fire-incident', label: 'Projected Fire', category: 'Projected Hazard', glyph: 'FI' },
+  { key: 'eoc', label: 'Emergency Operations Center', category: 'Command' },
+  { key: 'icp', label: 'Incident Command Post', category: 'Command' },
+  { key: 'staging', label: 'Staging Area', category: 'Command' },
+  { key: 'checkpoint', label: 'Checkpoint', category: 'Command' },
+  { key: 'evacuation-center', label: 'Evacuation Center', category: 'Life Safety' },
+  { key: 'medical-post', label: 'Medical Post', category: 'Life Safety' },
+  { key: 'search-rescue', label: 'Search and Rescue', category: 'Life Safety' },
+  { key: 'fire-service', label: 'Fire Service', category: 'Life Safety' },
+  { key: 'police', label: 'Police / Security', category: 'Life Safety' },
+  { key: 'relief-goods', label: 'Relief Goods', category: 'Logistics' },
+  { key: 'food', label: 'Food', category: 'Logistics' },
+  { key: 'water', label: 'Water', category: 'Logistics' },
+  { key: 'temporary-shelter', label: 'Temporary Shelter', category: 'Logistics' },
+  { key: 'warehouse', label: 'Warehouse', category: 'Logistics' },
+  { key: 'ambulance', label: 'Ambulance', category: 'Transport' },
+  { key: 'rescue-truck', label: 'Rescue Truck', category: 'Transport' },
+  { key: 'rescue-boat', label: 'Rescue Boat', category: 'Transport' },
+  { key: 'helicopter', label: 'Helicopter / Helispot', category: 'Transport' },
+  { key: 'pickup-point', label: 'Pickup Point', category: 'Transport' },
+  { key: 'road-closure', label: 'Road Closure', category: 'Access & Impact' },
+  { key: 'damaged-bridge', label: 'Damaged Bridge', category: 'Access & Impact' },
+  { key: 'stranded-people', label: 'Stranded People', category: 'Access & Impact' },
+  { key: 'affected-structure', label: 'Affected Structure', category: 'Access & Impact' },
+  { key: 'power-outage', label: 'Power Outage', category: 'Access & Impact' },
+  { key: 'flood', label: 'Projected Flood', category: 'Projected Hazard' },
+  { key: 'storm-surge', label: 'Projected Storm Surge', category: 'Projected Hazard' },
+  { key: 'landslide', label: 'Projected Landslide', category: 'Projected Hazard' },
+  { key: 'earthquake', label: 'Projected Earthquake Impact', category: 'Projected Hazard' },
+  { key: 'tsunami', label: 'Projected Tsunami Impact', category: 'Projected Hazard' },
+  { key: 'vehicular-incident', label: 'Projected Vehicular Incident', category: 'Projected Hazard' },
+  { key: 'fire-incident', label: 'Projected Fire', category: 'Projected Hazard' },
 ] as const;
 
 export interface History<T> {
@@ -241,38 +241,222 @@ export function formatMeasurement(object: Pick<PlanningObject, 'kind' | 'coordin
   return length >= 1_000 ? `${(length / 1_000).toFixed(2)} km` : `${Math.round(length)} m`;
 }
 
+type SegmentHit = { distance: number; firstT: number };
+
+function segmentHit(
+  firstStart: [number, number],
+  firstEnd: [number, number],
+  secondStart: [number, number],
+  secondEnd: [number, number],
+): SegmentHit {
+  const latitude = (firstStart[1] + firstEnd[1] + secondStart[1] + secondEnd[1]) / 4 * Math.PI / 180;
+  const project = ([lng, lat]: [number, number]) => [lng * Math.PI / 180 * 6_371_000 * Math.cos(latitude), lat * Math.PI / 180 * 6_371_000] as const;
+  const [a, b, c, d] = [firstStart, firstEnd, secondStart, secondEnd].map(project);
+  const pointSegment = (point: readonly [number, number], start: readonly [number, number], end: readonly [number, number]) => {
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
+    const t = dx === 0 && dy === 0 ? 0 : Math.max(0, Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy)));
+    return { distance: Math.hypot(point[0] - start[0] - t * dx, point[1] - start[1] - t * dy), t };
+  };
+  const firstDx = b[0] - a[0];
+  const firstDy = b[1] - a[1];
+  const secondDx = d[0] - c[0];
+  const secondDy = d[1] - c[1];
+  const denominator = firstDx * secondDy - firstDy * secondDx;
+  if (denominator !== 0) {
+    const offsetX = c[0] - a[0];
+    const offsetY = c[1] - a[1];
+    const firstT = (offsetX * secondDy - offsetY * secondDx) / denominator;
+    const secondT = (offsetX * firstDy - offsetY * firstDx) / denominator;
+    if (firstT >= 0 && firstT <= 1 && secondT >= 0 && secondT <= 1) return { distance: 0, firstT };
+  }
+  const candidates: SegmentHit[] = [
+    { distance: pointSegment(a, c, d).distance, firstT: 0 },
+    { distance: pointSegment(b, c, d).distance, firstT: 1 },
+    ...[c, d].map(point => {
+      const result = pointSegment(point, a, b);
+      return { distance: result.distance, firstT: result.t };
+    }),
+  ];
+  return candidates.reduce((closest, candidate) => candidate.distance < closest.distance ? candidate : closest);
+}
+
+function pathSegments(path: [number, number][]) {
+  return path.length === 1 ? [[path[0], path[0]]] as const : path.slice(1).map((end, index) => [path[index], end] as const);
+}
+
+function pathsTouch(first: [number, number][], second: [number, number][], radiusMeters: number) {
+  const secondSegments = pathSegments(second).map(([start, end]) => ({ start, end, bounds: geographicBounds([start, end]) }));
+  return pathSegments(first).some(([firstStart, firstEnd]) => {
+    const firstBounds = geographicBounds([firstStart, firstEnd]);
+    return secondSegments.some(({ start, end, bounds }) => boundsTouch(firstBounds, bounds, radiusMeters)
+      && segmentHit(firstStart, firstEnd, start, end).distance <= radiusMeters);
+  });
+}
+
+type GeographicBounds = { minLng: number; minLat: number; maxLng: number; maxLat: number };
+const objectBounds = new WeakMap<PlanningObject, GeographicBounds>();
+
+function geographicBounds(points: [number, number][]) {
+  return points.reduce<GeographicBounds>((bounds, [lng, lat]) => ({
+    minLng: Math.min(bounds.minLng, lng),
+    minLat: Math.min(bounds.minLat, lat),
+    maxLng: Math.max(bounds.maxLng, lng),
+    maxLat: Math.max(bounds.maxLat, lat),
+  }), { minLng: Infinity, minLat: Infinity, maxLng: -Infinity, maxLat: -Infinity });
+}
+
+function boundsTouch(first: GeographicBounds, second: GeographicBounds, radiusMeters: number) {
+  const latitude = (first.minLat + first.maxLat + second.minLat + second.maxLat) / 4 * Math.PI / 180;
+  const latitudePadding = radiusMeters / 6_371_000 * 180 / Math.PI;
+  const longitudePadding = latitudePadding / Math.max(0.01, Math.cos(latitude));
+  return first.minLng - longitudePadding <= second.maxLng
+    && first.maxLng + longitudePadding >= second.minLng
+    && first.minLat - latitudePadding <= second.maxLat
+    && first.maxLat + latitudePadding >= second.minLat;
+}
+
+function interpolate(start: [number, number], end: [number, number], t: number): [number, number] {
+  return [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t];
+}
+
+type BoundedSegment = { start: [number, number]; end: [number, number]; bounds: GeographicBounds };
+
+function erasedIntervals(start: [number, number], end: [number, number], eraserSegments: BoundedSegment[], radiusMeters: number) {
+  const strokeBounds = geographicBounds([start, end]);
+  const intervals = eraserSegments.flatMap<[number, number]>(({ start: eraserStart, end: eraserEnd, bounds }) => {
+    if (!boundsTouch(strokeBounds, bounds, radiusMeters)) return [];
+    const hit = segmentHit(start, end, eraserStart, eraserEnd);
+    if (hit.distance > radiusMeters) return [];
+    const distanceAt = (t: number) => segmentHit(interpolate(start, end, t), interpolate(start, end, t), eraserStart, eraserEnd).distance;
+    let left = 0;
+    let right = 1;
+    if (distanceAt(0) > radiusMeters) {
+      let outside = 0;
+      left = hit.firstT;
+      for (let index = 0; index < 24; index += 1) {
+        const middle = (outside + left) / 2;
+        if (distanceAt(middle) <= radiusMeters) left = middle;
+        else outside = middle;
+      }
+    }
+    if (distanceAt(1) > radiusMeters) {
+      let outside = 1;
+      right = hit.firstT;
+      for (let index = 0; index < 24; index += 1) {
+        const middle = (right + outside) / 2;
+        if (distanceAt(middle) <= radiusMeters) right = middle;
+        else outside = middle;
+      }
+    }
+    return [[left, right]];
+  }).sort((a, b) => a[0] - b[0]);
+  return intervals.reduce<[number, number][]>((merged, interval) => {
+    const previous = merged.at(-1);
+    if (previous && interval[0] <= previous[1]) previous[1] = Math.max(previous[1], interval[1]);
+    else merged.push(interval);
+    return merged;
+  }, []);
+}
+
+function cappedCoordinates(points: [number, number][]) {
+  if (points.length <= 20_000) return points;
+  // ponytail: the persistence schema caps a path at 20k points; evenly thin only at that hard boundary.
+  return Array.from({ length: 20_000 }, (_, index) => points[Math.round(index * (points.length - 1) / 19_999)]);
+}
+
 export function eraseStroke(
   stroke: [number, number][],
   eraserPath: [number, number][],
   radiusMeters: number,
 ): [number, number][][] {
   if (eraserPath.length === 0) return [stroke.slice()];
-  const densify = (points: [number, number][]) => points.slice(1).reduce<[number, number][]>((dense, end, index) => {
-    const start = points[index];
-    // ponytail: cap interpolation per segment; raise it only if users draw continent-scale strokes.
-    const steps = Math.min(2_000, Math.max(1, Math.ceil(distanceMeters(start, end) / Math.max(1, radiusMeters / 2))));
-    for (let step = 1; step <= steps; step += 1) dense.push([
-      start[0] + (end[0] - start[0]) * step / steps,
-      start[1] + (end[1] - start[1]) * step / steps,
-    ]);
-    return dense;
-  }, points.length ? [points[0]] : []);
-  const denseStroke = densify(stroke);
-  const denseEraser = densify(eraserPath);
-  // ponytail: dense comparison is quadratic; add a spatial index only if field traces make erasing measurably slow.
   const parts: [number, number][][] = [];
-  let current: [number, number][] = [];
-  for (const point of denseStroke) {
-    const erased = denseEraser.some(eraserPoint => distanceMeters(point, eraserPoint) <= radiusMeters);
-    if (erased) {
-      if (current.length >= 2) parts.push(current);
+  let current: [number, number][] = stroke.length ? [stroke[0]] : [];
+  let erasedAny = false;
+  const eraserSegments = pathSegments(eraserPath).map(([start, end]) => ({ start, end, bounds: geographicBounds([start, end]) }));
+  for (let index = 1; index < stroke.length; index += 1) {
+    const start = stroke[index - 1];
+    const end = stroke[index];
+    const intervals = erasedIntervals(start, end, eraserSegments, radiusMeters);
+    let cursor = 0;
+    for (const [eraseStart, eraseEnd] of intervals) {
+      erasedAny = true;
+      if (eraseStart > cursor) {
+        if (current.length === 0) current.push(interpolate(start, end, cursor));
+        current.push(interpolate(start, end, eraseStart));
+      }
+      if (current.length >= 2) parts.push(cappedCoordinates(current));
       current = [];
-    } else {
-      current.push(point);
+      cursor = eraseEnd;
+    }
+    if (cursor < 1) {
+      if (current.length === 0) current.push(interpolate(start, end, cursor));
+      current.push(end);
     }
   }
-  if (current.length >= 2) parts.push(current);
-  return parts;
+  if (current.length >= 2) parts.push(cappedCoordinates(current));
+  return erasedAny ? parts : [stroke.slice()];
+}
+
+export function eraserTouchesObject(object: PlanningObject, eraserPath: [number, number][], radiusMeters: number, visualRadiusMeters = 0) {
+  if (object.coordinates.length === 0 || eraserPath.length === 0) return false;
+  const bounds = objectBounds.get(object) ?? geographicBounds(object.coordinates);
+  objectBounds.set(object, bounds);
+  const objectRadius = (object.kind === 'circle' ? object.radiusMeters ?? 0 : 0) + visualRadiusMeters;
+  if (!boundsTouch(bounds, geographicBounds(eraserPath), radiusMeters + objectRadius)) return false;
+  if (object.kind === 'circle') {
+    const reach = (object.radiusMeters ?? 0) + radiusMeters + visualRadiusMeters;
+    return pathsTouch(object.coordinates, eraserPath, reach);
+  }
+  if (object.kind === 'polygon' || object.kind === 'rectangle') {
+    const ring = [...object.coordinates, object.coordinates[0]];
+    return eraserPath.some(point => pointInRing(point, ring)) || pathsTouch(ring, eraserPath, radiusMeters + visualRadiusMeters);
+  }
+  return pathsTouch(object.coordinates, eraserPath, radiusMeters + visualRadiusMeters);
+}
+
+export function erasePlanningObjects(
+  objects: PlanningObject[],
+  eraserPath: [number, number][],
+  radiusMeters: number,
+  layers: PlanningScenario['layers'],
+  visualRadiusMeters: (object: PlanningObject) => number = () => 0,
+  visuallyTouched: (object: PlanningObject) => boolean = () => false,
+) {
+  let erased = 0;
+  let skipped = 0;
+  let limitReached = false;
+  const changes = objects.map(object => {
+    if (!layers[object.layer].visible) return { object, replacement: [object], changed: false };
+    if (!visuallyTouched(object) && !eraserTouchesObject(object, eraserPath, radiusMeters, visualRadiusMeters(object))) return { object, replacement: [object], changed: false };
+    if (object.locked || layers[object.layer].locked) {
+      skipped += 1;
+      return { object, replacement: [object], changed: false };
+    }
+    erased += 1;
+    if (object.kind !== 'freehand' && object.kind !== 'line') return { object, replacement: [], changed: true };
+    const replacement = eraseStroke(object.coordinates, eraserPath, radiusMeters).map((coordinates, index) => ({
+      ...object,
+      id: index === 0 ? object.id : crypto.randomUUID(),
+      coordinates,
+      label: index === 0 ? object.label : undefined,
+      labelPosition: index === 0 ? object.labelPosition : undefined,
+    }));
+    return { object, replacement, changed: true };
+  });
+  let total = changes.reduce((count, change) => count + change.replacement.length, 0);
+  for (const change of changes) {
+    if (total <= 5_000) break;
+    if (!change.changed || change.replacement.length <= 1) continue;
+    total -= change.replacement.length - 1;
+    change.replacement = [change.object];
+    change.changed = false;
+    erased -= 1;
+    limitReached = true;
+  }
+  const next = changes.flatMap(change => change.replacement);
+  return { objects: erased ? next : objects, erased, skipped, limitReached };
 }
 
 type ProvinceGeometry = { type: 'Polygon' | 'MultiPolygon'; coordinates: any };

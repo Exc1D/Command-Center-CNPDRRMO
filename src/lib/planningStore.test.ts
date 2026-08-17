@@ -32,4 +32,18 @@ describe('planning editor store', () => {
     usePlanningStore.getState().updateObject(object.id, { locked: false });
     expect(usePlanningStore.getState().history!.present.objects[0].locked).toBe(false);
   });
+
+  it('undoes unlocked-layer changes without altering a locked layer', () => {
+    const drawing = { id: crypto.randomUUID(), kind: 'line' as const, layer: 'drawings' as const, coordinates: [[122.9, 14.1], [123, 14.1]] as [number, number][], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' as const }, locked: false, order: 0 };
+    const symbol = { id: crypto.randomUUID(), kind: 'symbol' as const, layer: 'symbols' as const, coordinates: [[122.9, 14.1]] as [number, number][], style: drawing.style, locked: false, order: 1, symbolKey: 'eoc' };
+    usePlanningStore.getState().addObject(drawing);
+    usePlanningStore.getState().addObject(symbol);
+    usePlanningStore.getState().edit(current => ({ ...current, layers: { ...current.layers, symbols: { ...current.layers.symbols, locked: true } } }));
+    usePlanningStore.getState().edit(current => ({ ...current, objects: current.objects.filter(object => object.id !== drawing.id) }));
+
+    usePlanningStore.getState().undo();
+
+    expect(usePlanningStore.getState().history!.present.objects).toEqual([drawing, symbol]);
+    expect(usePlanningStore.getState().history!.present.layers.symbols.locked).toBe(true);
+  });
 });

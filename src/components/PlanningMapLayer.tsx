@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
 import provinceBoundaryUrl from '../../Municipal Boundary.geojson?url';
 import {
   circleInsideProvince,
-  eraseStroke,
+  erasePlanningObjects,
+  eraserTouchesObject,
   formatMeasurement,
   pathInsideProvince,
   PLANNING_SYMBOLS,
@@ -14,10 +16,11 @@ import {
   type PlanningScenario,
   type ProvinceGeoJSON,
 } from '../lib/planning';
+import { getPlanningSymbolIcon } from '../lib/planningIcons';
 import { usePlanningStore } from '../lib/planningStore';
 import { useStore } from '../lib/store';
 
-const ERASER_METERS = { small: 10, medium: 30, large: 75 } as const;
+const ERASER_PIXELS = { small: 12, medium: 24, large: 40 } as const;
 const SYMBOL_PIXELS = { small: 28, medium: 36, large: 46 } as const;
 
 function latLngs(coordinates: [number, number][]) {
@@ -37,14 +40,19 @@ function dashArray(object: PlanningObject, published = false) {
 }
 
 function symbolIcon(object: PlanningObject, published = false) {
-  const symbol = PLANNING_SYMBOLS.find(item => item.key === object.symbolKey);
   const size = SYMBOL_PIXELS[object.symbolSize ?? 'medium'];
   return L.divIcon({
     className: 'planning-symbol-wrapper',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-    html: `<div class="planning-symbol${published ? ' planning-symbol--published' : ''}" style="width:${size}px;height:${size}px;background:${object.style.color}"><span>${symbol?.glyph ?? '?'}</span></div>`,
+    html: `<div class="planning-symbol${published ? ' planning-symbol--published' : ''}" style="width:${size}px;height:${size}px;background:${object.style.color}"></div>`,
   });
+}
+
+function eraserRadiusMeters(map: L.Map, coordinate: [number, number], pixels: number) {
+  const center = latLngs([coordinate])[0];
+  const point = map.latLngToContainerPoint(center);
+  return map.distance(center, map.containerPointToLatLng(L.point(point.x + pixels, point.y)));
 }
 
 function textIcon(object: PlanningObject, published = false, label = false) {
@@ -100,7 +108,17 @@ function renderObject(
   } else if (object.kind === 'polygon' || object.kind === 'rectangle') {
     layer = L.polygon(latLngs(object.coordinates), pathStyle);
   } else if (object.kind === 'symbol') {
-    layer = L.marker(latLngs(object.coordinates)[0], { icon: symbolIcon(object, published), draggable: Boolean(options.editable && !object.locked) });
+    const marker = L.marker(latLngs(object.coordinates)[0], { icon: symbolIcon(object, published), draggable: Boolean(options.editable && !object.locked) });
+    marker.on('add', () => {
+      const mount = marker.getElement()?.querySelector('.planning-symbol');
+      if (!mount) return;
+      const root = createRoot(mount);
+      const Icon = getPlanningSymbolIcon(object.symbolKey);
+      const size = SYMBOL_PIXELS[object.symbolSize ?? 'medium'];
+      root.render(<Icon size={Math.round(size * 0.58)} strokeWidth={2.4} aria-hidden />);
+      marker.once('remove', () => root.unmount());
+    });
+    layer = marker;
   } else if (object.kind === 'text') {
     const marker = L.marker(latLngs(object.coordinates)[0], { icon: textIcon(object, published), draggable: Boolean(options.editable && !object.locked) });
     marker.on('add', () => {
@@ -112,6 +130,7 @@ function renderObject(
     layer = L.polyline(latLngs(object.coordinates), pathStyle);
   }
   layer.addTo(group);
+  if (object.kind === 'symbol') layer.bindTooltip(PLANNING_SYMBOLS.find(item => item.key === object.symbolKey)?.label ?? 'DRRM symbol', { direction: 'top' });
   if (options.onSelect) layer.on('click', options.onSelect as any);
   if (options.onSelect && options.onAction) layer.on('contextmenu', (event: L.LeafletMouseEvent) => {
     options.onSelect?.(event);
@@ -192,8 +211,9 @@ export function PlanningMapLayer() {
   const planning = usePlanningStore();
   const authorized = useStore(state => state.isMapAuthorized);
   const groupRef = useRef<L.LayerGroup | null>(null);
+  const objectLayersRef = useRef(new Map<string, L.Layer>());
   const temporaryRef = useRef<L.Polyline | null>(null);
-  const eraserCursorRef = useRef<L.Circle | null>(null);
+  const eraserCursorRef = useRef<L.CircleMarker | null>(null);
   const [province, setProvince] = useState<ProvinceGeoJSON | null>(null);
   const scenario = planning.history?.present;
   const canEdit = authorized && (planning.temporary || planning.lockAcquired || !navigator.onLine);
@@ -205,46 +225,50 @@ export function PlanningMapLayer() {
   useEffect(() => {
     const group = L.layerGroup().addTo(map);
     groupRef.current = group;
-    return () => { group.remove(); groupRef.current = null; };
+    return () => { group.remove(); groupRef.current = null; objectLayersRef.current.clear(); };
   }, [map]);
 
   useEffect(() => {
     const group = groupRef.current;
     if (!group || !scenario) return;
     group.clearLayers();
+    objectLayersRef.current.clear();
     const selected = new Set(planning.selectedIds);
     const order = { drawings: 0, symbols: 1, labels: 2 };
     scenario.objects
       .filter(object => scenario.layers[object.layer].visible)
       .slice()
       .sort((a, b) => order[a.layer] - order[b.layer] || a.order - b.order)
-      .forEach(object => renderObject(object, group, {
-        editable: canEdit && !scenario.layers[object.layer].locked && planning.tool === 'select',
-        selected: selected.has(object.id),
-        onSelect: event => {
-          L.DomEvent.stopPropagation(event);
-          const shift = (event.originalEvent as MouseEvent).shiftKey;
-          planning.select(shift ? [...new Set([...planning.selectedIds, object.id])] : [object.id]);
-        },
-        onChange: change => {
-          if (!province) { planning.setMessage('Province boundary is still loading'); return false; }
-          const nextCoordinates = change.coordinates ?? object.coordinates;
-          const shapeInside = object.kind === 'circle'
-            ? circleInsideProvince(nextCoordinates[0], change.radiusMeters ?? object.radiusMeters ?? 50, province)
-            : pathInsideProvince(nextCoordinates, province);
-          const inside = shapeInside && (!change.labelPosition || pathInsideProvince([change.labelPosition], province));
-          if (!inside) { planning.setMessage('Planning objects must remain inside Camarines Norte'); return false; }
-          planning.updateObject(object.id, change);
-          return true;
-        },
-        onAction: canEdit && !scenario.layers[object.layer].locked ? action => {
-          if (action === 'duplicate') return planning.addObject({ ...structuredClone(object), id: crypto.randomUUID(), order: scenario.objects.length });
-          if (action === 'lock') return planning.updateObject(object.id, { locked: !object.locked });
-          if (action === 'delete') return planning.removeObjects([object.id]);
-          const orders = scenario.objects.map(item => item.order);
-          planning.updateObject(object.id, { order: action === 'front' ? Math.max(...orders) + 1 : Math.min(...orders) - 1 });
-        } : undefined,
-      }));
+      .forEach(object => {
+        const layer = renderObject(object, group, {
+          editable: canEdit && !scenario.layers[object.layer].locked && planning.tool === 'select',
+          selected: selected.has(object.id),
+          onSelect: event => {
+            L.DomEvent.stopPropagation(event);
+            const shift = (event.originalEvent as MouseEvent).shiftKey;
+            planning.select(shift ? [...new Set([...planning.selectedIds, object.id])] : [object.id]);
+          },
+          onChange: change => {
+            if (!province) { planning.setMessage('Province boundary is still loading'); return false; }
+            const nextCoordinates = change.coordinates ?? object.coordinates;
+            const shapeInside = object.kind === 'circle'
+              ? circleInsideProvince(nextCoordinates[0], change.radiusMeters ?? object.radiusMeters ?? 50, province)
+              : pathInsideProvince(nextCoordinates, province);
+            const inside = shapeInside && (!change.labelPosition || pathInsideProvince([change.labelPosition], province));
+            if (!inside) { planning.setMessage('Planning objects must remain inside Camarines Norte'); return false; }
+            planning.updateObject(object.id, change);
+            return true;
+          },
+          onAction: canEdit && !scenario.layers[object.layer].locked ? action => {
+            if (action === 'duplicate') return planning.addObject({ ...structuredClone(object), id: crypto.randomUUID(), order: scenario.objects.length });
+            if (action === 'lock') return planning.updateObject(object.id, { locked: !object.locked });
+            if (action === 'delete') return planning.removeObjects([object.id]);
+            const orders = scenario.objects.map(item => item.order);
+            planning.updateObject(object.id, { order: action === 'front' ? Math.max(...orders) + 1 : Math.min(...orders) - 1 });
+          } : undefined,
+        });
+        objectLayersRef.current.set(object.id, layer);
+      });
   }, [map, scenario, planning.selectedIds, planning.tool, canEdit, province]);
 
   useEffect(() => {
@@ -318,7 +342,10 @@ export function PlanningMapLayer() {
   }, [map, planning.tool, planning.style, canEdit, scenario?.objects.length, province]);
 
   useEffect(() => {
-    if (!scenario || !canEdit || !province || scenario.layers.drawings.locked || !['freehand', 'eraser'].includes(planning.tool)) {
+    const blocked = planning.tool === 'freehand'
+      ? scenario?.layers.drawings.locked
+      : scenario && Object.values(scenario.layers).every(layer => layer.locked);
+    if (!scenario || !canEdit || !province || blocked || !['freehand', 'eraser'].includes(planning.tool)) {
       map.dragging.enable();
       temporaryRef.current?.remove();
       eraserCursorRef.current?.remove();
@@ -327,63 +354,183 @@ export function PlanningMapLayer() {
     map.dragging.disable();
     const container = map.getContainer();
     let points: [number, number][] = [];
+    let drawingPointer: number | null = null;
+    let radiusMeters = 0;
+    const touches = new Set<number>();
+    const visualRadii = new Map<string, number>();
     const toCoordinate = (event: PointerEvent): [number, number] => {
       const bounds = container.getBoundingClientRect();
       const point = map.containerPointToLatLng([event.clientX - bounds.left, event.clientY - bounds.top]);
       return [point.lng, point.lat];
     };
+    const layerElement = (layer: L.Layer) => layer instanceof L.Marker || layer instanceof L.Path ? layer.getElement() : null;
+    const visualRadiusMeters = (object: PlanningObject) => {
+      if (object.kind === 'text') return 0;
+      if (visualRadii.has(object.id)) return visualRadii.get(object.id)!;
+      const element = layerElement(objectLayersRef.current.get(object.id)!);
+      const bounds = element?.getBoundingClientRect();
+      const pixels = object.kind === 'symbol' && bounds ? Math.max(bounds.width, bounds.height) / 2 : object.style.width / 2;
+      const radius = eraserRadiusMeters(map, object.coordinates[0], pixels);
+      visualRadii.set(object.id, radius);
+      return radius;
+    };
+    const textTouches = (object: PlanningObject, path: [number, number][]) => {
+      if (object.kind !== 'text') return false;
+      const element = layerElement(objectLayersRef.current.get(object.id)!)?.querySelector('.planning-text');
+      if (!element) return false;
+      const bounds = element.getBoundingClientRect();
+      const mapBounds = container.getBoundingClientRect();
+      const screenPath = path.map(coordinate => {
+        const point = map.latLngToContainerPoint(latLngs([coordinate])[0]);
+        return L.point(point.x + mapBounds.left, point.y + mapBounds.top);
+      });
+      const corners = [L.point(bounds.left, bounds.top), L.point(bounds.right, bounds.top), L.point(bounds.right, bounds.bottom), L.point(bounds.left, bounds.bottom)];
+      const cross = (a: L.Point, b: L.Point, c: L.Point) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      const segmentDistance = (a: L.Point, b: L.Point, c: L.Point, d: L.Point) => (
+        Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) <= Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x))
+          && Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) <= Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y))
+          && cross(a, b, c) * cross(a, b, d) <= 0 && cross(c, d, a) * cross(c, d, b) <= 0
+          ? 0
+          : Math.min(L.LineUtil.pointToSegmentDistance(a, c, d), L.LineUtil.pointToSegmentDistance(b, c, d), L.LineUtil.pointToSegmentDistance(c, a, b), L.LineUtil.pointToSegmentDistance(d, a, b))
+      );
+      const segments = screenPath.length === 1 ? [[screenPath[0], screenPath[0]]] : screenPath.slice(1).map((end, index) => [screenPath[index], end]);
+      const inside = (point: L.Point) => point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom;
+      return segments.some(([start, end]) => inside(start) || inside(end) || corners.some((corner, index) => segmentDistance(start, end, corner, corners[(index + 1) % corners.length]) <= ERASER_PIXELS[planning.eraserSize]));
+    };
+    const clearTargets = () => objectLayersRef.current.forEach(layer => layerElement(layer)?.classList.remove('planning-eraser-target', 'planning-eraser-target--locked'));
+    const highlightTargets = (path: [number, number][]) => scenario.objects.forEach(object => {
+      if (!scenario.layers[object.layer].visible || !(textTouches(object, path) || eraserTouchesObject(object, path, radiusMeters, visualRadiusMeters(object)))) return;
+      const locked = object.locked || scenario.layers[object.layer].locked;
+      layerElement(objectLayersRef.current.get(object.id)!)?.classList.add(locked ? 'planning-eraser-target--locked' : 'planning-eraser-target');
+    });
+    const cancelGesture = () => {
+      if (drawingPointer !== null && container.hasPointerCapture?.(drawingPointer)) container.releasePointerCapture?.(drawingPointer);
+      drawingPointer = null;
+      points = [];
+      temporaryRef.current?.remove();
+      temporaryRef.current = null;
+      clearTargets();
+    };
     const pointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') {
+        touches.add(event.pointerId);
+        if (touches.size > 1) {
+          cancelGesture();
+          return;
+        }
+      }
       if (!event.isPrimary || event.button !== 0) return;
-      event.preventDefault();
-      container.setPointerCapture(event.pointerId);
+      if (event.pointerType !== 'touch') event.preventDefault();
+      drawingPointer = event.pointerId;
+      container.setPointerCapture?.(event.pointerId);
       points = [toCoordinate(event)];
+      if (planning.tool === 'eraser') {
+        visualRadii.clear();
+        radiusMeters = eraserRadiusMeters(map, points[0], ERASER_PIXELS[planning.eraserSize]);
+      }
       temporaryRef.current = L.polyline(latLngs(points), { color: planning.tool === 'eraser' ? '#111827' : planning.style.color, weight: planning.tool === 'eraser' ? 1 : planning.style.width, dashArray: planning.tool === 'eraser' ? '3 3' : dashArray({ style: planning.style } as PlanningObject) }).addTo(map);
+      if (planning.tool === 'eraser') highlightTargets(points);
     };
     const pointerMove = (event: PointerEvent) => {
+      if (touches.size > 1) return;
       const point = toCoordinate(event);
       if (planning.tool === 'eraser') {
         eraserCursorRef.current?.remove();
-        eraserCursorRef.current = L.circle(latLngs([point])[0], { radius: ERASER_METERS[planning.eraserSize], color: '#111827', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(map);
+        eraserCursorRef.current = L.circleMarker(latLngs([point])[0], { radius: ERASER_PIXELS[planning.eraserSize], color: '#111827', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(map);
       }
-      if (!container.hasPointerCapture(event.pointerId)) return;
+      if (drawingPointer !== event.pointerId) return;
       points.push(point);
       temporaryRef.current?.setLatLngs(latLngs(points));
+      if (planning.tool === 'eraser') highlightTargets(points.slice(-2));
       if (planning.tool === 'freehand' && points.length >= 2) temporaryRef.current?.bindTooltip(formatMeasurement({ kind: 'freehand', coordinates: points }), { permanent: true, direction: 'top', className: 'planning-measurement' }).openTooltip();
     };
-    const pointerUp = (event: PointerEvent) => {
-      if (!container.hasPointerCapture(event.pointerId)) return;
-      container.releasePointerCapture(event.pointerId);
+    const pointerUp = (event: PointerEvent, cancelled = false) => {
+      if (event.pointerType === 'touch') touches.delete(event.pointerId);
+      if (drawingPointer !== event.pointerId) return;
+      if (container.hasPointerCapture?.(event.pointerId)) container.releasePointerCapture?.(event.pointerId);
       temporaryRef.current?.remove();
       temporaryRef.current = null;
-      if (planning.tool === 'freehand') {
+      if (!cancelled && planning.tool === 'freehand') {
         const smoothed = smoothStroke(points, planning.smoothing);
         if (smoothed.length >= 2 && pathInsideProvince(smoothed, province)) planning.addObject({ id: crypto.randomUUID(), kind: 'freehand', layer: 'drawings', coordinates: smoothed, style: { ...planning.style }, locked: false, order: scenario.objects.length });
         else if (smoothed.length >= 2) planning.setMessage('Freehand strokes must remain inside Camarines Norte');
-      } else if (points.length > 0) {
-        planning.edit(current => ({
-          ...current,
-          objects: current.objects.flatMap(object => {
-            if (object.kind !== 'freehand' || object.locked) return [object];
-            return eraseStroke(object.coordinates, points, ERASER_METERS[planning.eraserSize]).map((part, index) => ({ ...object, id: index === 0 ? object.id : crypto.randomUUID(), coordinates: part, label: index === 0 ? object.label : undefined }));
-          }),
-        }));
+      } else if (!cancelled && planning.tool === 'eraser' && points.length > 0) {
+        const result = erasePlanningObjects(scenario.objects, points, radiusMeters, scenario.layers, visualRadiusMeters, object => textTouches(object, points));
+        if (result.erased) planning.edit(current => ({ ...current, objects: result.objects }));
+        const messages = [
+          result.skipped ? `${result.skipped} locked object${result.skipped === 1 ? '' : 's'} skipped` : '',
+          result.limitReached ? 'Object limit reached; some route cuts were skipped' : '',
+        ].filter(Boolean);
+        if (messages.length) planning.setMessage(messages.join('. '));
       }
+      drawingPointer = null;
       points = [];
+      clearTargets();
     };
-    container.addEventListener('pointerdown', pointerDown);
-    container.addEventListener('pointermove', pointerMove);
-    container.addEventListener('pointerup', pointerUp);
-    container.addEventListener('pointercancel', pointerUp);
+    const pointerCancel = (event: PointerEvent) => pointerUp(event, true);
+    const mouseEvent = (event: MouseEvent) => ({
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true,
+      button: event.button,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      preventDefault: () => event.preventDefault(),
+    } as PointerEvent);
+    const touchEvent = (event: TouchEvent, touch: Touch) => ({
+      pointerId: touch.identifier + 2,
+      pointerType: 'touch',
+      isPrimary: event.touches.length <= 1,
+      button: 0,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      preventDefault: () => event.preventDefault(),
+    } as PointerEvent);
+    const mouseDown = (event: MouseEvent) => pointerDown(mouseEvent(event));
+    const mouseMove = (event: MouseEvent) => pointerMove(mouseEvent(event));
+    const mouseUp = (event: MouseEvent) => pointerUp(mouseEvent(event));
+    const touchStart = (event: TouchEvent) => Array.from(event.changedTouches).forEach(touch => pointerDown(touchEvent(event, touch)));
+    const touchMove = (event: TouchEvent) => Array.from(event.changedTouches).forEach(touch => pointerMove(touchEvent(event, touch)));
+    const touchEnd = (event: TouchEvent) => Array.from(event.changedTouches).forEach(touch => pointerUp(touchEvent(event, touch)));
+    if (typeof window.PointerEvent === 'function') {
+      container.addEventListener('pointerdown', pointerDown);
+      container.addEventListener('pointermove', pointerMove);
+      container.addEventListener('pointerup', pointerUp);
+      container.addEventListener('pointercancel', pointerCancel);
+      window.addEventListener('pointerup', pointerUp);
+      window.addEventListener('pointercancel', pointerCancel);
+    } else {
+      container.addEventListener('mousedown', mouseDown);
+      container.addEventListener('mousemove', mouseMove);
+      window.addEventListener('mouseup', mouseUp);
+      container.addEventListener('touchstart', touchStart);
+      container.addEventListener('touchmove', touchMove);
+      container.addEventListener('touchend', touchEnd);
+      container.addEventListener('touchcancel', touchEnd);
+    }
     return () => {
-      container.removeEventListener('pointerdown', pointerDown);
-      container.removeEventListener('pointermove', pointerMove);
-      container.removeEventListener('pointerup', pointerUp);
-      container.removeEventListener('pointercancel', pointerUp);
+      if (typeof window.PointerEvent === 'function') {
+        container.removeEventListener('pointerdown', pointerDown);
+        container.removeEventListener('pointermove', pointerMove);
+        container.removeEventListener('pointerup', pointerUp);
+        container.removeEventListener('pointercancel', pointerCancel);
+        window.removeEventListener('pointerup', pointerUp);
+        window.removeEventListener('pointercancel', pointerCancel);
+      } else {
+        container.removeEventListener('mousedown', mouseDown);
+        container.removeEventListener('mousemove', mouseMove);
+        window.removeEventListener('mouseup', mouseUp);
+        container.removeEventListener('touchstart', touchStart);
+        container.removeEventListener('touchmove', touchMove);
+        container.removeEventListener('touchend', touchEnd);
+        container.removeEventListener('touchcancel', touchEnd);
+      }
       map.dragging.enable();
       temporaryRef.current?.remove();
       eraserCursorRef.current?.remove();
+      clearTargets();
     };
-  }, [map, planning.tool, planning.style, planning.smoothing, planning.eraserSize, canEdit, scenario?.objects.length, province]);
+  }, [map, planning.tool, planning.style, planning.smoothing, planning.eraserSize, canEdit, scenario, province]);
 
   useEffect(() => {
     if (!scenario || !canEdit || !province || !['symbol', 'text'].includes(planning.tool)) return;

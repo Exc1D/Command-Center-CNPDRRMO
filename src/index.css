@@ -36,6 +36,42 @@
   font: 800 9px/1 system-ui, sans-serif;
 }
 
+.planning-symbol svg {
+  display: block;
+  stroke: currentColor;
+}
+
+path.planning-eraser-target {
+  filter: drop-shadow(0 0 3px #dc2626);
+  stroke: #dc2626 !important;
+}
+
+path.planning-eraser-target--locked {
+  filter: drop-shadow(0 0 3px #d97706);
+  stroke: #d97706 !important;
+}
+
+.leaflet-marker-icon.planning-eraser-target,
+.leaflet-marker-icon.planning-eraser-target--locked {
+  border-radius: 50%;
+  outline: 3px solid #dc2626;
+  outline-offset: 2px;
+}
+
+.leaflet-marker-icon.planning-eraser-target--locked {
+  outline-color: #d97706;
+}
+
+.leaflet-marker-icon.planning-eraser-target .planning-text,
+.leaflet-marker-icon.planning-eraser-target--locked .planning-text {
+  outline: 3px solid #dc2626;
+  outline-offset: 2px;
+}
+
+.leaflet-marker-icon.planning-eraser-target--locked .planning-text {
+  outline-color: #d97706;
+}
+
 .planning-symbol--published {
   border: 3px dashed #111827;
   outline: 2px dashed white;

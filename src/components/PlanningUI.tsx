@@ -42,9 +42,10 @@ import {
   type PlanningTemplate,
   type ProvinceGeoJSON,
 } from '../lib/planning';
-import { usePlanningStore, type PlanningTool } from '../lib/planningStore';
+import { canApplyPlanningHistory, usePlanningStore, type PlanningTool } from '../lib/planningStore';
 import { DISASTER_TYPES, SUSCEPTIBILITY_LEVELS, useStore } from '../lib/store';
 import { MAP_CONFIG } from '../lib/constants';
+import { getPlanningSymbolIcon } from '../lib/planningIcons';
 import barangaysData from '../lib/barangays.json';
 import provinceBoundaryUrl from '../../Municipal Boundary.geojson?url';
 
@@ -68,7 +69,7 @@ const TOOL_BUTTONS: Array<{ tool: PlanningTool; label: string; shortcut: string;
   { tool: 'circle', label: 'Circle', shortcut: 'C', icon: Circle },
   { tool: 'text', label: 'Text', shortcut: 'T', icon: Type },
   { tool: 'symbol', label: 'Symbol', shortcut: 'I', icon: MapPin },
-  { tool: 'eraser', label: 'Partial eraser', shortcut: 'E', icon: Eraser },
+  { tool: 'eraser', label: 'Eraser', shortcut: 'E', icon: Eraser },
 ];
 
 function localDateTime(iso?: string) {
@@ -161,6 +162,8 @@ export function PlanningSidebar() {
   const [province, setProvince] = useState<ProvinceGeoJSON | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const scenario = planning.history?.present;
+  const filteredSymbols = PLANNING_SYMBOLS.filter(symbol => `${symbol.label} ${symbol.category}`.toLowerCase().includes(symbolQuery.toLowerCase()));
+  const symbolCategories = [...new Set(filteredSymbols.map(symbol => symbol.category))];
 
   useEffect(() => {
     refreshScenarios();
@@ -248,11 +251,17 @@ export function PlanningSidebar() {
 
         <section>
           <label className="text-[10px] uppercase font-bold block mb-2">Symbols</label>
-          <input value={symbolQuery} onChange={event => setSymbolQuery(event.target.value)} className="w-full bg-surface-container-lowest p-2 rounded text-xs mb-2" placeholder="Search DRRM symbols" />
-          <div className="grid grid-cols-4 gap-2 max-h-44 overflow-y-auto">
-            {PLANNING_SYMBOLS.filter(symbol => `${symbol.label} ${symbol.category}`.toLowerCase().includes(symbolQuery.toLowerCase())).map(symbol => (
-              <button key={symbol.key} aria-label={symbol.label} title={symbol.label} onClick={() => planning.setSymbolKey(symbol.key)} className={`aspect-square rounded-lg border text-[9px] font-black ${planning.symbolKey === symbol.key && planning.tool === 'symbol' ? 'border-primary bg-primary text-white' : 'border-outline-variant bg-surface-container-lowest'}`}>{symbol.glyph}</button>
-            ))}
+          <input aria-label="Search DRRM symbols" value={symbolQuery} onChange={event => setSymbolQuery(event.target.value)} className="w-full bg-surface-container-lowest p-2 rounded text-xs mb-2" placeholder="Search DRRM symbols" />
+          <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+            {symbolCategories.map(category => <div key={category}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-1 opacity-60">{category}</p>
+              <div className="grid grid-cols-4 gap-2">
+                {filteredSymbols.filter(symbol => symbol.category === category).map(symbol => {
+                  const Icon = getPlanningSymbolIcon(symbol.key);
+                  return <button key={symbol.key} aria-label={symbol.label} title={symbol.label} onClick={() => planning.setSymbolKey(symbol.key)} className={`aspect-square rounded-lg border grid place-items-center ${planning.symbolKey === symbol.key && planning.tool === 'symbol' ? 'border-primary bg-primary text-white' : 'border-outline-variant bg-surface-container-lowest'}`}><Icon size={20} strokeWidth={2.2} /></button>;
+                })}
+              </div>
+            </div>)}
           </div>
           <div className="flex gap-2 mt-2">
             <select aria-label="Symbol size" value={planning.symbolSize} onChange={event => planning.setSymbolSize(event.target.value as typeof planning.symbolSize)} className="flex-1 bg-surface-container-lowest p-2 rounded text-xs"><option>small</option><option>medium</option><option>large</option></select>
@@ -339,7 +348,8 @@ export function PlanningOverlay() {
   const authorized = useStore(state => state.isMapAuthorized);
   const scenario = planning.history?.present;
   const canEdit = authorized && (planning.temporary || planning.lockAcquired || !navigator.onLine);
-  const historyLocked = Boolean(scenario && Object.values(scenario.layers).some(layer => layer.locked));
+  const canUndo = Boolean(scenario && canApplyPlanningHistory(scenario, planning.history?.past.at(-1)));
+  const canRedo = Boolean(scenario && canApplyPlanningHistory(scenario, planning.history?.future[0]));
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
@@ -354,7 +364,7 @@ export function PlanningOverlay() {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (canEdit) saveCurrentPlanningScenario(); return; }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (canEdit && !historyLocked) event.shiftKey ? planning.redo() : planning.undo(); return; }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (canEdit && (event.shiftKey ? canRedo : canUndo)) event.shiftKey ? planning.redo() : planning.undo(); return; }
       if (event.key === 'Escape') planning.setTool('select');
       const tool = TOOL_BUTTONS.find(item => item.shortcut.toLowerCase() === event.key.toLowerCase())?.tool;
       if (tool && (canEdit || tool === 'pan' || tool === 'select') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.setTool(tool);
@@ -389,12 +399,13 @@ export function PlanningOverlay() {
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[700] bg-[#fff4ce] text-[#5f4500] border border-[#e2c764] rounded-full px-4 py-2 text-[10px] font-black tracking-widest shadow-lg">PLANNING MODE • {planning.dirty ? 'UNSAVED CHANGES' : planning.temporary ? 'TEMPORARY BOARD' : canEdit ? 'SAVED' : 'READ-ONLY LIVE PREVIEW'}</div>
       <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[700] bg-surface-container-highest rounded-xl shadow-lg p-1 flex gap-1 max-w-[calc(100%-2rem)] overflow-x-auto">
         {TOOL_BUTTONS.map(({ tool, label, shortcut, icon: Icon }) => {
-          const layer: PlanningLayer | null = tool === 'symbol' ? 'symbols' : tool === 'text' ? 'labels' : ['freehand', 'line', 'polygon', 'rectangle', 'circle', 'eraser'].includes(tool) ? 'drawings' : null;
-          return <button key={tool} disabled={(!canEdit && tool !== 'pan' && tool !== 'select') || Boolean(layer && scenario?.layers[layer].locked)} title={`${label} (${shortcut})`} onClick={() => planning.setTool(tool)} className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-30 ${planning.tool === tool ? 'bg-primary text-white' : 'hover:bg-surface-container'}`}><Icon size={17} /></button>;
+          const layer: PlanningLayer | null = tool === 'symbol' ? 'symbols' : tool === 'text' ? 'labels' : ['freehand', 'line', 'polygon', 'rectangle', 'circle'].includes(tool) ? 'drawings' : null;
+          const eraserLocked = tool === 'eraser' && scenario && Object.values(scenario.layers).every(item => item.locked);
+          return <button key={tool} disabled={(!canEdit && tool !== 'pan' && tool !== 'select') || Boolean(layer && scenario?.layers[layer].locked) || Boolean(eraserLocked)} title={`${label} (${shortcut})`} onClick={() => planning.setTool(tool)} className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-30 ${planning.tool === tool ? 'bg-primary text-white' : 'hover:bg-surface-container'}`}><Icon size={17} /></button>;
         })}
         <span className="w-px bg-outline-variant/50 mx-1" />
-        <button title="Undo (Ctrl/Cmd+Z)" disabled={!canEdit || historyLocked || !planning.history?.past.length} onClick={planning.undo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Undo2 size={17} /></button>
-        <button title="Redo (Ctrl/Cmd+Shift+Z)" disabled={!canEdit || historyLocked || !planning.history?.future.length} onClick={planning.redo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Redo2 size={17} /></button>
+        <button title="Undo (Ctrl/Cmd+Z)" disabled={!canEdit || !canUndo} onClick={planning.undo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Undo2 size={17} /></button>
+        <button title="Redo (Ctrl/Cmd+Shift+Z)" disabled={!canEdit || !canRedo} onClick={planning.redo} className="w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-30"><Redo2 size={17} /></button>
         <input aria-label="Drawing color" type="color" value={planning.style.color} onChange={event => planning.setStyle({ color: event.target.value })} className="w-10 h-10 p-1 bg-transparent" />
         <select aria-label="Line style" value={planning.style.lineStyle} onChange={event => planning.setStyle({ lineStyle: event.target.value as typeof planning.style.lineStyle })} className="text-[10px] bg-surface-container rounded px-1"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
         <select aria-label="Line width" value={planning.style.width} onChange={event => planning.setStyle({ width: Number(event.target.value) })} className="text-[10px] bg-surface-container rounded px-1"><option value="2">Thin</option><option value="3">Medium</option><option value="6">Thick</option></select>
@@ -420,6 +431,7 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
     <div className="absolute right-4 top-28 z-[650] w-64 bg-surface-container-highest rounded-xl shadow-lg p-4 max-h-[calc(100%-10rem)] overflow-y-auto">
       <div className="flex justify-between items-center mb-3"><h3 className="text-xs font-bold uppercase">{object ? 'Object properties' : 'Object inventory'}</h3>{object && <button aria-label="Close object properties" onClick={() => planning.select([])}><X size={14} /></button>}</div>
       {object ? <>
+        {object.kind === 'symbol' && <p className="text-xs font-semibold mb-2">{PLANNING_SYMBOLS.find(symbol => symbol.key === object.symbolKey)?.label ?? 'DRRM symbol'}</p>}
         <label className="text-[9px] uppercase">Label</label><input aria-label="Object label" disabled={!canEdit} value={object.label ?? ''} onChange={event => planning.updateObject(object.id, { label: event.target.value })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" />
         <div className="grid grid-cols-2 gap-2 mb-2"><label className="text-[9px] uppercase">Color<input aria-label="Object color" disabled={!canEdit} type="color" value={object.style.color} onChange={event => planning.updateObject(object.id, { style: { ...object.style, color: event.target.value } })} className="block w-full h-8" /></label><label className="text-[9px] uppercase">Width<select aria-label="Object width" disabled={!canEdit} value={object.style.width} onChange={event => planning.updateObject(object.id, { style: { ...object.style, width: Number(event.target.value) } })} className="block w-full h-8 bg-surface-container-lowest rounded"><option value="2">Thin</option><option value="3">Medium</option><option value="6">Thick</option></select></label></div>
         {!['symbol', 'text'].includes(object.kind) && <select aria-label="Object line style" disabled={!canEdit} value={object.style.lineStyle} onChange={event => planning.updateObject(object.id, { style: { ...object.style, lineStyle: event.target.value as PlanningObject['style']['lineStyle'] } })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>}
@@ -433,7 +445,7 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
         <div className="grid grid-cols-2 gap-2"><button disabled={!canEdit} onClick={() => planning.addObject({ ...structuredClone(object), id: crypto.randomUUID(), order: scenario.objects.length })} className="p-2 bg-surface-container-lowest rounded text-[10px] disabled:opacity-30">Duplicate</button><button disabled={!canEdit || object.locked} onClick={() => planning.removeObjects([object.id])} className="p-2 bg-error-container rounded text-[10px] disabled:opacity-30">Delete</button></div>
       </> : <>
         <div className="relative mb-2"><BoxSelect size={13} className="absolute left-2 top-2.5" /><span className="block pl-7 py-2 text-[10px]">{scenario.objects.length} objects</span></div>
-        <div className="space-y-1 max-h-52 overflow-y-auto">{scenario.objects.map(object => <button key={object.id} onClick={() => planning.select([object.id])} className="w-full flex justify-between p-2 bg-surface-container-lowest rounded text-[10px] text-left"><span className="truncate">{object.label || object.symbolKey || object.kind}</span>{object.locked && <Lock size={10} />}</button>)}</div>
+        <div className="space-y-1 max-h-52 overflow-y-auto">{scenario.objects.map(object => <button key={object.id} onClick={() => planning.select([object.id])} className="w-full flex justify-between p-2 bg-surface-container-lowest rounded text-[10px] text-left"><span className="truncate">{object.label || (object.kind === 'symbol' && PLANNING_SYMBOLS.find(symbol => symbol.key === object.symbolKey)?.label) || object.kind}</span>{object.locked && <Lock size={10} />}</button>)}</div>
         {totals.length > 0 && <div className="mt-3 pt-3 border-t border-outline-variant/30 space-y-1">{totals.map(total => <div key={total.symbolKey} className="flex justify-between text-[9px]"><span>{PLANNING_SYMBOLS.find(symbol => symbol.key === total.symbolKey)?.label ?? total.symbolKey}</span><strong>{total.quantity}</strong></div>)}</div>}
       </>}
     </div>

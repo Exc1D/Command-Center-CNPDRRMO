@@ -57,6 +57,21 @@ interface PlanningState {
   setMessage: (message: string | null) => void;
 }
 
+export function canApplyPlanningHistory(current: PlanningScenario, target?: PlanningScenario) {
+  if (!target) return false;
+  for (const layer of Object.keys(current.layers) as Array<keyof PlanningScenario['layers']>) {
+    if (!current.layers[layer].locked) continue;
+    if (!target.layers[layer].locked) return false;
+    const currentObjects = current.objects.filter(object => object.layer === layer);
+    const targetObjects = target.objects.filter(object => object.layer === layer);
+    if (JSON.stringify(currentObjects) !== JSON.stringify(targetObjects)) return false;
+  }
+  return current.objects.filter(object => object.locked).every(object => {
+    const targetObject = target.objects.find(item => item.id === object.id);
+    return targetObject?.locked && JSON.stringify(targetObject) === JSON.stringify(object);
+  });
+}
+
 export const usePlanningStore = create<PlanningState>((set) => ({
   isPlanningMode: false,
   scenarios: [],
@@ -111,8 +126,8 @@ export const usePlanningStore = create<PlanningState>((set) => ({
   select: selectedIds => set({ selectedIds }),
   setSymbolKey: symbolKey => set({ symbolKey, tool: 'symbol' }),
   setSymbolSize: symbolSize => set({ symbolSize }),
-  undo: () => set(state => state.history?.past.length && !Object.values(state.history.present.layers).some(layer => layer.locked) ? { history: undoHistory(state.history), dirty: true, selectedIds: [] } : state),
-  redo: () => set(state => state.history?.future.length && !Object.values(state.history.present.layers).some(layer => layer.locked) ? { history: redoHistory(state.history), dirty: true, selectedIds: [] } : state),
+  undo: () => set(state => state.history && canApplyPlanningHistory(state.history.present, state.history.past.at(-1)) ? { history: undoHistory(state.history), dirty: true, selectedIds: [] } : state),
+  redo: () => set(state => state.history && canApplyPlanningHistory(state.history.present, state.history.future[0]) ? { history: redoHistory(state.history), dirty: true, selectedIds: [] } : state),
   markSaved: scenario => set(state => ({
     history: state.history ? {
       past: state.history.past.map(item => ({ ...item, draftVersion: scenario.draftVersion })),

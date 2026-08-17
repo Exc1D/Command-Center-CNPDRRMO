@@ -33,7 +33,8 @@ describe('PlanningSidebar', () => {
 
     expect(usePlanningStore.getState().history?.present.name).toBe('Flood evacuation');
     expect(usePlanningStore.getState().dirty).toBe(true);
-    expect(screen.getByTitle('Emergency Operations Center')).toBeInTheDocument();
+    expect(screen.getByTitle('Emergency Operations Center').querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByText('Life Safety')).toBeInTheDocument();
   });
 
   it('disables scenario mutation for a read-only viewer', async () => {
