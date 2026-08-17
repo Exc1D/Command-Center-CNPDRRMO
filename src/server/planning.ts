@@ -168,7 +168,8 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
 
   router.delete('/scenarios/:id/lock', requireAuthorization, (request, response) => {
     const existing = locks.get(request.params.id);
-    if (!existing || existing.sessionId === request.body?.sessionId || request.body?.force) locks.delete(request.params.id);
+    if (existing && existing.sessionId !== request.body?.sessionId && !request.body?.force) return response.status(409).json({ error: 'Lock belongs to another session' });
+    locks.delete(request.params.id);
     broadcast(request.params.id, 'lock', { locked: false });
     response.json({ success: true });
   });

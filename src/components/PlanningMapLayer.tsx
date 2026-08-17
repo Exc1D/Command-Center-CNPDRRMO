@@ -117,7 +117,8 @@ function renderObject(
     options.onSelect?.(event);
     const menu = document.createElement('div');
     menu.className = 'planning-context-menu';
-    ([['duplicate', 'Duplicate'], ['front', 'Bring forward'], ['back', 'Send backward'], ['lock', object.locked ? 'Unlock' : 'Lock'], ['delete', 'Delete']] as Array<[ObjectAction, string]>).forEach(([action, label]) => {
+    const actions: Array<[ObjectAction, string]> = object.locked ? [['lock', 'Unlock']] : [['duplicate', 'Duplicate'], ['front', 'Bring forward'], ['back', 'Send backward'], ['lock', 'Lock'], ['delete', 'Delete']];
+    actions.forEach(([action, label]) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = label;

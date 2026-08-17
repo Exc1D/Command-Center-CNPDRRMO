@@ -22,4 +22,14 @@ describe('planning editor store', () => {
 
     expect(usePlanningStore.getState().history!.present.objects).toEqual([]);
   });
+
+  it('allows a locked object to be unlocked but not otherwise edited', () => {
+    const object = { id: crypto.randomUUID(), kind: 'symbol' as const, layer: 'symbols' as const, coordinates: [[122.9, 14.1]] as [number, number][], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' as const }, locked: true, order: 0, symbolKey: 'eoc' };
+    usePlanningStore.getState().addObject(object);
+
+    usePlanningStore.getState().updateObject(object.id, { label: 'Changed' });
+    expect(usePlanningStore.getState().history!.present.objects[0].label).toBeUndefined();
+    usePlanningStore.getState().updateObject(object.id, { locked: false });
+    expect(usePlanningStore.getState().history!.present.objects[0].locked).toBe(false);
+  });
 });

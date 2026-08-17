@@ -92,6 +92,19 @@ describe('planning server', () => {
     expect(forced.status).toBe(200);
   });
 
+  it('does not release or broadcast success for the wrong session', async () => {
+    const scenario = createPlanningScenario('Typhoon evacuation');
+    await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
+    const endpoint = `/api/planning/scenarios/${scenario.id}/lock`;
+    await request(app).post(endpoint).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
+
+    const release = await request(app).delete(endpoint).set('Authorization', 'Bearer valid').send({ sessionId: 'two' });
+    const stillBlocked = await request(app).post(endpoint).set('Authorization', 'Bearer valid').send({ sessionId: 'two' });
+
+    expect(release.status).toBe(409);
+    expect(stillBlocked.status).toBe(409);
+  });
+
   it('rejects malformed shared templates', async () => {
     const id = crypto.randomUUID();
     const response = await request(app)

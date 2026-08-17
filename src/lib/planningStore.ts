@@ -94,6 +94,7 @@ export const usePlanningStore = create<PlanningState>((set) => ({
     if (!state.history) return state;
     const current = state.history.present.objects.find(object => object.id === id);
     if (!current || state.history.present.layers[current.layer].locked) return state;
+    if (current.locked && !(Object.keys(change).length === 1 && change.locked === false)) return state;
     const next = { ...state.history.present, objects: state.history.present.objects.map(object => object.id === id ? { ...object, ...change } : object) };
     return { history: pushHistory(state.history, next), dirty: true };
   }),
