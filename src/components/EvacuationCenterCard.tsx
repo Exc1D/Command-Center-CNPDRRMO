@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { useStore } from '../lib/store';
-import { X, Users, MapPin } from 'lucide-react';
-import { format } from 'date-fns';
+import { X, Users, MapPin, Trash2 } from 'lucide-react';
+import { formatDate } from '../lib/utils';
+import { EvacuationCenterAPI } from '../lib/api';
 
 const CENTER_TYPE_LABELS: Record<string, string> = {
   school: 'School',
@@ -12,7 +13,7 @@ const CENTER_TYPE_LABELS: Record<string, string> = {
 };
 
 export function EvacuationCenterCard() {
-  const { selectedEvacuationCenter, setSelectedEvacuationCenter } = useStore();
+  const { selectedEvacuationCenter, setSelectedEvacuationCenter, isMapAuthorized, setEvacuationCenters } = useStore();
 
   if (!selectedEvacuationCenter) return null;
 
@@ -63,9 +64,7 @@ export function EvacuationCenterCard() {
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Date Added</p>
             <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">
-              {selectedEvacuationCenter.dateAdded
-                ? format(new Date(selectedEvacuationCenter.dateAdded), 'MM/dd/yyyy HH:mm:ss')
-                : 'Unknown'}
+              {formatDate(selectedEvacuationCenter.dateAdded, 'MM/dd/yyyy HH:mm:ss')}
             </p>
           </div>
         </div>
@@ -75,6 +74,14 @@ export function EvacuationCenterCard() {
             Local Buffer Active
           </div>
         )}
+        {isMapAuthorized && <button onClick={async () => {
+          if (!confirm(`Delete evacuation center “${selectedEvacuationCenter.name}”?`)) return;
+          try {
+            await EvacuationCenterAPI.deleteCenter(selectedEvacuationCenter.id);
+            setEvacuationCenters(await EvacuationCenterAPI.getAllCenters());
+            setSelectedEvacuationCenter(null);
+          } catch { /* the shared sync banner reports authorization and validation failures */ }
+        }} className="mt-4 w-full flex items-center justify-center gap-2 bg-error-container py-2 rounded text-xs font-bold"><Trash2 size={14} />Delete center</button>}
       </div>
     </motion.div>
   );

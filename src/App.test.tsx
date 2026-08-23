@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { HazardAPI } from './lib/api';
@@ -11,6 +11,8 @@ const mockSyncPending = vi.hoisted(() => vi.fn());
 const mockAddHazard = vi.hoisted(() => vi.fn());
 const mockUpdateHazard = vi.hoisted(() => vi.fn());
 const mockDeleteHazard = vi.hoisted(() => vi.fn());
+const mockGetAllCenters = vi.hoisted(() => vi.fn());
+const mockSyncCenters = vi.hoisted(() => vi.fn());
 
 // Mock the api module
 vi.mock('./lib/api', () => ({
@@ -20,6 +22,10 @@ vi.mock('./lib/api', () => ({
     addHazard: mockAddHazard,
     updateHazard: mockUpdateHazard,
     deleteHazard: mockDeleteHazard,
+  },
+  EvacuationCenterAPI: {
+    getAllCenters: mockGetAllCenters,
+    syncPending: mockSyncCenters,
   },
 }));
 
@@ -71,6 +77,9 @@ describe('App', () => {
     vi.clearAllMocks();
     mockGetAllHazards.mockResolvedValue([]);
     mockSyncPending.mockResolvedValue(undefined);
+    mockGetAllCenters.mockResolvedValue([]);
+    mockSyncCenters.mockResolvedValue(undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ valid: false }) }));
 
     // Reset store to default state
     useStore.setState({
@@ -83,12 +92,14 @@ describe('App', () => {
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
 
   describe('fetchHazards on mount', () => {
-    it('getAllHazards is called via spy on component mount', async () => {
+    it('loads public data and syncs pending centers after restoring a session', async () => {
       const hazards = [{ id: '1', type: 'flood', severity: 'Moderate' }];
       mockGetAllHazards.mockResolvedValue(hazards);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ valid: true }) }));
 
       // Spy on the API method
       const spy = vi.spyOn(HazardAPI, 'getAllHazards');
@@ -97,6 +108,8 @@ describe('App', () => {
 
       await waitFor(() => {
         expect(spy).toHaveBeenCalled();
+        expect(mockSyncCenters).toHaveBeenCalled();
+        expect(mockGetAllCenters).toHaveBeenCalled();
       });
     });
 
@@ -108,6 +121,7 @@ describe('App', () => {
 
       // Verify the header is rendered
       expect(screen.getByText('COMMAND CENTER')).toBeInTheDocument();
+      await waitFor(() => expect(mockGetAllCenters).toHaveBeenCalled());
     });
 
     it('renders App when fetchHazards fails (error is caught internally)', async () => {
@@ -139,6 +153,12 @@ describe('App', () => {
         // Check that 'online' listener was registered (not 'offline')
         expect(addSpy).toHaveBeenCalledWith('online', expect.any(Function));
       });
+    });
+
+    it('reports offline status from the real browser event', async () => {
+      render(<App />);
+      act(() => window.dispatchEvent(new Event('offline')));
+      await waitFor(() => expect(screen.getByText('Map Status: Offline')).toBeInTheDocument());
     });
   });
 

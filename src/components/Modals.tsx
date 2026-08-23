@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { HazardAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
-import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, Edit3, X, AlertTriangle, ShieldAlert } from 'lucide-react';
-import { detectLocationFromGeometry } from '../lib/utils';
+import { detectLocationFromGeometry, formatDate } from '../lib/utils';
 
 export function DropTagModal() {
   const { isDropTagModalOpen, dropTagTempGeometry, closeDropTagModal, setHazards } = useStore();
@@ -227,7 +226,7 @@ export function PopUpCard() {
         <div className="space-y-4 mb-6">
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Timestamp</p>
-            <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">{format(new Date(selectedHazard.dateAdded), 'MM/dd/yyyy HH:mm:ss')}</p>
+            <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">{formatDate(selectedHazard.dateAdded, 'MM/dd/yyyy HH:mm:ss')}</p>
           </div>
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Field Context</p>
@@ -299,7 +298,6 @@ export function PinModal() {
       });
       const data = await response.json();
       if (data.valid) {
-        if (typeof data.token === 'string') sessionStorage.setItem('operationsToken', data.token);
         if (pinActionType === 'delete') {
           await handleDelete();
         } else if (pinActionType === 'unlock') {

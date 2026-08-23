@@ -1,9 +1,15 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { MAP_CONFIG } from './constants';
+import { format } from 'date-fns';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export function formatDate(value: string | undefined, pattern: string, fallback = 'Unknown') {
+  const date = new Date(value ?? '');
+  return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
 }
 
 export interface DetectedLocation {
@@ -52,10 +58,12 @@ export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2
 export function getCentroid(geometry: any): { lat: number; lng: number } | null {
   if (!geometry) return null;
   if (geometry.type === 'Point') {
+    if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2 || !geometry.coordinates.every(Number.isFinite)) return null;
     return { lat: geometry.coordinates[1], lng: geometry.coordinates[0] };
   }
   if (geometry.type === 'Polygon' && geometry.coordinates?.[0]) {
     const coords = geometry.coordinates[0];
+    if (!Array.isArray(coords) || coords.length === 0 || !coords.every((c: unknown) => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isFinite))) return null;
     let latSum = 0,
       lngSum = 0;
     for (const c of coords) {
@@ -66,6 +74,7 @@ export function getCentroid(geometry: any): { lat: number; lng: number } | null 
   }
   if (geometry.type === 'LineString' && geometry.coordinates?.[0]) {
     const coords = geometry.coordinates;
+    if (!Array.isArray(coords) || coords.length === 0 || !coords.every((c: unknown) => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isFinite))) return null;
     let latSum = 0,
       lngSum = 0;
     for (const c of coords) {

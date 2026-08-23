@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 
 export function EditHazardModal() {
-  const { isEditModalOpen, editModalHazard, closeEditModal, setHazards, setMapAuthorized } = useStore();
+  const { isEditModalOpen, editModalHazard, closeEditModal, setHazards } = useStore();
   const [type, setType] = useState('flood');
   const [severity, setSeverity] = useState('Moderate');
   const [title, setTitle] = useState('');
@@ -23,9 +23,8 @@ export function EditHazardModal() {
       setMunicipality(editModalHazard.municipality || '');
       setBarangay(editModalHazard.barangay || '');
       setNotes(editModalHazard.notes || '');
-      setMapAuthorized(true);
     }
-  }, [isEditModalOpen, editModalHazard, setMapAuthorized]);
+  }, [isEditModalOpen, editModalHazard]);
 
   const handleSave = async () => {
     if (!editModalHazard) return;
@@ -42,6 +41,7 @@ export function EditHazardModal() {
         notes,
         geometry: editModalHazard.geometry,
         dateAdded: editModalHazard.dateAdded,
+        version: editModalHazard.version,
       };
 
       await HazardAPI.updateHazard(updatedHazard);

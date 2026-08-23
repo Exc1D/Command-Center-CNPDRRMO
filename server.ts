@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import Database from "better-sqlite3";
@@ -8,70 +7,44 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { createPlanningRouter } from "./src/server/planning";
 
-const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 function generateErrorId() {
   return `ERR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-app.use(express.json({ limit: '6mb' }));
-
-// Set up SQLite Database
-const dbPath = path.resolve(process.cwd(), 'camarines_drrmc.db');
-const db = new Database(dbPath);
-
-// Initialize DB Table
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS hazards (
-    id TEXT PRIMARY KEY,
-    type TEXT,
-    severity TEXT,
-    title TEXT,
-    municipality TEXT,
-    barangay TEXT,
-    notes TEXT,
-    geometry TEXT,
-    dateAdded TEXT
-  )
-`).run();
-
-// Migration: Add missing columns if they don't exist
-const migrations = [
-  { name: 'title', sql: 'ALTER TABLE hazards ADD COLUMN title TEXT' },
-  { name: 'municipality', sql: 'ALTER TABLE hazards ADD COLUMN municipality TEXT' },
-  { name: 'barangay', sql: 'ALTER TABLE hazards ADD COLUMN barangay TEXT' },
-];
-
-for (const mig of migrations) {
-  try {
-    db.prepare(mig.sql).run();
-    console.log(`Migration added: ${mig.name}`);
-  } catch (e) {
-    if ((e as Error).message.includes('duplicate column name')) {
-      // Expected
-    } else {
-      console.error(`Migration failed for ${mig.name}:`, e);
-      throw e;
+export function createDatabase(dbPath = path.resolve(process.cwd(), 'camarines_drrmc.db')) {
+  const db = new Database(dbPath);
+  db.pragma('foreign_keys = ON');
+  db.pragma('journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS hazards (
+      id TEXT PRIMARY KEY, type TEXT, severity TEXT, title TEXT, municipality TEXT,
+      barangay TEXT, notes TEXT, geometry TEXT, dateAdded TEXT, version INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS evacuation_centers (
+      id TEXT PRIMARY KEY, name TEXT, type TEXT, capacity INTEGER, municipality TEXT,
+      barangay TEXT, coordinates TEXT, dateAdded TEXT, version INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS operations_audit (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, method TEXT NOT NULL,
+      path TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+  `);
+  const migrations = [
+    ['hazards', 'title', 'TEXT'], ['hazards', 'municipality', 'TEXT'], ['hazards', 'barangay', 'TEXT'],
+    ['hazards', 'version', 'INTEGER NOT NULL DEFAULT 1'], ['evacuation_centers', 'version', 'INTEGER NOT NULL DEFAULT 1'],
+  ];
+  for (const [table, column, type] of migrations) {
+    if (!(db.pragma(`table_info(${table})`) as Array<{ name: string }>).some(item => item.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
     }
   }
+  return db;
 }
 
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS evacuation_centers (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    type TEXT,
-    capacity INTEGER,
-    municipality TEXT,
-    barangay TEXT,
-    coordinates TEXT,
-    dateAdded TEXT
-  )
-`).run();
-
 // Batch update: Auto-detect location for existing records without municipality
-async function batchUpdateLocations() {
+async function batchUpdateLocations(db: Database.Database) {
   const hazardsWithoutLocation = db.prepare("SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''").all();
   if (hazardsWithoutLocation.length === 0) {
     console.log('No records need location batch update');
@@ -180,67 +153,119 @@ async function batchUpdateLocations() {
 }
 
 // API Routes
+const longitude = z.number().finite().min(-180).max(180);
+const latitude = z.number().finite().min(-90).max(90);
+const coordinate = z.tuple([longitude, latitude]);
+const geometrySchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('Point'), coordinates: coordinate }),
+  z.object({ type: z.literal('LineString'), coordinates: z.array(coordinate).min(2).max(20_000) }),
+  z.object({ type: z.literal('Polygon'), coordinates: z.array(z.array(coordinate).min(4).max(20_000)).min(1).max(32) }),
+]);
+
 const hazardSchema = z.object({
   id: z.string().uuid(),
   type: z.enum(['flood', 'landslide', 'vehicular_accident', 'earthquake', 'storm_surge', 'tsunami']),
   severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical']),
-  title: z.string().optional(),
-  municipality: z.string().optional(),
-  barangay: z.string().optional(),
-  notes: z.string().optional(),
-  geometry: z.object({ type: z.string(), coordinates: z.any() }),
-  dateAdded: z.string().datetime().optional(),
+  title: z.string().trim().max(120).optional(),
+  municipality: z.string().trim().max(120).optional(),
+  barangay: z.string().trim().max(500).optional(),
+  notes: z.string().max(4_000).default(''),
+  geometry: geometrySchema,
+  dateAdded: z.string().datetime(),
+  version: z.number().int().nonnegative().optional(),
 });
 
 const evacuationCenterSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
   type: z.enum(['school', 'barangay_hall', 'church', 'covered_court', 'other']),
-  capacity: z.number().int().positive(),
-  municipality: z.string().optional(),
-  barangay: z.string().optional(),
-  coordinates: z.tuple([z.number(), z.number()]),
-  dateAdded: z.string().datetime().optional(),
+  capacity: z.number().int().positive().max(1_000_000),
+  municipality: z.string().trim().max(120).optional(),
+  barangay: z.string().trim().max(500).optional(),
+  coordinates: coordinate,
+  dateAdded: z.string().datetime(),
+  version: z.number().int().nonnegative().optional(),
 });
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// PIN Verification
-const CORRECT_PIN = process.env.PIN_SECRET;
-if (!CORRECT_PIN) {
-  console.error('PIN_SECRET environment variable is required');
-  process.exit(1);
-}
+export function createApp(db: Database.Database, correctPin: string, provinceBoundary?: Parameters<typeof createPlanningRouter>[2]) {
+  if (!/^\d{4}$/.test(correctPin)) throw new Error('PIN_SECRET must contain exactly four digits');
+  const app = express();
 
-const operationsSessions = new Map<string, number>();
+  // ponytail: process-local sessions and rate limits; use a shared store only for multi-instance deployment.
+  const operationsSessions = new Map<string, { id: string; expiresAt: number }>();
+  // ponytail: sessions are the audit identity; add named accounts when distinct operator roles are required.
+  const pinAttempts = new Map<string, { count: number; resetAt: number }>();
+  const tokenFrom = (request: express.Request) => request.headers.authorization?.replace(/^Bearer\s+/i, '')
+    || request.headers.cookie?.match(/(?:^|;\s*)operationsToken=([^;]+)/)?.[1];
+  const hasOperationsSession = (request: express.Request) => {
+    const token = tokenFrom(request);
+    if (!token) return false;
+    const session = operationsSessions.get(token);
+    if (!session || session.expiresAt <= Date.now()) {
+      operationsSessions.delete(token);
+      return false;
+    }
+    return true;
+  };
 
-function hasOperationsSession(request: express.Request) {
-  const token = request.headers.authorization?.replace(/^Bearer\s+/i, '');
-  if (!token) return false;
-  const expiresAt = operationsSessions.get(token) ?? 0;
-  if (expiresAt <= Date.now()) {
-    operationsSessions.delete(token);
-    return false;
-  }
-  return true;
-}
-
-app.post('/api/verify-pin', (req, res) => {
-  const { pin } = req.body;
-  if (typeof pin !== 'string' || pin.length !== 4) {
-    return res.status(400).json({ error: 'Invalid PIN format' });
-  }
-  if (pin === CORRECT_PIN) {
+  app.post('/api/verify-pin', express.json({ limit: '1kb' }), (request, response) => {
+    const key = request.ip || 'unknown';
+    const now = Date.now();
+    if (!pinAttempts.has(key) && pinAttempts.size >= 10_000) {
+      for (const [ip, attempt] of pinAttempts) if (attempt.resetAt <= now) pinAttempts.delete(ip);
+      if (pinAttempts.size >= 10_000) return response.status(429).json({ error: 'Too many attempts. Try again later.' });
+    }
+    const attempts = pinAttempts.get(key);
+    if (attempts && attempts.resetAt > now && attempts.count >= 5) {
+      return response.status(429).json({ error: 'Too many attempts. Try again later.' });
+    }
+    const { pin } = request.body;
+    if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return response.status(400).json({ error: 'Invalid PIN format' });
+    if (pin !== correctPin) {
+      pinAttempts.set(key, { count: attempts && attempts.resetAt > now ? attempts.count + 1 : 1, resetAt: now + 15 * 60 * 1000 });
+      return response.status(401).json({ valid: false });
+    }
+    pinAttempts.delete(key);
+    if (operationsSessions.size >= 10_000) {
+      for (const [id, session] of operationsSessions) if (session.expiresAt <= now) operationsSessions.delete(id);
+      if (operationsSessions.size >= 10_000) return response.status(503).json({ error: 'Too many active sessions' });
+    }
     const token = randomUUID();
-    operationsSessions.set(token, Date.now() + 8 * 60 * 60 * 1000);
-    res.json({ valid: true, token });
-  } else {
-    res.status(401).json({ valid: false });
-  }
-});
+    operationsSessions.set(token, { id: randomUUID(), expiresAt: now + 8 * 60 * 60 * 1000 });
+    response.setHeader('Set-Cookie', `operationsToken=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    response.json({ valid: true });
+  });
 
-const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
-app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
+  app.get('/api/session', (request, response) => response.json({ valid: hasOperationsSession(request) }));
+  app.post('/api/logout', (request, response) => {
+    const token = tokenFrom(request);
+    if (token) operationsSessions.delete(token);
+    response.setHeader('Set-Cookie', 'operationsToken=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+    response.json({ success: true });
+  });
+
+  // Protect every current and future mutation at one boundary; public reads opt in inside their routers.
+  app.use((request, response, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method) || request.path === '/api/verify-pin') return next();
+    if (!hasOperationsSession(request)) return response.status(401).json({ error: 'Authorization required' });
+    const sessionId = operationsSessions.get(tokenFrom(request)!)!.id;
+    response.on('finish', () => {
+      if (response.statusCode < 400 && request.path !== '/api/logout') {
+        try {
+          db.prepare('INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)')
+            .run(sessionId, request.method, request.path, new Date().toISOString());
+        } catch (error) {
+          console.error('Failed to record operations audit entry:', error);
+        }
+      }
+    });
+    next();
+  });
+  app.use(express.json({ limit: '6mb' }));
+
+  app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
 
 app.get("/api/hazards", (req, res) => {
   try {
@@ -265,8 +290,9 @@ app.post("/api/hazards", (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded);
-    res.json({ success: true, id });
+    res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
+    if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to save hazard:`, error);
     res.status(500).json({ error: 'Failed to save hazard', errorId });
@@ -281,18 +307,21 @@ app.put("/api/hazards/:id", (req, res) => {
       return res.status(400).json({ error: 'Invalid hazard ID format' });
     }
 
-    const updateSchema = hazardSchema.partial().omit({ id: true });
+    const updateSchema = hazardSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() });
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
 
-    const { type, severity, title, municipality, barangay, notes, geometry, dateAdded } = parsed.data;
+    const { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version } = parsed.data;
 
     // Check if hazard exists
-    const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id);
+    const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id) as { version: number } | undefined;
     if (!existing) {
       return res.status(404).json({ error: 'Hazard not found' });
+    }
+    if (version !== existing.version) {
+      return res.status(409).json({ error: 'Hazard changed', current: db.prepare('SELECT * FROM hazards WHERE id = ?').get(id) });
     }
 
     const stmt = db.prepare(`
@@ -304,7 +333,8 @@ app.put("/api/hazards/:id", (req, res) => {
           barangay = COALESCE(?, barangay),
           notes = COALESCE(?, notes),
           geometry = COALESCE(?, geometry),
-          dateAdded = COALESCE(?, dateAdded)
+          dateAdded = COALESCE(?, dateAdded),
+          version = version + 1
       WHERE id = ?
     `);
     stmt.run(
@@ -318,7 +348,7 @@ app.put("/api/hazards/:id", (req, res) => {
       dateAdded,
       id
     );
-    res.json({ success: true, id });
+    res.json({ success: true, id, version: existing.version + 1 });
   } catch (error) {
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to update hazard:`, error);
@@ -369,8 +399,9 @@ app.post("/api/evacuation-centers", (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded);
-    res.json({ success: true, id });
+    res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
+    if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Evacuation center already exists' });
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to save evacuation center:`, error);
     res.status(500).json({ error: 'Failed to save evacuation center', errorId });
@@ -383,15 +414,18 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid evacuation center ID format' });
     }
-    const updateSchema = evacuationCenterSchema.partial().omit({ id: true });
+    const updateSchema = evacuationCenterSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() });
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
-    const { name, type, capacity, municipality, barangay, coordinates, dateAdded } = parsed.data;
-    const existing = db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id);
+    const { name, type, capacity, municipality, barangay, coordinates, dateAdded, version } = parsed.data;
+    const existing = db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id) as { version: number } | undefined;
     if (!existing) {
       return res.status(404).json({ error: 'Evacuation center not found' });
+    }
+    if (version !== existing.version) {
+      return res.status(409).json({ error: 'Evacuation center changed', current: db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id) });
     }
     const stmt = db.prepare(`
       UPDATE evacuation_centers
@@ -401,7 +435,8 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
           municipality = COALESCE(?, municipality),
           barangay = COALESCE(?, barangay),
           coordinates = COALESCE(?, coordinates),
-          dateAdded = COALESCE(?, dateAdded)
+          dateAdded = COALESCE(?, dateAdded),
+          version = version + 1
       WHERE id = ?
     `);
     stmt.run(
@@ -414,7 +449,7 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
       dateAdded,
       id
     );
-    res.json({ success: true, id });
+    res.json({ success: true, id, version: existing.version + 1 });
   } catch (error) {
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to update evacuation center:`, error);
@@ -422,17 +457,11 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
   }
 });
 
-app.delete("/api/evacuation-centers/:id", async (req, res) => {
+app.delete("/api/evacuation-centers/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const pin = req.headers['x-pin'] as string;
-
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid evacuation center ID format' });
-    }
-
-    if (!pin || pin !== process.env.PIN_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const result = db.prepare('DELETE FROM evacuation_centers WHERE id = ?').run(id);
@@ -447,11 +476,24 @@ app.delete("/api/evacuation-centers/:id", async (req, res) => {
   }
 });
 
+  app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
+    if (error instanceof SyntaxError && 'body' in error) return response.status(400).json({ error: 'Invalid JSON body' });
+    next(error);
+  });
+
+  return app;
+}
+
 async function startServer() {
-  // Run batch update for existing records
-  await batchUpdateLocations();
+  const correctPin = process.env.PIN_SECRET;
+  if (!correctPin) throw new Error('PIN_SECRET environment variable is required');
+  const db = createDatabase(process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : undefined);
+  await batchUpdateLocations(db);
+  const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
+  const app = createApp(db, correctPin, provinceBoundary);
 
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -470,4 +512,9 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VITEST) {
+  startServer().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
+}

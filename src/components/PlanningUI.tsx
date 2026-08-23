@@ -26,8 +26,6 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import { PlanningAPI } from '../lib/planningApi';
 import {
@@ -75,11 +73,12 @@ const TOOL_BUTTONS: Array<{ tool: PlanningTool; label: string; shortcut: string;
 function localDateTime(iso?: string) {
   if (!iso) return '';
   const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 async function refreshScenarios() {
-  usePlanningStore.getState().setScenarios(await PlanningAPI.list());
+  usePlanningStore.getState().setScenarios(await PlanningAPI.list(useStore.getState().isMapAuthorized));
 }
 
 export async function saveCurrentPlanningScenario() {
@@ -129,6 +128,7 @@ function download(name: string, blob: Blob) {
 }
 
 async function exportMap(scenario: PlanningScenario, type: 'png' | 'pdf') {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const map = document.querySelector('.leaflet-container') as HTMLElement | null;
   if (!map) return;
   const canvas = await html2canvas(map, { useCORS: true, scale: 2 });
@@ -167,9 +167,9 @@ export function PlanningSidebar() {
 
   useEffect(() => {
     refreshScenarios();
-    PlanningAPI.templates().then(setTemplates);
+    PlanningAPI.templates(operational.isMapAuthorized).then(setTemplates);
     fetch(provinceBoundaryUrl).then(response => response.json()).then(setProvince).catch(() => planning.setMessage('Province boundary could not be loaded'));
-  }, []);
+  }, [operational.isMapAuthorized]);
 
   const scenarios = planning.scenarios.filter(item => {
     const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase());
@@ -269,13 +269,13 @@ export function PlanningSidebar() {
               const name = prompt('Template name');
               if (!name?.trim()) return;
               const template: PlanningTemplate = { id: crypto.randomUUID(), name: name.trim(), symbolKey: planning.symbolKey, color: planning.style.color, size: planning.symbolSize, updatedAt: new Date().toISOString() };
-              try { await PlanningAPI.saveTemplate(template); setTemplates(await PlanningAPI.templates()); }
+              try { await PlanningAPI.saveTemplate(template); setTemplates(await PlanningAPI.templates(true)); }
               catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Could not save template'); }
             }} className="px-3 bg-surface-container-lowest rounded text-[10px] disabled:opacity-40">Save template</button>
           </div>
           {templates.length > 0 && <details className="mt-2"><summary className="text-[10px] cursor-pointer">Shared templates</summary><div className="space-y-1 mt-1">{templates.map(template => <div key={template.id} className="flex gap-1">
             <button onClick={() => { planning.setStyle({ color: template.color }); planning.setSymbolSize(template.size); planning.setSymbolKey(template.symbolKey); }} className="flex-1 p-2 bg-surface-container-lowest rounded text-[10px] text-left truncate">{template.name}</button>
-            <button aria-label={`Delete ${template.name}`} disabled={!operational.isMapAuthorized} onClick={async () => { if (!confirm(`Delete template “${template.name}”?`)) return; try { await PlanningAPI.deleteTemplate(template.id); setTemplates(await PlanningAPI.templates()); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Could not delete template'); } }} className="p-2 bg-error-container rounded disabled:opacity-40"><X size={11} /></button>
+            <button aria-label={`Delete ${template.name}`} disabled={!operational.isMapAuthorized} onClick={async () => { if (!confirm(`Delete template “${template.name}”?`)) return; try { await PlanningAPI.deleteTemplate(template.id); setTemplates(await PlanningAPI.templates(true)); } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Could not delete template'); } }} className="p-2 bg-error-container rounded disabled:opacity-40"><X size={11} /></button>
           </div>)}</div></details>}
         </section>
 
@@ -315,7 +315,7 @@ export function PlanningSidebar() {
               planning.load(imported.scenario, true);
               if (operational.isMapAuthorized) {
                 await Promise.all(imported.templates.map(template => PlanningAPI.saveTemplate(template)));
-                setTemplates(await PlanningAPI.templates());
+                setTemplates(await PlanningAPI.templates(true));
               } else setTemplates(current => [...new Map([...current, ...imported.templates].map(template => [template.id, template])).values()]);
               planning.setMessage(`Imported as a new draft${imported.templates.length ? ` with ${imported.templates.length} template${imported.templates.length === 1 ? '' : 's'}` : ''}`);
             } catch (error) { planning.setMessage(error instanceof Error ? error.message : 'Invalid scenario file'); }
@@ -461,7 +461,7 @@ export function PublishedPlansControl() {
     <button onClick={() => setOpen(!open)} className="w-full flex justify-between text-xs font-bold"><span>Published Plans</span><span>{planning.publishedOverlays.length}</span></button>
     {open && <div className="space-y-2 mt-3">{published.length === 0 ? <p className="text-[10px] opacity-60">No current published plans</p> : published.map(scenario => <label key={scenario.id} className="flex gap-2 text-[10px]"><input type="checkbox" checked={planning.publishedOverlays.some(revision => revision.scenarioId === scenario.id)} onChange={async event => {
       if (!event.target.checked) return planning.setPublishedOverlays(planning.publishedOverlays.filter(revision => revision.scenarioId !== scenario.id));
-      const revisions = await PlanningAPI.revisions(scenario.id);
+      const revisions = await PlanningAPI.revisions(scenario.id, useStore.getState().isMapAuthorized);
       const latest = revisions[0];
       if (latest) planning.setPublishedOverlays([...planning.publishedOverlays.filter(revision => revision.scenarioId !== scenario.id), latest]);
     }} /><span>{scenario.name} • r{scenario.publishedRevision}</span></label>)}</div>}

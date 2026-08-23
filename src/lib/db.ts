@@ -12,6 +12,7 @@ export interface Hazard {
   notes: string;
   geometry: any; // GeoJSON geometry representation
   dateAdded: string;
+  version?: number;
   syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete';
 }
 
@@ -24,13 +25,14 @@ export interface EvacuationCenter {
   barangay: string;
   coordinates: [number, number]; // [lng, lat]
   dateAdded: string;
+  version?: number;
   syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete';
 }
 
 export class OfflineDB extends Dexie {
   hazards!: Table<Hazard, string>;
   evacuationCenters!: Table<EvacuationCenter, string>;
-  planningScenarios!: Table<PlanningScenario & { syncStatus?: string }, string>;
+  planningScenarios!: Table<PlanningScenario & { publishedRevision?: number | null; syncStatus?: string }, string>;
   planningRevisions!: Table<PlanningRevision, string>;
   planningTemplates!: Table<PlanningTemplate & { syncStatus?: string }, string>;
 

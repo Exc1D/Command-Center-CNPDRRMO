@@ -32,8 +32,33 @@ describe('planning server', () => {
     expect(created.body.name).toBe('Typhoon evacuation');
     expect(created.body.draftVersion).toBe(1);
 
+    const listed = await request(app).get('/api/planning/scenarios').set('Authorization', 'Bearer valid');
+    expect(listed.body).toHaveLength(1);
+  });
+
+  it('does not expose internal drafts or live previews to public readers', async () => {
+    const scenario = createPlanningScenario('Restricted response plan');
+    scenario.classification = 'Restricted';
+    await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
+
+    expect((await request(app).get('/api/planning/scenarios')).body).toEqual([]);
+    expect((await request(app).get(`/api/planning/scenarios/${scenario.id}`)).status).toBe(404);
+    expect((await request(app).get(`/api/planning/scenarios/${scenario.id}/events`)).status).toBe(401);
+    expect((await request(app).get('/api/planning/templates')).status).toBe(401);
+  });
+
+  it('exposes only immutable published snapshots explicitly classified as public', async () => {
+    const scenario = createPlanningScenario('Public evacuation plan');
+    scenario.classification = 'Public';
+    scenario.objects.push({ id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[122.95, 14.1]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0, symbolKey: 'eoc' });
+    await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
+    await request(app).post(`/api/planning/scenarios/${scenario.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
+    await request(app).post(`/api/planning/scenarios/${scenario.id}/publish`).set('Authorization', 'Bearer valid').set('X-Planning-Session', 'one');
+
     const listed = await request(app).get('/api/planning/scenarios');
     expect(listed.body).toHaveLength(1);
+    expect(listed.body[0].publishedRevision).toBe(1);
+    expect((await request(app).get(`/api/planning/scenarios/${scenario.id}/revisions`)).body).toHaveLength(1);
   });
 
   it('protects mutations with operations authorization', async () => {

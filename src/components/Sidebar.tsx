@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES, SUSCEPTIBILITY_LEVELS } from '../lib/store';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { MAP_CONFIG } from '../lib/constants';
 import { Layers, Map as MapIcon, Satellite, Download, Clock, ShieldAlert, ShieldCheck, ChevronDown, Check } from 'lucide-react';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 import { format } from 'date-fns';
 import barangaysData from '../lib/barangays.json';
 
@@ -44,6 +42,7 @@ export default function Sidebar() {
   const handleExportPDF = async () => {
     setExporting(true);
     try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
       const mapElement = document.querySelector('.leaflet-container');
       if (!mapElement) return;
 
@@ -91,7 +90,7 @@ export default function Sidebar() {
           <button 
             onClick={() => {
               if (isMapAuthorized) {
-                sessionStorage.removeItem('operationsToken');
+                fetch('/api/logout', { method: 'POST' }).catch(() => {});
                 setMapAuthorized(false);
               } else {
                 openPinModal('unlock');
@@ -334,7 +333,7 @@ export default function Sidebar() {
                       >
                         <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: typeDef?.color || 'var(--color-primary)' }} />
                         <div className="ml-2">
-                          <p className="text-[10px] text-on-surface/50 font-bold tracking-[0.05em] uppercase mb-1">{format(new Date(h.dateAdded), 'HH:mm - MMM d')}</p>
+                          <p className="text-[10px] text-on-surface/50 font-bold tracking-[0.05em] uppercase mb-1">{formatDate(h.dateAdded, 'HH:mm - MMM d')}</p>
                           <p className="text-sm font-display font-bold text-on-surface mb-1 leading-tight">{h.title || 'Untitled Area'}</p>
                           <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface/60 mb-1">{typeDef?.label} &middot; {h.severity}</p>
                           <p className="text-xs text-on-surface/80 truncate">{h.notes || 'Status monitored.'}</p>

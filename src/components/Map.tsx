@@ -9,6 +9,7 @@ import { MAP_CONFIG } from '../lib/constants';
 import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
 import floodSusceptibilityUrl from '../../CamarinesNorte_FloodPerMunicipality.geojson?url';
+import { getCentroid } from '../lib/utils';
 
 const SUSCEP_STYLES: Record<string, { color: string; fillOpacity: number }> = {
   'Very High': { color: '#001f3f', fillOpacity: 0.35 },
@@ -38,6 +39,22 @@ export const CENTER_TYPE_LABELS: Record<string, string> = {
   covered_court: 'Covered Court',
   other: 'Other',
 };
+
+export async function removeHazard(hazardId: string) {
+  await HazardAPI.deleteHazard(hazardId);
+  useStore.getState().setHazards(await HazardAPI.getAllHazards());
+}
+
+export async function updateHazardGeometry(hazard: any, geometry: any) {
+  await HazardAPI.updateHazard({ ...hazard, geometry });
+  useStore.getState().setHazards(await HazardAPI.getAllHazards());
+}
+
+export async function loadEvacuationCenters() {
+  const centers = await EvacuationCenterAPI.getAllCenters();
+  useStore.getState().setEvacuationCenters(centers);
+  return centers;
+}
 
 const evacuationCenterIcon = L.divIcon({
   className: 'evacuation-center-marker',
@@ -120,9 +137,7 @@ function GeomanSetup() {
       const hazardId = (e.layer as any).hazardId;
       if (hazardId) {
         try {
-          await HazardAPI.deleteHazard(hazardId);
-          const hazards = await HazardAPI.getAllHazards();
-          useStore.getState().setHazards(hazards);
+          await removeHazard(hazardId);
         } catch (error) {
           console.error('Failed to delete hazard:', error);
         }
@@ -155,17 +170,14 @@ function EvacuationCenterMarkersHandler() {
   const map = useMap();
   const evacuationCentersVisible = useStore(state => state.evacuationCentersVisible);
   const evacuationCenters = useStore(state => state.evacuationCenters);
-  const setEvacuationCenters = useStore(state => state.setEvacuationCenters);
   const setSelectedEvacuationCenter = useStore(state => state.setSelectedEvacuationCenter);
 
   const markersRef = useRef<L.Marker[]>([]);
 
   useEffect(() => {
     if (!evacuationCentersVisible) return;
-    EvacuationCenterAPI.getAllCenters().then((centers) => {
-      setEvacuationCenters(centers);
-    });
-  }, [evacuationCentersVisible, setEvacuationCenters]);
+    loadEvacuationCenters();
+  }, [evacuationCentersVisible]);
 
   useEffect(() => {
     markersRef.current.forEach(marker => {
@@ -175,12 +187,8 @@ function EvacuationCenterMarkersHandler() {
 
     if (!evacuationCentersVisible) return;
 
-    const escapeHtml = (str: string) =>
-      str.replace(/[&<>"']/g, (c) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      })[c] || c);
-
     evacuationCenters.forEach((center) => {
+      if (!Array.isArray(center.coordinates) || center.coordinates.length < 2 || !center.coordinates.every(Number.isFinite)) return;
       const marker = L.marker([center.coordinates[1], center.coordinates[0]], {
         icon: evacuationCenterIcon
       }) as any;
@@ -188,10 +196,10 @@ function EvacuationCenterMarkersHandler() {
 
       marker.bindPopup(`
         <div style="min-width: 150px;">
-          <strong style="font-size: 14px;">${escapeHtml(center.name)}</strong>
+          <strong style="font-size: 14px;">${escapeHtml(String(center.name || 'Unnamed center'))}</strong>
           <p style="margin: 4px 0; color: #666; font-size: 12px;">${CENTER_TYPE_LABELS[center.type] || ''}</p>
           <p style="margin: 2px 0; font-size: 12px;">Capacity: ${Number(center.capacity)}</p>
-          <p style="margin: 2px 0; font-size: 12px;">${escapeHtml(center.barangay || '')}${center.municipality ? `, ${escapeHtml(center.municipality)}` : ''}</p>
+          <p style="margin: 2px 0; font-size: 12px;">${escapeHtml(String(center.barangay || ''))}${center.municipality ? `, ${escapeHtml(String(center.municipality))}` : ''}</p>
         </div>
       `);
 
@@ -212,6 +220,7 @@ export default function DangerMap() {
   const filteredHazards = useStore(state => state.filteredHazards);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
   const activeFilters = useStore(state => state.activeFilters);
+  const activeSusceptibilityFilters = useStore(state => state.activeSusceptibilityFilters);
   const [susceptibilityGeoJSON, setSusceptibilityGeoJSON] = useState<any>(null);
   const isPlanningMode = usePlanningStore(state => state.isPlanningMode);
 
@@ -333,15 +342,8 @@ export default function DangerMap() {
       const newGeom = (activeLayer as any).toGeoJSON().geometry;
       const hazardData = feature.properties.fullData;
       
-      const updatedHazard = {
-        ...hazardData,
-        geometry: newGeom,
-      };
-      
       try {
-        await HazardAPI.updateHazard(updatedHazard);
-        const hazards = await HazardAPI.getAllHazards();
-        useStore.getState().setHazards(hazards);
+        await updateHazardGeometry(hazardData, newGeom);
       } catch (error) {
         console.error('Failed to update hazard:', error);
       }
@@ -370,8 +372,9 @@ export default function DangerMap() {
 
         {susceptibilityGeoJSON && (
           <GeoJSON
-            key="susceptibility-layer"
+            key={`susceptibility-layer-${activeSusceptibilityFilters.join('-')}`}
             data={susceptibilityGeoJSON}
+            filter={feature => activeSusceptibilityFilters.length === 0 || activeSusceptibilityFilters.includes(feature?.properties?.Suscep)}
             style={suscepStyle}
             onEachFeature={onEachSuscepFeature}
             pane="overlayPane"
@@ -379,7 +382,7 @@ export default function DangerMap() {
         )}
 
         <FeatureGroup>
-          {filteredHazards.map(hazard => {
+          {filteredHazards.filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
             const geojson = {
               type: "Feature",
               properties: { fullData: hazard },

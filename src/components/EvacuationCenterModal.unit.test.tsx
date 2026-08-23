@@ -67,6 +67,7 @@ describe('EvacuationCenterModal', () => {
 
     expect(screen.getByText('New Evacuation Center')).toBeInTheDocument();
     expect(screen.getByText('Add Evacuation Center')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByPlaceholderText('Municipality')).toHaveValue('Daet'));
   });
 
   it('does not render when isEvacuationCenterModalOpen is false', () => {

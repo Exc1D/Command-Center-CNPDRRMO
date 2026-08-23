@@ -2,23 +2,35 @@ import axios from 'axios';
 import { db } from './db';
 import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './planning';
 
-const authorization = () => ({ Authorization: `Bearer ${sessionStorage.getItem('operationsToken') ?? ''}` });
+const authorization = () => ({});
+const retryable = (error: unknown) => axios.isAxiosError(error)
+  && (!error.response || error.response.status === 429 || error.response.status >= 500);
 
 export const PlanningAPI = {
-  async list(): Promise<Array<PlanningScenario & { publishedRevision?: number | null }>> {
-    const pending = await db.planningScenarios.filter(scenario => scenario.syncStatus?.startsWith('pending_') ?? false).toArray();
+  async list(authorized = false): Promise<Array<PlanningScenario & { publishedRevision?: number | null }>> {
+    const pending = authorized
+      ? await db.planningScenarios.filter(scenario => scenario.syncStatus?.startsWith('pending_') ?? false).toArray()
+      : [];
     if (navigator.onLine) {
       try {
         const response = await axios.get('/api/planning/scenarios');
         const pendingIds = new Set(pending.map(scenario => scenario.id));
         const server = (response.data as PlanningScenario[]).filter(scenario => !pendingIds.has(scenario.id));
+        if (authorized) {
+          const serverIds = new Set(server.map(scenario => scenario.id));
+          const stale = (await db.planningScenarios.toArray())
+            .filter(scenario => !scenario.syncStatus?.startsWith('pending_') && !serverIds.has(scenario.id))
+            .map(scenario => scenario.id);
+          if (stale.length) await db.planningScenarios.bulkDelete(stale);
+        }
         await db.planningScenarios.bulkPut(server.map(scenario => ({ ...scenario, syncStatus: 'synced' })));
         return [...server, ...pending.filter(scenario => scenario.syncStatus !== 'pending_delete')];
       } catch {
         // The saved offline list remains useful when the server is unavailable.
       }
     }
-    return db.planningScenarios.toArray();
+    return (await db.planningScenarios.toArray()).filter(scenario => scenario.syncStatus !== 'pending_delete'
+      && (authorized || (scenario.classification === 'Public' && Boolean(scenario.publishedRevision))));
   },
 
   async create(scenario: PlanningScenario) {
@@ -28,7 +40,12 @@ export const PlanningAPI = {
         await db.planningScenarios.put({ ...response.data, syncStatus: 'synced' });
         return response.data as PlanningScenario;
       } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status < 500) throw error;
+        if (axios.isAxiosError(error) && error.response?.status === 409) {
+          const response = await axios.get(`/api/planning/scenarios/${scenario.id}`);
+          await db.planningScenarios.put({ ...response.data, syncStatus: 'synced' });
+          return response.data as PlanningScenario;
+        }
+        if (!retryable(error)) throw error;
       }
     }
     const local = { ...scenario, updatedAt: new Date().toISOString(), syncStatus: 'pending_add' } as const;
@@ -55,7 +72,7 @@ export const PlanningAPI = {
           await db.planningScenarios.delete(scenario.id);
           return { scenario: saved, conflicted: true };
         }
-        if (axios.isAxiosError(error) && error.response?.status < 500) throw error;
+        if (!retryable(error)) throw error;
       }
     }
     const local = { ...scenario, updatedAt: new Date().toISOString(), syncStatus: scenario.draftVersion === 0 ? 'pending_add' : 'pending_update' } as const;
@@ -65,9 +82,17 @@ export const PlanningAPI = {
 
   async remove(scenario: PlanningScenario, sessionId?: string) {
     if (navigator.onLine) {
-      await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' }, data: { name: scenario.name } });
-      await db.planningScenarios.delete(scenario.id);
-      return;
+      try {
+        await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' }, data: { name: scenario.name } });
+        await db.planningScenarios.delete(scenario.id);
+        return;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          await db.planningScenarios.delete(scenario.id);
+          return;
+        }
+        if (!retryable(error)) throw error;
+      }
     }
     await db.planningScenarios.put({ ...scenario, syncStatus: 'pending_delete' });
   },
@@ -79,13 +104,14 @@ export const PlanningAPI = {
     return response.data;
   },
 
-  async revisions(id: string): Promise<PlanningRevision[]> {
+  async revisions(id: string, authorized = false): Promise<PlanningRevision[]> {
     if (navigator.onLine) {
       const response = await axios.get(`/api/planning/scenarios/${id}/revisions`);
       await db.planningRevisions.bulkPut(response.data);
       return response.data;
     }
-    return db.planningRevisions.where('scenarioId').equals(id).reverse().sortBy('revision');
+    const revisions = await db.planningRevisions.where('scenarioId').equals(id).reverse().sortBy('revision');
+    return authorized ? revisions : revisions.filter(revision => revision.snapshot.classification === 'Public');
   },
 
   async acquireLock(id: string, sessionId: string, force = false) {
@@ -109,7 +135,8 @@ export const PlanningAPI = {
     return () => stream.close();
   },
 
-  async templates(): Promise<PlanningTemplate[]> {
+  async templates(authorized = false): Promise<PlanningTemplate[]> {
+    if (!authorized) return [];
     if (navigator.onLine) {
       try {
         const response = await axios.get('/api/planning/templates');
@@ -124,9 +151,13 @@ export const PlanningAPI = {
 
   async saveTemplate(template: PlanningTemplate) {
     if (navigator.onLine) {
-      const response = await axios.put(`/api/planning/templates/${template.id}`, template, { headers: authorization() });
-      await db.planningTemplates.put({ ...response.data, syncStatus: 'synced' });
-      return response.data as PlanningTemplate;
+      try {
+        const response = await axios.put(`/api/planning/templates/${template.id}`, template, { headers: authorization() });
+        await db.planningTemplates.put({ ...response.data, syncStatus: 'synced' });
+        return response.data as PlanningTemplate;
+      } catch (error) {
+        if (!retryable(error)) throw error;
+      }
     }
     await db.planningTemplates.put({ ...template, syncStatus: 'pending_update' });
     return template;
@@ -135,9 +166,19 @@ export const PlanningAPI = {
   async deleteTemplate(id: string) {
     const template = await db.planningTemplates.get(id);
     if (navigator.onLine) {
-      await axios.delete(`/api/planning/templates/${id}`, { headers: authorization() });
-      await db.planningTemplates.delete(id);
-    } else if (template) await db.planningTemplates.put({ ...template, syncStatus: 'pending_delete' });
+      try {
+        await axios.delete(`/api/planning/templates/${id}`, { headers: authorization() });
+        await db.planningTemplates.delete(id);
+        return;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          await db.planningTemplates.delete(id);
+          return;
+        }
+        if (!retryable(error)) throw error;
+      }
+    }
+    if (template) await db.planningTemplates.put({ ...template, syncStatus: 'pending_delete' });
   },
 
   async syncPending(sessionId: string = crypto.randomUUID()) {

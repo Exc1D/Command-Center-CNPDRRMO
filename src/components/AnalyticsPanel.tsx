@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { X, BarChart2, Table as TableIcon, List as ListIcon, Search } from 'lucide-react';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { format } from 'date-fns';
+import { formatDate } from '../lib/utils';
 
 const SEVERITY_COLORS: Record<string, string> = {
   Minor: '#9ca3af',
@@ -270,7 +270,7 @@ export function AnalyticsPanel() {
                             </p>
                           )}
                           <div className="text-[9px] uppercase font-bold text-on-surface/40 tracking-[0.05em]">
-                            Logged: {format(new Date(h.dateAdded), 'MM/dd/yyyy HH:mm')}
+                            Logged: {formatDate(h.dateAdded, 'MM/dd/yyyy HH:mm')}
                           </div>
                         </div>
                       );

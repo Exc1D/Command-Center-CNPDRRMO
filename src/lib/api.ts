@@ -1,134 +1,142 @@
-import { db, Hazard, EvacuationCenter } from './db';
 import axios from 'axios';
-import { useStore, SYNC_STATUS } from './store';
+import type { Table } from 'dexie';
+import { db, type EvacuationCenter, type Hazard } from './db';
+import { SYNC_STATUS, useStore } from './store';
 
-const OFFLINE_WARNING = 'Operating offline — data may not reflect recent changes';
+const OFFLINE_WARNING = 'Operating offline — changes are safely queued';
+type SyncRecord = { id: string; syncStatus?: string };
 
-// A simple API wrapper to handle online/offline syncing
+async function reconcile<T extends SyncRecord>(table: Table<T, string>, server: T[]) {
+  const local = await table.toArray();
+  const pending = local.filter(item => item.syncStatus?.startsWith('pending_'));
+  const pendingIds = new Set(pending.map(item => item.id));
+  const serverIds = new Set(server.map(item => item.id));
+  const stale = local.filter(item => !item.syncStatus?.startsWith('pending_') && !serverIds.has(item.id)).map(item => item.id);
+  if (stale.length) await table.bulkDelete(stale);
+  await table.bulkPut(server.filter(item => !pendingIds.has(item.id)));
+  return [...server.filter(item => !pendingIds.has(item.id)), ...pending.filter(item => item.syncStatus !== SYNC_STATUS.PENDING_DELETE)];
+}
+
+function retryable(error: unknown) {
+  return axios.isAxiosError(error) && (!error.response || error.response.status === 429 || error.response.status >= 500);
+}
+
+function reportQueued(error: unknown) {
+  if (!retryable(error)) {
+    const message = axios.isAxiosError(error) && typeof error.response?.data?.error === 'string' ? error.response.data.error : 'The server rejected this change';
+    useStore.getState().setSyncError(message);
+    if (axios.isAxiosError(error) && error.response?.status === 401) useStore.getState().setMapAuthorized(false);
+    throw error;
+  }
+  useStore.getState().setSyncError(OFFLINE_WARNING);
+}
+
+let hazardSync: Promise<void> | null = null;
+let centerSync: Promise<void> | null = null;
 
 export const HazardAPI = {
   async getAllHazards(): Promise<Hazard[]> {
     try {
       if (navigator.onLine) {
         const response = await axios.get('/api/hazards');
-        const onlineHazards: Hazard[] = response.data.map((h: any) => ({
-          ...h,
-          geometry: typeof h.geometry === 'string' ? JSON.parse(h.geometry) : h.geometry,
+        const server = (response.data as Hazard[]).map(hazard => ({
+          ...hazard,
+          geometry: typeof hazard.geometry === 'string' ? JSON.parse(hazard.geometry) : hazard.geometry,
           syncStatus: SYNC_STATUS.SYNCED,
         }));
-        
-        // Sync local DB with server data
-        await db.hazards.bulkPut(onlineHazards);
-        return onlineHazards;
+        return reconcile(db.hazards, server);
       }
-    } catch (e) {
-      console.warn("Failed to fetch from server, falling back to local DB.", e);
+    } catch (error) {
+      console.warn('Failed to fetch hazards; using the local cache.', error);
       useStore.getState().setSyncError(OFFLINE_WARNING);
     }
-    
-    // Offline fallback
-    return await db.hazards.toArray();
+    return (await db.hazards.toArray()).filter(hazard => hazard.syncStatus !== SYNC_STATUS.PENDING_DELETE);
   },
 
-  async addHazard(hazard: Omit<Hazard, 'syncStatus'>): Promise<void> {
+  async addHazard(hazard: Omit<Hazard, 'syncStatus'>) {
     try {
       if (navigator.onLine) {
-        await axios.post('/api/hazards', hazard);
-        await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.SYNCED });
-      } else {
-        await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
+        const response = await axios.post('/api/hazards', hazard);
+        await db.hazards.put({ ...hazard, version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        await db.hazards.put({ ...hazard, version: hazard.version ?? 1, syncStatus: SYNC_STATUS.SYNCED });
+        return;
+      }
+      reportQueued(error);
     }
+    await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
   },
 
-  async updateHazard(hazard: Omit<Hazard, 'syncStatus'>): Promise<void> {
+  async updateHazard(hazard: Omit<Hazard, 'syncStatus'>) {
     try {
       if (navigator.onLine) {
-        await axios.put(`/api/hazards/${hazard.id}`, hazard);
-        await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.SYNCED });
-      } else {
-        await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
+        const response = await axios.put(`/api/hazards/${hazard.id}`, hazard);
+        await db.hazards.put({ ...hazard, version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
+    } catch (error) {
+      reportQueued(error);
     }
+    await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
   },
 
-  async deleteHazard(id: string): Promise<void> {
+  async deleteHazard(id: string) {
     try {
       if (navigator.onLine) {
         await axios.delete(`/api/hazards/${id}`);
         await db.hazards.delete(id);
-      } else {
-        const existing = await db.hazards.get(id);
-        if (existing) {
-          await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
-        }
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, marking for deletion locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      const existing = await db.hazards.get(id);
-      if (existing) {
-        await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        await db.hazards.delete(id);
+        return;
       }
+      reportQueued(error);
     }
+    const existing = await db.hazards.get(id);
+    if (existing) await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
   },
 
-  // Called when internet comes back
-  async syncPending() {
-    if (!navigator.onLine) return;
-    const state = useStore.getState();
-    if (state.syncState.isSyncing) return; // Mutex guard
-
-    useStore.getState().setSyncState({ isSyncing: true, lastSyncError: null });
-
-    const failedItems: { id: string; type: string; error: string }[] = [];
-
-    try {
-      const pendingAdds = (await db.hazards.where('syncStatus').equals(SYNC_STATUS.PENDING_ADD).toArray()) ?? [];
-      for (const hazard of pendingAdds) {
-        try {
-          await axios.post('/api/hazards', hazard);
-          await db.hazards.update(hazard.id, { syncStatus: SYNC_STATUS.SYNCED });
-        } catch (e) {
-          failedItems.push({ id: hazard.id, type: 'add', error: (e as Error).message });
+  syncPending() {
+    if (!navigator.onLine) return Promise.resolve();
+    if (hazardSync) return hazardSync;
+    hazardSync = (async () => {
+      useStore.getState().setSyncState({ isSyncing: true, lastSyncError: null });
+      const failures: string[] = [];
+      const process = async (status: string, action: (hazard: Hazard) => Promise<void>) => {
+        for (const hazard of await db.hazards.where('syncStatus').equals(status).toArray()) {
+          try { await action(hazard); } catch (error) { failures.push(`${hazard.id}: ${(error as Error).message}`); }
         }
-      }
-
-      const pendingUpdates = (await db.hazards.where('syncStatus').equals(SYNC_STATUS.PENDING_UPDATE).toArray()) ?? [];
-      for (const hazard of pendingUpdates) {
-        try {
-          await axios.put(`/api/hazards/${hazard.id}`, hazard);
-          await db.hazards.update(hazard.id, { syncStatus: SYNC_STATUS.SYNCED });
-        } catch (e) {
-          failedItems.push({ id: hazard.id, type: 'update', error: (e as Error).message });
-        }
-      }
-
-      const pendingDeletes = (await db.hazards.where('syncStatus').equals(SYNC_STATUS.PENDING_DELETE).toArray()) ?? [];
-      for (const hazard of pendingDeletes) {
-        try {
-          await axios.delete(`/api/hazards/${hazard.id}`);
+      };
+      try {
+        await process(SYNC_STATUS.PENDING_ADD, async hazard => {
+          try {
+            const response = await axios.post('/api/hazards', hazard);
+            await db.hazards.update(hazard.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          } catch (error) {
+            if (!axios.isAxiosError(error) || error.response?.status !== 409) throw error;
+            await db.hazards.update(hazard.id, { version: hazard.version ?? 1, syncStatus: SYNC_STATUS.SYNCED });
+          }
+        });
+        await process(SYNC_STATUS.PENDING_UPDATE, async hazard => {
+          const response = await axios.put(`/api/hazards/${hazard.id}`, hazard);
+          await db.hazards.update(hazard.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        });
+        await process(SYNC_STATUS.PENDING_DELETE, async hazard => {
+          try { await axios.delete(`/api/hazards/${hazard.id}`); }
+          catch (error) { if (!axios.isAxiosError(error) || error.response?.status !== 404) throw error; }
           await db.hazards.delete(hazard.id);
-        } catch (e) {
-          failedItems.push({ id: hazard.id, type: 'delete', error: (e as Error).message });
-        }
+        });
+      } finally {
+        useStore.getState().setSyncState({ isSyncing: false, lastSyncError: failures.length ? `Hazard sync failed for ${failures.length} item(s)` : null });
       }
-
-      if (failedItems.length > 0) {
-        useStore.getState().setSyncError(`Sync partially failed: ${failedItems.length} item(s) failed`);
-      }
-    } finally {
-      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: null });
-    }
-  }
+    })().finally(() => { hazardSync = null; });
+    return hazardSync;
+  },
 };
 
 export const EvacuationCenterAPI = {
@@ -136,118 +144,103 @@ export const EvacuationCenterAPI = {
     try {
       if (navigator.onLine) {
         const response = await axios.get('/api/evacuation-centers');
-        const onlineCenters: EvacuationCenter[] = response.data.map((c: any) => ({
-          ...c,
-          coordinates: typeof c.coordinates === 'string' ? JSON.parse(c.coordinates) : c.coordinates,
+        const server = (response.data as EvacuationCenter[]).map(center => ({
+          ...center,
+          coordinates: typeof center.coordinates === 'string' ? JSON.parse(center.coordinates) : center.coordinates,
           syncStatus: SYNC_STATUS.SYNCED,
         }));
-        await db.evacuationCenters.bulkPut(onlineCenters);
-        return onlineCenters;
+        return reconcile(db.evacuationCenters, server);
       }
-    } catch (e) {
-      console.warn("Failed to fetch from server, falling back to local DB.", e);
+    } catch (error) {
+      console.warn('Failed to fetch evacuation centers; using the local cache.', error);
       useStore.getState().setSyncError(OFFLINE_WARNING);
     }
-    return await db.evacuationCenters.toArray();
+    return (await db.evacuationCenters.toArray()).filter(center => center.syncStatus !== SYNC_STATUS.PENDING_DELETE);
   },
 
-  async addCenter(center: Omit<EvacuationCenter, 'syncStatus'>): Promise<void> {
+  async addCenter(center: Omit<EvacuationCenter, 'syncStatus'>) {
     try {
       if (navigator.onLine) {
-        await axios.post('/api/evacuation-centers', center);
-        await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.SYNCED });
-      } else {
-        await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_ADD });
+        const response = await axios.post('/api/evacuation-centers', center);
+        await db.evacuationCenters.put({ ...center, version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_ADD });
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        await db.evacuationCenters.put({ ...center, version: center.version ?? 1, syncStatus: SYNC_STATUS.SYNCED });
+        return;
+      }
+      reportQueued(error);
     }
+    await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_ADD });
   },
 
-  async updateCenter(center: Omit<EvacuationCenter, 'syncStatus'>): Promise<void> {
+  async updateCenter(center: Omit<EvacuationCenter, 'syncStatus'>) {
     try {
       if (navigator.onLine) {
-        await axios.put(`/api/evacuation-centers/${center.id}`, center);
-        await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.SYNCED });
-      } else {
-        await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_UPDATE });
+        const response = await axios.put(`/api/evacuation-centers/${center.id}`, center);
+        await db.evacuationCenters.put({ ...center, version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, saving locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_UPDATE });
+    } catch (error) {
+      reportQueued(error);
     }
+    await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_UPDATE });
   },
 
-  async deleteCenter(id: string): Promise<void> {
+  async deleteCenter(id: string) {
     try {
       if (navigator.onLine) {
         await axios.delete(`/api/evacuation-centers/${id}`);
         await db.evacuationCenters.delete(id);
-      } else {
-        const existing = await db.evacuationCenters.get(id);
-        if (existing) {
-          await db.evacuationCenters.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
-        }
+        return;
       }
-    } catch (e) {
-      console.warn("Server unavailable, marking for deletion locally.", e);
-      useStore.getState().setSyncError(OFFLINE_WARNING);
-      const existing = await db.evacuationCenters.get(id);
-      if (existing) {
-        await db.evacuationCenters.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        await db.evacuationCenters.delete(id);
+        return;
       }
+      reportQueued(error);
     }
+    const existing = await db.evacuationCenters.get(id);
+    if (existing) await db.evacuationCenters.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
   },
 
-  async syncPending() {
-    if (!navigator.onLine) return;
-    const state = useStore.getState();
-    if (state.syncState.isSyncing) return;
-
-    useStore.getState().setSyncState({ isSyncing: true, lastSyncError: null });
-
-    const failedItems: { id: string; type: string; error: string }[] = [];
-
-    try {
-      const pendingAdds = (await db.evacuationCenters.where('syncStatus').equals(SYNC_STATUS.PENDING_ADD).toArray()) ?? [];
-      for (const center of pendingAdds) {
-        try {
-          await axios.post('/api/evacuation-centers', center);
-          await db.evacuationCenters.update(center.id, { syncStatus: SYNC_STATUS.SYNCED });
-        } catch (e) {
-          failedItems.push({ id: center.id, type: 'add', error: (e as Error).message });
+  syncPending() {
+    if (!navigator.onLine) return Promise.resolve();
+    if (centerSync) return centerSync;
+    centerSync = (async () => {
+      const priorError = useStore.getState().syncState.lastSyncError;
+      useStore.getState().setSyncState({ isSyncing: true, lastSyncError: priorError });
+      const failures: string[] = [];
+      const process = async (status: string, action: (center: EvacuationCenter) => Promise<void>) => {
+        for (const center of await db.evacuationCenters.where('syncStatus').equals(status).toArray()) {
+          try { await action(center); } catch (error) { failures.push(`${center.id}: ${(error as Error).message}`); }
         }
-      }
-
-      const pendingUpdates = (await db.evacuationCenters.where('syncStatus').equals(SYNC_STATUS.PENDING_UPDATE).toArray()) ?? [];
-      for (const center of pendingUpdates) {
-        try {
-          await axios.put(`/api/evacuation-centers/${center.id}`, center);
-          await db.evacuationCenters.update(center.id, { syncStatus: SYNC_STATUS.SYNCED });
-        } catch (e) {
-          failedItems.push({ id: center.id, type: 'update', error: (e as Error).message });
-        }
-      }
-
-      const pendingDeletes = (await db.evacuationCenters.where('syncStatus').equals(SYNC_STATUS.PENDING_DELETE).toArray()) ?? [];
-      for (const center of pendingDeletes) {
-        try {
-          await axios.delete(`/api/evacuation-centers/${center.id}`);
+      };
+      try {
+        await process(SYNC_STATUS.PENDING_ADD, async center => {
+          try {
+            const response = await axios.post('/api/evacuation-centers', center);
+            await db.evacuationCenters.update(center.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          } catch (error) {
+            if (!axios.isAxiosError(error) || error.response?.status !== 409) throw error;
+            await db.evacuationCenters.update(center.id, { version: center.version ?? 1, syncStatus: SYNC_STATUS.SYNCED });
+          }
+        });
+        await process(SYNC_STATUS.PENDING_UPDATE, async center => {
+          const response = await axios.put(`/api/evacuation-centers/${center.id}`, center);
+          await db.evacuationCenters.update(center.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+        });
+        await process(SYNC_STATUS.PENDING_DELETE, async center => {
+          try { await axios.delete(`/api/evacuation-centers/${center.id}`); }
+          catch (error) { if (!axios.isAxiosError(error) || error.response?.status !== 404) throw error; }
           await db.evacuationCenters.delete(center.id);
-        } catch (e) {
-          failedItems.push({ id: center.id, type: 'delete', error: (e as Error).message });
-        }
+        });
+      } finally {
+        useStore.getState().setSyncState({ isSyncing: false, lastSyncError: failures.length ? `Evacuation center sync failed for ${failures.length} item(s)` : priorError });
       }
-
-      if (failedItems.length > 0) {
-        useStore.getState().setSyncError(`Evacuation center sync partially failed: ${failedItems.length} item(s) failed`);
-      }
-    } finally {
-      // Only reset isSyncing; preserve lastSyncError (set above if failures occurred)
-      useStore.getState().setSyncState({ isSyncing: false, lastSyncError: failedItems.length > 0 ? useStore.getState().syncState.lastSyncError : null });
-    }
-  }
+    })().finally(() => { centerSync = null; });
+    return centerSync;
+  },
 };

@@ -76,7 +76,7 @@ npm install
 npm run dev
 ```
 
-App opens at `http://localhost:5173` with server on port `3001`.
+App opens at `http://localhost:3000`.
 
 ---
 
@@ -99,7 +99,7 @@ npm install
 npm run dev
 ```
 
-Opens the app at `http://localhost:5173` with the Express server running on port 3001.
+Opens the app and API at `http://localhost:3000`.
 
 ### Build
 
@@ -166,8 +166,8 @@ cp .env.example .env
 |----------|-------------|---------|
 | `PIN_SECRET` | PIN for authorizing map edits and evacuation center deletion | (required) |
 | `PORT` | Server port | `3000` |
+| `DB_PATH` | Persistent SQLite database path | `camarines_drrmc.db` |
 | `NODE_ENV` | Environment mode | `development` |
-| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `http://localhost:5173` |
 
 ### Map Tiles
 
@@ -216,33 +216,23 @@ services:
 FROM node:18-alpine
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --production
+RUN npm ci
 COPY . .
 RUN npm run build
-EXPOSE 3001
+RUN npm prune --omit=dev
+ENV NODE_ENV=production
+EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
 ```bash
 docker build -t cnpdrrmo .
-docker run -p 3001:3001 cnpdrrmo
+docker run --env-file .env -p 3000:3000 -v cnpdrrmo-data:/data -e DB_PATH=/data/camarines_drrmc.db cnpdrrmo
 ```
 
-### Static Frontend Only (GitHub Pages / Vercel / Netlify)
+### Same-origin deployment
 
-If hosting frontend separately from backend:
-
-```bash
-npm run build
-```
-
-The compiled frontend is in `dist/` (Vite output) alongside the bundled server. Serve `dist/public/` as static files.
-
-**Vercel Example:**
-```bash
-npm i -g vercel
-vercel --prod
-```
+The client uses same-origin `/api` routes. Deploy the bundled Express server, or place both `dist/` and the API behind one reverse-proxy origin; a standalone static host is not supported.
 
 ---
 
@@ -253,24 +243,25 @@ vercel --prod
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/hazards` | Fetch all hazards |
-| POST | `/api/hazards` | Create a hazard |
-| PUT | `/api/hazards/:id` | Update a hazard |
-| DELETE | `/api/hazards/:id` | Delete a hazard |
+| POST | `/api/hazards` | Create a hazard (authenticated session) |
+| PUT | `/api/hazards/:id` | Update a hazard (authenticated session) |
+| DELETE | `/api/hazards/:id` | Delete a hazard (authenticated session) |
 
 ### Evacuation Centers
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/evacuation-centers` | Fetch all evacuation centers |
-| POST | `/api/evacuation-centers` | Create a new evacuation center |
-| PUT | `/api/evacuation-centers/:id` | Update an evacuation center |
-| DELETE | `/api/evacuation-centers/:id` | Delete an evacuation center (requires PIN) |
+| POST | `/api/evacuation-centers` | Create a new evacuation center (authenticated session) |
+| PUT | `/api/evacuation-centers/:id` | Update an evacuation center (authenticated session) |
+| DELETE | `/api/evacuation-centers/:id` | Delete an evacuation center (authenticated session) |
 
 ### Other
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/verify-pin` | Verify authorization PIN |
+| POST | `/api/verify-pin` | Start an authenticated operations session |
+| POST | `/api/logout` | End the current operations session |
 
 ### Response Format
 

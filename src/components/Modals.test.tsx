@@ -85,11 +85,12 @@ describe('DropTagModal', () => {
     });
   });
 
-  it('renders modal when isDropTagModalOpen is true', () => {
+  it('renders modal when isDropTagModalOpen is true', async () => {
     render(<DropTagModal />);
 
     expect(screen.getByText('New Hazard Mapping')).toBeInTheDocument();
     expect(screen.getByText('Locational Data Entry')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByPlaceholderText('Municipality')).toHaveValue('Daet'));
   });
 
   it('does not render when isDropTagModalOpen is false', () => {
@@ -100,12 +101,13 @@ describe('DropTagModal', () => {
     expect(screen.queryByText('New Hazard Mapping')).not.toBeInTheDocument();
   });
 
-  it('displays disaster type buttons', () => {
+  it('displays disaster type buttons', async () => {
     render(<DropTagModal />);
 
     expect(screen.getByText('Flood')).toBeInTheDocument();
     expect(screen.getByText('Storm Surge')).toBeInTheDocument();
     expect(screen.getByText('Landslide')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByPlaceholderText('Municipality')).toHaveValue('Daet'));
   });
 
   it('close button is clickable', async () => {

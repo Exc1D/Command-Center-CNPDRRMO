@@ -47,6 +47,7 @@ describe('EditHazardModal', () => {
     notes: 'Test notes',
     geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
     dateAdded: '2024-01-01T00:00:00.000Z',
+    version: 3,
   };
 
   beforeEach(() => {
@@ -119,6 +120,12 @@ describe('EditHazardModal', () => {
 
     const saveButton = screen.getByRole('button', { name: /save changes/i });
     expect(saveButton).toBeEnabled();
+  });
+
+  it('sends the current version when saving', async () => {
+    render(<EditHazardModal />);
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() => expect(mockUpdateHazard).toHaveBeenCalledWith(expect.objectContaining({ id: mockHazard.id, version: 3 })));
   });
 
   it('close button is clickable', async () => {

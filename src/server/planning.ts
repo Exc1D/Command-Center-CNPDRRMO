@@ -49,6 +49,18 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     return row ? planningScenarioSchema.parse(JSON.parse(row.document)) as PlanningScenario : null;
   };
 
+  const publicRevisions = (scenarioId?: string) => {
+    const rows = db.prepare(`SELECT id, scenario_id, revision, published_at, snapshot FROM planning_revisions
+      ${scenarioId ? 'WHERE scenario_id = ?' : ''} ORDER BY revision DESC`).all(...(scenarioId ? [scenarioId] : [])) as Array<Record<string, unknown>>;
+    return rows.map(row => ({
+      id: row.id as string,
+      scenarioId: row.scenario_id as string,
+      revision: row.revision as number,
+      publishedAt: row.published_at as string,
+      snapshot: planningScenarioSchema.parse(JSON.parse(row.snapshot as string)) as PlanningScenario,
+    })).filter(revision => revision.snapshot.classification === 'Public');
+  };
+
   const hasScenarioLock = (request: Request) => {
     const lock = locks.get(request.params.id);
     return Boolean(lock && lock.expiresAt > Date.now() && lock.sessionId === request.headers['x-planning-session']);
@@ -59,7 +71,12 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     viewers.get(scenarioId)?.forEach(response => response.write(payload));
   };
 
-  router.get('/scenarios', (_request, response) => {
+  router.get('/scenarios', (request, response) => {
+    if (!isAuthorized(request)) {
+      const latest = new Map<string, PlanningRevision>();
+      for (const revision of publicRevisions()) if (!latest.has(revision.scenarioId)) latest.set(revision.scenarioId, revision);
+      return response.json([...latest.values()].map(revision => ({ ...revision.snapshot, publishedRevision: revision.revision })));
+    }
     const rows = db.prepare(`
       SELECT s.document,
         (SELECT MAX(revision) FROM planning_revisions r WHERE r.scenario_id = s.id) AS published_revision
@@ -69,6 +86,10 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
   });
 
   router.get('/scenarios/:id', (request, response) => {
+    if (!isAuthorized(request)) {
+      const revision = publicRevisions(request.params.id)[0];
+      return revision ? response.json(revision.snapshot) : response.status(404).json({ error: 'Scenario not found' });
+    }
     const scenario = getScenario(request.params.id);
     if (!scenario) return response.status(404).json({ error: 'Scenario not found' });
     response.json(scenario);
@@ -122,6 +143,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
   });
 
   router.get('/scenarios/:id/revisions', (request, response) => {
+    if (!isAuthorized(request)) return response.json(publicRevisions(request.params.id));
     const rows = db.prepare('SELECT * FROM planning_revisions WHERE scenario_id = ? ORDER BY revision DESC').all(request.params.id) as Array<Record<string, unknown>>;
     response.json(rows.map(row => ({
       id: row.id,
@@ -187,7 +209,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     response.status(204).end();
   });
 
-  router.get('/scenarios/:id/events', (request, response) => {
+  router.get('/scenarios/:id/events', requireAuthorization, (request, response) => {
     if (!getScenario(request.params.id)) return response.status(404).json({ error: 'Scenario not found' });
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache');
@@ -205,7 +227,7 @@ export function createPlanningRouter(db: Database.Database, isAuthorized: (reque
     });
   });
 
-  router.get('/templates', (_request, response) => {
+  router.get('/templates', requireAuthorization, (_request, response) => {
     const rows = db.prepare('SELECT document FROM planning_templates ORDER BY name').all() as Array<{ document: string }>;
     response.json(rows.map(row => JSON.parse(row.document)));
   });

@@ -24,7 +24,7 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
   Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
 
   const hazard: Omit<Hazard, 'syncStatus'> = {
-    id: 'int-h1',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     type: 'flood',
     severity: 'Moderate',
     title: 'Integration Test Flood',
@@ -37,7 +37,7 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
 
   await HazardAPI.addHazard(hazard);
 
-  const stored = await db.hazards.get('int-h1');
+  const stored = await db.hazards.get(hazard.id);
   expect(stored?.syncStatus).toBe('pending_add');
 
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
@@ -45,6 +45,6 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
 
   await HazardAPI.syncPending();
 
-  const synced = await db.hazards.get('int-h1');
+  const synced = await db.hazards.get(hazard.id);
   expect(synced?.syncStatus).toBe('synced');
 });

@@ -24,6 +24,13 @@ const MOCK_BARANGAY_GEOJSON = {
 
 const { haversineDistance, getCentroid, detectLocationFromGeometry } = utils;
 
+describe('formatDate', () => {
+  it('returns a safe fallback for malformed legacy dates', () => {
+    expect(utils.formatDate(undefined, 'MM/dd/yyyy')).toBe('Unknown');
+    expect(utils.formatDate('not-a-date', 'MM/dd/yyyy')).toBe('Unknown');
+  });
+});
+
 describe('haversineDistance', () => {
   it('identical coordinates returns 0 km', () => {
     const result = haversineDistance(14.0, 123.0, 14.0, 123.0);
@@ -108,8 +115,13 @@ describe('getCentroid', () => {
     expect(getCentroid({ type: 'GeometryCollection' })).toBeNull();
   });
 
-  it('Point geometry without coordinates crashes (implementation issue)', () => {
-    expect(() => getCentroid({ type: 'Point' })).toThrow();
+  it('Point geometry without coordinates returns null', () => {
+    expect(getCentroid({ type: 'Point' })).toBeNull();
+  });
+
+  it('malformed legacy coordinates return null', () => {
+    expect(getCentroid({ type: 'Polygon', coordinates: [[null, [1, 2]]] })).toBeNull();
+    expect(getCentroid({ type: 'LineString', coordinates: [[1, 2], ['bad', 3]] })).toBeNull();
   });
 
   it('empty array returns null', () => {
@@ -197,10 +209,6 @@ describe('detectLocationFromGeometry', () => {
   });
 
   it('results are sorted by distance ascending', async () => {
-    const bagasbas = MOCK_BARANGAY_GEOJSON.features[0];
-    const barangayIV = MOCK_BARANGAY_GEOJSON.features[1];
-    const bagasbasDist = haversineDistance(14.1337, 122.9804, bagasbas.geometry.coordinates[1], bagasbas.geometry.coordinates[0]);
-    const ivDist = haversineDistance(14.1337, 122.9804, barangayIV.geometry.coordinates[1], barangayIV.geometry.coordinates[0]);
     const point = {
       type: 'Point',
       coordinates: [122.9804, 14.1337],
@@ -211,39 +219,4 @@ describe('detectLocationFromGeometry', () => {
     expect(firstBarangay).toBe('Bagasbas');
   });
 
-  it.skip('second call with same geometry uses cache (no second fetch)', async () => {
-    // SKIPPED: barangayCache persists across tests in the same module context.
-    // The caching is correctly implemented (loadBarangayGeoJSON checks cache first),
-    // but verifying it requires either: (1) running this test in isolation, or
-    // (2) exporting barangayCache or a resetCache() function from utils.ts.
-    // Manual verification: run just this test with --filter or --grep cache.
-    const point = { type: 'Point', coordinates: [122.9804, 14.1337] };
-    await detectLocationFromGeometry(point);
-    await detectLocationFromGeometry(point);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it.skip('multiple barangays within 0.5km returns isMultiple=true with comma-separated names', async () => {
-    // SKIPPED: Current mock fixtures have all barangays >=3km apart.
-    // Would need a 4th mock barangay placed within 0.5km of another (e.g., near Bagasbas or Poblacion 1).
-    // Hypothetical setup: add a barangay at ~[122.965, 14.065] (near Poblacion 1).
-    // Expected: { isMultiple: true, barangay: 'Poblacion 1, NewBarangay', municipality: 'Basud' }
-    const point = { type: 'Point', coordinates: [122.965, 14.065] };
-    const result = await detectLocationFromGeometry(point);
-    expect(result).not.toBeNull();
-    expect(result!.isMultiple).toBe(true);
-    expect(result!.barangay).toContain(',');
-  });
-
-  it.skip('three or more barangays within range returns all sorted by distance', async () => {
-    // SKIPPED: Current mock fixtures have only 3 barangays spread >=3km apart.
-    // No single point can be within 0.5km of all three simultaneously.
-    // Would need denser fixture placement (all 3 within ~1km of a shared point).
-    // Expected: returns top 3 closest barangays sorted ascending by distance.
-    const point = { type: 'Point', coordinates: [122.97, 14.10] };
-    const result = await detectLocationFromGeometry(point);
-    expect(result).not.toBeNull();
-    const names = result!.barangay.split(', ');
-    expect(names.length).toBe(3);
-  });
 });

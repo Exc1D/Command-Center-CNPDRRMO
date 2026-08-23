@@ -129,11 +129,7 @@ export const useStore = create<AppState>((set) => ({
   closeEditModal: () => set({ isEditModalOpen: false, editModalHazard: null }),
 
   setHazards: (hazards) => set((state) => {
-    let filtered = hazards.filter(h => state.activeFilters.includes(h.type));
-    if (state.activeFilters.includes('flood') && state.activeSusceptibilityFilters.length > 0) {
-      filtered = filtered.filter(h => state.activeSusceptibilityFilters.includes(h.susceptibility || ''));
-    }
-    return { hazards, filteredHazards: filtered };
+    return { hazards, filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)) };
   }),
   setEvacuationCenters: (evacuationCenters) => set({ evacuationCenters }),
   toggleFilter: (type) => set((state) => {
@@ -150,18 +146,7 @@ export const useStore = create<AppState>((set) => ({
     const newSuscepFilters = state.activeSusceptibilityFilters.includes(level)
       ? state.activeSusceptibilityFilters.filter(f => f !== level)
       : [...state.activeSusceptibilityFilters, level];
-    let filteredHazards = state.filteredHazards;
-    if (state.activeFilters.includes('flood')) {
-      if (newSuscepFilters.length > 0) {
-        filteredHazards = state.hazards.filter(h =>
-          state.activeFilters.includes(h.type) &&
-          (h.type !== 'flood' || newSuscepFilters.includes(h.susceptibility || ''))
-        );
-      } else {
-        filteredHazards = state.hazards.filter(h => state.activeFilters.includes(h.type));
-      }
-    }
-    return { activeSusceptibilityFilters: newSuscepFilters, filteredHazards };
+    return { activeSusceptibilityFilters: newSuscepFilters };
   }),
   setBaseMap: (baseMap) => set({ baseMap }),
   setSelectedHazard: (selectedHazard) => set({ selectedHazard }),
@@ -173,8 +158,7 @@ export const useStore = create<AppState>((set) => ({
     activeFilters: mapState.activeFilters,
     activeSusceptibilityFilters: mapState.susceptibilityFilters,
     evacuationCentersVisible: mapState.evacuationCentersVisible,
-    filteredHazards: state.hazards.filter(hazard => mapState.activeFilters.includes(hazard.type)
-      && (hazard.type !== 'flood' || mapState.susceptibilityFilters.length === 0 || mapState.susceptibilityFilters.includes(hazard.susceptibility ?? ''))),
+    filteredHazards: state.hazards.filter(hazard => mapState.activeFilters.includes(hazard.type)),
   })),
   setMapAuthorized: (isMapAuthorized) => set({ isMapAuthorized }),
   

@@ -62,6 +62,13 @@ describe('useStore', () => {
   });
 
   describe('setHazards', () => {
+    it('keeps hazard incidents visible when filtering the separate susceptibility overlay', () => {
+      useStore.getState().toggleFilter('flood');
+      useStore.getState().setHazards([h1]);
+      useStore.getState().toggleSusceptibilityFilter('High');
+      expect(useStore.getState().filteredHazards).toEqual([h1]);
+    });
+
     it('filters hazards by activeFilters', () => {
       useStore.getState().toggleFilter('landslide');
       useStore.getState().toggleFilter('storm_surge');

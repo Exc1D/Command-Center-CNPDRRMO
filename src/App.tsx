@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useStore } from "./lib/store";
-import { HazardAPI } from "./lib/api";
+import { EvacuationCenterAPI, HazardAPI } from "./lib/api";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Sidebar from "./components/Sidebar";
 import DangerMap from "./components/Map";
@@ -8,23 +8,27 @@ import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
 import { EditHazardModal } from "./components/EditHazardModal";
 import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
 import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
-import { AnalyticsPanel } from "./components/AnalyticsPanel";
 import { PlanningOverlay, PlanningSidebar, PublishedPlansControl } from "./components/PlanningUI";
 import { usePlanningStore } from "./lib/planningStore";
 import { PlanningAPI } from "./lib/planningApi";
 import { BarChart2, MapPinned, X } from "lucide-react";
 
 const SYNC_ERROR_AUTO_DISMISS_MS = 5000;
+const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel').then(module => ({ default: module.AnalyticsPanel })));
 
 export default function App() {
   const {
     setHazards,
+    setEvacuationCenters,
+    setMapAuthorized,
+    isMapAuthorized,
     isAnalyticsOpen,
     setAnalyticsOpen,
     syncState,
     clearSyncError,
   } = useStore();
   const [showSyncError, setShowSyncError] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const planning = usePlanningStore();
 
   // Watch for sync errors and show banner
@@ -40,33 +44,39 @@ export default function App() {
   }, [syncState.lastSyncError, clearSyncError]);
 
   useEffect(() => {
-    // Initial fetch
-    const fetchHazards = async () => {
-      try {
-        try { await PlanningAPI.syncPending(usePlanningStore.getState().sessionId); } catch { /* cached drafts remain available */ }
-        const hazards = await HazardAPI.getAllHazards();
-        setHazards(hazards);
-      } catch (error) {
-        console.error("Failed to load initial hazards:", error);
-      }
-    };
-    fetchHazards();
+    fetch('/api/session').then(response => response.json()).then(data => setMapAuthorized(data.valid === true)).catch(() => {});
+  }, [setMapAuthorized]);
 
-    // Setup network listeners for offline sync
-    const handleOnline = async () => {
+  useEffect(() => {
+    const refresh = async () => {
       try {
-        await HazardAPI.syncPending();
-        try { await PlanningAPI.syncPending(usePlanningStore.getState().sessionId); } catch { /* retry on the next online event */ }
-        const hazards = await HazardAPI.getAllHazards();
+        if (isMapAuthorized) {
+          await HazardAPI.syncPending();
+          await EvacuationCenterAPI.syncPending();
+          try { await PlanningAPI.syncPending(usePlanningStore.getState().sessionId); } catch { /* cached drafts remain available */ }
+        }
+        const [hazards, centers] = await Promise.all([HazardAPI.getAllHazards(), EvacuationCenterAPI.getAllCenters()]);
         setHazards(hazards);
+        setEvacuationCenters(centers);
       } catch (error) {
-        console.error("Sync failed after coming online:", error);
+        console.error("Failed to refresh operational data:", error);
       }
     };
+    refresh();
+
+    const handleOnline = async () => {
+      setIsOnline(true);
+      await refresh();
+    };
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
-  }, [setHazards]);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [isMapAuthorized, setEvacuationCenters, setHazards]);
 
   return (
     <div className="w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
@@ -101,7 +111,7 @@ export default function App() {
                 e.currentTarget.parentElement?.classList.add("fallback-logo");
               }}
             />
-            <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-[10px] text-center leading-none text-tertiary [._fallback-logo_&]:flex hidden">
+            <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-[10px] text-center leading-none text-tertiary [.fallback-logo_&]:flex hidden">
               PDRRMO
               <br />
               CN
@@ -119,7 +129,7 @@ export default function App() {
         <div className="flex items-center gap-6">
           <div className="flex flex-col items-end">
             <span className="text-[11px] uppercase text-primary font-bold tracking-[0.05em]">
-              ● Local Sync Active
+              ● {syncState.isSyncing ? 'Syncing' : isOnline ? 'Online • Local Cache Ready' : 'Offline • Changes Queued'}
             </span>
             <span className="text-[11px] text-on-surface/60 uppercase tracking-[0.05em] font-medium">
               Station: Emergency Operations Center
@@ -186,7 +196,7 @@ export default function App() {
               </div>
             }
           >
-          <AnalyticsPanel />
+          <Suspense fallback={null}><AnalyticsPanel /></Suspense>
           </ErrorBoundary>
           {planning.isPlanningMode ? <PlanningOverlay /> : <PublishedPlansControl />}
         </section>
@@ -203,7 +213,7 @@ export default function App() {
         </div>
         <div className="flex gap-4">
           <div className="text-[11px] px-3 py-1 bg-surface-container text-tertiary font-bold rounded-md uppercase tracking-[0.05em]">
-            Map Status: Online
+            Map Status: {isOnline ? 'Online' : 'Offline'}
           </div>
         </div>
       </footer>
