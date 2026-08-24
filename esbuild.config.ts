@@ -6,6 +6,6 @@ esbuild.build({
   platform: 'node',
   target: 'node20',
   outfile: 'dist/server.cjs',
-  external: ['express', 'better-sqlite3', 'fsevents', 'vite'],
+  external: ['express', '@libsql/client', 'fsevents', 'vite'],
   format: 'cjs',
 }).catch(() => process.exit(1));

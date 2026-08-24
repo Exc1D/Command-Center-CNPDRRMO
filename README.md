@@ -58,7 +58,7 @@ A real-time hazard tracking and management system for the Province of Camarines 
 
 **Backend**
 - Express.js
-- better-sqlite3 (SQLite)
+- libSQL locally or Turso when hosted
 
 ---
 
@@ -166,7 +166,9 @@ cp .env.example .env
 |----------|-------------|---------|
 | `PIN_SECRET` | PIN for authorizing map edits and evacuation center deletion | (required) |
 | `PORT` | Server port | `3000` |
-| `DB_PATH` | Persistent SQLite database path | `camarines_drrmc.db` |
+| `DB_PATH` | Local libSQL database path (ignored when Turso is configured) | `camarines_drrmc.db` |
+| `TURSO_DATABASE_URL` | Hosted Turso database URL | — |
+| `TURSO_AUTH_TOKEN` | Turso database token; required with `TURSO_DATABASE_URL` | — |
 | `NODE_ENV` | Environment mode | `development` |
 
 ### Map Tiles
@@ -183,32 +185,18 @@ To switch tile providers, edit `src/components/Map.tsx`.
 
 ## Deployment
 
-### Railway (Recommended)
+### Free demo: Turso + Render
 
-1. Push to GitHub
-2. Connect repository to [Railway](https://railway.app)
-3. Railway auto-detects Node.js + SQLite
-4. Set environment variables in Railway dashboard
-5. Deploy
+1. Create a free [Turso](https://turso.tech/) database and token.
+2. In Render, create a Blueprint from this repository. `render.yaml` selects the free web-service plan.
+3. Enter `PIN_SECRET`, `TURSO_DATABASE_URL`, and `TURSO_AUTH_TOKEN` when prompted.
+4. Open the generated `onrender.com` URL after the health check passes.
 
-**Note:** Railway's starter tier includes ephemeral filesystem. SQLite works for development; for production with persistent storage, use Railway's persistent disk or a managed PostgreSQL instance.
+Turso keeps application data when Render restarts. Render Free sleeps after 15 idle minutes and can take about a minute to wake, so this option is for demos and low-stakes pilots, not emergency operations.
 
-### Render
+### Paid always-on hosting
 
-1. Create `render.yaml` in root:
-
-```yaml
-services:
-  - type: web
-    name: command-center
-    env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    envVars:
-      - NODE_ENV: production
-```
-
-2. Connect to Render and deploy
+Use the same Turso variables on Railway Hobby or a paid Render web service. No database code changes are required.
 
 ### Docker
 
@@ -326,10 +314,8 @@ When the browser regains connectivity (`online` event), `HazardAPI.syncPending()
 
 ## Troubleshooting
 
-### `better-sqlite3` fails to build on deployment
-```bash
-npm rebuild better-sqlite3
-```
+### Turso authentication fails
+Confirm that `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` belong to the same database and have no surrounding whitespace.
 
 ### Port already in use
 Set `PORT` environment variable to a different value:

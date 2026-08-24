@@ -2,10 +2,12 @@ import 'dotenv/config';
 import express from "express";
 import path from "path";
 import fs from "fs";
-import Database from "better-sqlite3";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { createPlanningRouter } from "./src/server/planning";
+import { all, createDatabase, execute, one, type Database } from "./src/server/database";
+
+export { createDatabase } from "./src/server/database";
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -13,39 +15,9 @@ function generateErrorId() {
   return `ERR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function createDatabase(dbPath = path.resolve(process.cwd(), 'camarines_drrmc.db')) {
-  const db = new Database(dbPath);
-  db.pragma('foreign_keys = ON');
-  db.pragma('journal_mode = WAL');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS hazards (
-      id TEXT PRIMARY KEY, type TEXT, severity TEXT, title TEXT, municipality TEXT,
-      barangay TEXT, notes TEXT, geometry TEXT, dateAdded TEXT, version INTEGER NOT NULL DEFAULT 1
-    );
-    CREATE TABLE IF NOT EXISTS evacuation_centers (
-      id TEXT PRIMARY KEY, name TEXT, type TEXT, capacity INTEGER, municipality TEXT,
-      barangay TEXT, coordinates TEXT, dateAdded TEXT, version INTEGER NOT NULL DEFAULT 1
-    );
-    CREATE TABLE IF NOT EXISTS operations_audit (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, method TEXT NOT NULL,
-      path TEXT NOT NULL, created_at TEXT NOT NULL
-    );
-  `);
-  const migrations = [
-    ['hazards', 'title', 'TEXT'], ['hazards', 'municipality', 'TEXT'], ['hazards', 'barangay', 'TEXT'],
-    ['hazards', 'version', 'INTEGER NOT NULL DEFAULT 1'], ['evacuation_centers', 'version', 'INTEGER NOT NULL DEFAULT 1'],
-  ];
-  for (const [table, column, type] of migrations) {
-    if (!(db.pragma(`table_info(${table})`) as Array<{ name: string }>).some(item => item.name === column)) {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-    }
-  }
-  return db;
-}
-
 // Batch update: Auto-detect location for existing records without municipality
-async function batchUpdateLocations(db: Database.Database) {
-  const hazardsWithoutLocation = db.prepare("SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''").all();
+async function batchUpdateLocations(db: Database) {
+  const hazardsWithoutLocation = await all<{ id: string; geometry: string }>(db, "SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''");
   if (hazardsWithoutLocation.length === 0) {
     console.log('No records need location batch update');
     return;
@@ -142,8 +114,7 @@ async function batchUpdateLocations(db: Database.Database) {
         const barangayNames = detectedBarangays.slice(0, 3).map(b => b.name);
         const barangayStr = barangayNames.join(', ');
 
-        db.prepare('UPDATE hazards SET municipality = ?, barangay = ? WHERE id = ?')
-          .run(detectedMunicipality, barangayStr, hazard.id);
+        await execute(db, 'UPDATE hazards SET municipality = ?, barangay = ? WHERE id = ?', detectedMunicipality, barangayStr, hazard.id);
         console.log(`Updated hazard ${hazard.id}: ${detectedMunicipality}, ${barangayStr}`);
       }
     } catch (e) {
@@ -189,7 +160,7 @@ const evacuationCenterSchema = z.object({
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function createApp(db: Database.Database, correctPin: string, provinceBoundary?: Parameters<typeof createPlanningRouter>[2]) {
+export function createApp(db: Database, correctPin: string, provinceBoundary?: Parameters<typeof createPlanningRouter>[2]) {
   if (!/^\d{4}$/.test(correctPin)) throw new Error('PIN_SECRET must contain exactly four digits');
   const app = express();
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
@@ -199,12 +170,9 @@ export function createApp(db: Database.Database, correctPin: string, provinceBou
   // ponytail: sessions are the audit identity; add named accounts when distinct operator roles are required.
   const pinAttempts = new Map<string, { count: number; resetAt: number }>();
   const recordAudit = (sessionId: string, method: string, route: string) => {
-    try {
-      db.prepare('INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)')
-        .run(sessionId, method, route, new Date().toISOString());
-    } catch (error) {
+    void execute(db, 'INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)', sessionId, method, route, new Date().toISOString()).catch(error => {
       console.error('Failed to record operations audit entry:', error);
-    }
+    });
   };
   const tokenFrom = (request: express.Request) => request.headers.cookie?.match(/(?:^|;\s*)operationsToken=([^;]+)/)?.[1];
   const hasOperationsSession = (request: express.Request) => {
@@ -274,9 +242,9 @@ export function createApp(db: Database.Database, correctPin: string, provinceBou
 
   app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
 
-app.get("/api/hazards", (req, res) => {
+app.get("/api/hazards", async (req, res) => {
   try {
-    const hazards = db.prepare('SELECT * FROM hazards').all();
+    const hazards = await all(db, 'SELECT * FROM hazards');
     res.json(hazards);
   } catch (error) {
     const errorId = generateErrorId();
@@ -285,18 +253,17 @@ app.get("/api/hazards", (req, res) => {
   }
 });
 
-app.post("/api/hazards", (req, res) => {
+app.post("/api/hazards", async (req, res) => {
   try {
     const parsed = hazardSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
     const { id, type, severity, title, municipality, barangay, notes, geometry, dateAdded } = parsed.data;
-    const stmt = db.prepare(`
+    await execute(db, `
       INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded);
+    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded);
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
@@ -306,7 +273,7 @@ app.post("/api/hazards", (req, res) => {
   }
 });
 
-app.put("/api/hazards/:id", (req, res) => {
+app.put("/api/hazards/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -322,16 +289,7 @@ app.put("/api/hazards/:id", (req, res) => {
 
     const { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version } = parsed.data;
 
-    // Check if hazard exists
-    const existing = db.prepare('SELECT * FROM hazards WHERE id = ?').get(id) as { version: number } | undefined;
-    if (!existing) {
-      return res.status(404).json({ error: 'Hazard not found' });
-    }
-    if (version !== existing.version) {
-      return res.status(409).json({ error: 'Hazard changed', current: db.prepare('SELECT * FROM hazards WHERE id = ?').get(id) });
-    }
-
-    const stmt = db.prepare(`
+    const result = await execute(db, `
       UPDATE hazards
       SET type = COALESCE(?, type),
           severity = COALESCE(?, severity),
@@ -342,9 +300,8 @@ app.put("/api/hazards/:id", (req, res) => {
           geometry = COALESCE(?, geometry),
           dateAdded = COALESCE(?, dateAdded),
           version = version + 1
-      WHERE id = ?
-    `);
-    stmt.run(
+      WHERE id = ? AND version = ?
+    `,
       type,
       severity,
       title,
@@ -353,9 +310,14 @@ app.put("/api/hazards/:id", (req, res) => {
       notes,
       geometry ? JSON.stringify(geometry) : undefined,
       dateAdded,
-      id
+      id,
+      version,
     );
-    res.json({ success: true, id, version: existing.version + 1 });
+    if (result.rowsAffected === 0) {
+      const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
+      return current ? res.status(409).json({ error: 'Hazard changed', current }) : res.status(404).json({ error: 'Hazard not found' });
+    }
+    res.json({ success: true, id, version: version + 1 });
   } catch (error) {
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to update hazard:`, error);
@@ -363,7 +325,7 @@ app.put("/api/hazards/:id", (req, res) => {
   }
 });
 
-app.delete("/api/hazards/:id", (req, res) => {
+app.delete("/api/hazards/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -371,8 +333,8 @@ app.delete("/api/hazards/:id", (req, res) => {
       return res.status(400).json({ error: 'Invalid hazard ID format' });
     }
 
-    const result = db.prepare('DELETE FROM hazards WHERE id = ?').run(id);
-    if (result.changes === 0) {
+    const result = await execute(db, 'DELETE FROM hazards WHERE id = ?', id);
+    if (result.rowsAffected === 0) {
       return res.status(404).json({ error: 'Hazard not found' });
     }
     res.json({ success: true });
@@ -383,9 +345,9 @@ app.delete("/api/hazards/:id", (req, res) => {
   }
 });
 
-app.get("/api/evacuation-centers", (req, res) => {
+app.get("/api/evacuation-centers", async (req, res) => {
   try {
-    const centers = db.prepare('SELECT * FROM evacuation_centers').all();
+    const centers = await all(db, 'SELECT * FROM evacuation_centers');
     res.json(centers);
   } catch (error) {
     const errorId = generateErrorId();
@@ -394,18 +356,17 @@ app.get("/api/evacuation-centers", (req, res) => {
   }
 });
 
-app.post("/api/evacuation-centers", (req, res) => {
+app.post("/api/evacuation-centers", async (req, res) => {
   try {
     const parsed = evacuationCenterSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid evacuation center data', details: parsed.error.flatten() });
     }
     const { id, name, type, capacity, municipality, barangay, coordinates, dateAdded } = parsed.data;
-    const stmt = db.prepare(`
+    await execute(db, `
       INSERT INTO evacuation_centers (id, name, type, capacity, municipality, barangay, coordinates, dateAdded)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded);
+    `, id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded);
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Evacuation center already exists' });
@@ -415,7 +376,7 @@ app.post("/api/evacuation-centers", (req, res) => {
   }
 });
 
-app.put("/api/evacuation-centers/:id", (req, res) => {
+app.put("/api/evacuation-centers/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (!uuidRegex.test(id)) {
@@ -427,14 +388,7 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
     const { name, type, capacity, municipality, barangay, coordinates, dateAdded, version } = parsed.data;
-    const existing = db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id) as { version: number } | undefined;
-    if (!existing) {
-      return res.status(404).json({ error: 'Evacuation center not found' });
-    }
-    if (version !== existing.version) {
-      return res.status(409).json({ error: 'Evacuation center changed', current: db.prepare('SELECT * FROM evacuation_centers WHERE id = ?').get(id) });
-    }
-    const stmt = db.prepare(`
+    const result = await execute(db, `
       UPDATE evacuation_centers
       SET name = COALESCE(?, name),
           type = COALESCE(?, type),
@@ -444,9 +398,8 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
           coordinates = COALESCE(?, coordinates),
           dateAdded = COALESCE(?, dateAdded),
           version = version + 1
-      WHERE id = ?
-    `);
-    stmt.run(
+      WHERE id = ? AND version = ?
+    `,
       name,
       type,
       capacity,
@@ -454,9 +407,14 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
       barangay,
       coordinates ? JSON.stringify(coordinates) : undefined,
       dateAdded,
-      id
+      id,
+      version,
     );
-    res.json({ success: true, id, version: existing.version + 1 });
+    if (result.rowsAffected === 0) {
+      const current = await one<Record<string, unknown>>(db, 'SELECT * FROM evacuation_centers WHERE id = ?', id);
+      return current ? res.status(409).json({ error: 'Evacuation center changed', current }) : res.status(404).json({ error: 'Evacuation center not found' });
+    }
+    res.json({ success: true, id, version: version + 1 });
   } catch (error) {
     const errorId = generateErrorId();
     console.error(`[${errorId}] Failed to update evacuation center:`, error);
@@ -464,15 +422,15 @@ app.put("/api/evacuation-centers/:id", (req, res) => {
   }
 });
 
-app.delete("/api/evacuation-centers/:id", (req, res) => {
+app.delete("/api/evacuation-centers/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid evacuation center ID format' });
     }
 
-    const result = db.prepare('DELETE FROM evacuation_centers WHERE id = ?').run(id);
-    if (result.changes === 0) {
+    const result = await execute(db, 'DELETE FROM evacuation_centers WHERE id = ?', id);
+    if (result.rowsAffected === 0) {
       return res.status(404).json({ error: 'Evacuation center not found' });
     }
     res.json({ success: true });
@@ -494,7 +452,7 @@ app.delete("/api/evacuation-centers/:id", (req, res) => {
 async function startServer() {
   const correctPin = process.env.PIN_SECRET;
   if (!correctPin) throw new Error('PIN_SECRET environment variable is required');
-  const db = createDatabase(process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : undefined);
+  const db = await createDatabase();
   await batchUpdateLocations(db);
   const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
   const app = createApp(db, correctPin, provinceBoundary);

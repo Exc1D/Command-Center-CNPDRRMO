@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import Database from 'better-sqlite3';
 import { createPlanningScenario } from '../lib/planning';
+import { createDatabase, type Database } from './database';
 import { createPlanningRouter } from './planning';
 
 describe('planning server', () => {
-  let database: Database.Database;
+  let database: Database;
   let app: express.Application;
 
-  beforeEach(() => {
-    database = new Database(':memory:');
+  beforeEach(async () => {
+    database = await createDatabase(':memory:');
     app = express();
     app.use(express.json({ limit: '6mb' }));
     app.use('/api/planning', createPlanningRouter(database, req => req.headers.authorization === 'Bearer valid', {

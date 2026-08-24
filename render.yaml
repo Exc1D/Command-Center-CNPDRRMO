@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: command-center-cnpdrrmo
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/hazards
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PIN_SECRET
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
