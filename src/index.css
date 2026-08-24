@@ -3,6 +3,31 @@
 @import "leaflet/dist/leaflet.css";
 @import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
+/* Geoman's masked data URLs are rejected by browsers after Vite processes them. */
+.leaflet-pm-toolbar .leaflet-pm-icon-polyline {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2018%2010%2012%2014%2016%2021%209%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%2218%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2212%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2214%22%20cy%3D%2216%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2221%22%20cy%3D%229%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-polygon {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m5%205%2014%203-2%2011-10-2z%22%2F%3E%3Ccircle%20cx%3D%225%22%20cy%3D%225%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%228%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2217%22%20cy%3D%2219%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%227%22%20cy%3D%2217%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-rectangle {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%3E%3Crect%20x%3D%225%22%20y%3D%226%22%20width%3D%2214%22%20height%3D%2212%22%2F%3E%3Ccircle%20cx%3D%225%22%20cy%3D%226%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%226%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%225%22%20cy%3D%2218%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2219%22%20cy%3D%2218%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-edit {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%2020h9%22%2F%3E%3Cpath%20d%3D%22M16.5%203.5a2.1%202.1%200%200%201%203%203L8%2018l-4%201%201-4Z%22%2F%3E%3Ccircle%20cx%3D%226%22%20cy%3D%226%22%20r%3D%222%22%2F%3E%3Ccircle%20cx%3D%2218%22%20cy%3D%2218%22%20r%3D%222%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-drag {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%202v20M2%2012h20M12%202l-3%203m3-3%203%203M12%2022l-3-3m3%203%203-3M2%2012l3-3m-3%203%203%203M22%2012l-3-3m3%203-3%203%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-rotate {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%207v5h-5%22%2F%3E%3Cpath%20d%3D%22M19%2016a8%208%200%201%201%201-8l-5%204%22%2F%3E%3C%2Fsvg%3E");
+}
+
 @theme {
   --color-surface: #f8f9ff;
   --color-surface-container-lowest: #ffffff;
