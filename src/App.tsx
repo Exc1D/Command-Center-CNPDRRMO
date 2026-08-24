@@ -13,7 +13,6 @@ import { usePlanningStore } from "./lib/planningStore";
 import { PlanningAPI } from "./lib/planningApi";
 import { BarChart2, MapPinned, X } from "lucide-react";
 
-const SYNC_ERROR_AUTO_DISMISS_MS = 5000;
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel').then(module => ({ default: module.AnalyticsPanel })));
 
 export default function App() {
@@ -27,21 +26,8 @@ export default function App() {
     syncState,
     clearSyncError,
   } = useStore();
-  const [showSyncError, setShowSyncError] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const planning = usePlanningStore();
-
-  // Watch for sync errors and show banner
-  useEffect(() => {
-    if (syncState.lastSyncError) {
-      setShowSyncError(true);
-      const timer = setTimeout(() => {
-        clearSyncError();
-        setShowSyncError(false);
-      }, SYNC_ERROR_AUTO_DISMISS_MS);
-      return () => clearTimeout(timer);
-    }
-  }, [syncState.lastSyncError, clearSyncError]);
 
   useEffect(() => {
     fetch('/api/session').then(response => response.json()).then(data => setMapAuthorized(data.valid === true)).catch(() => {});
@@ -81,16 +67,13 @@ export default function App() {
   return (
     <div className="w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
       {/* Sync Error Banner */}
-      {showSyncError && syncState.lastSyncError && (
+      {syncState.lastSyncError && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
           <span className="flex-1 text-sm font-medium">
             {syncState.lastSyncError}
           </span>
           <button
-            onClick={() => {
-              clearSyncError();
-              setShowSyncError(false);
-            }}
+            onClick={clearSyncError}
             className="p-1 hover:bg-error/20 rounded"
           >
             <X size={16} />
@@ -196,7 +179,7 @@ export default function App() {
               </div>
             }
           >
-          <Suspense fallback={null}><AnalyticsPanel /></Suspense>
+          {isAnalyticsOpen && <Suspense fallback={null}><AnalyticsPanel /></Suspense>}
           </ErrorBoundary>
           {planning.isPlanningMode ? <PlanningOverlay /> : <PublishedPlansControl />}
         </section>

@@ -69,6 +69,7 @@ describe('EditHazardModal', () => {
     useStore.setState({
       isEditModalOpen: false,
       editModalHazard: null,
+      selectedHazard: null,
     });
   });
 
@@ -126,6 +127,15 @@ describe('EditHazardModal', () => {
     render(<EditHazardModal />);
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
     await waitFor(() => expect(mockUpdateHazard).toHaveBeenCalledWith(expect.objectContaining({ id: mockHazard.id, version: 3 })));
+  });
+
+  it('refreshes the selected popup into conflict-resolution state', async () => {
+    useStore.setState({ selectedHazard: mockHazard });
+    mockGetAllHazards.mockResolvedValue([{ ...mockHazard, severity: 'Severe', syncStatus: 'conflict', conflictData: JSON.stringify(mockHazard) }]);
+    render(<EditHazardModal />);
+
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() => expect(useStore.getState().selectedHazard).toMatchObject({ id: mockHazard.id, syncStatus: 'conflict' }));
   });
 
   it('close button is clickable', async () => {

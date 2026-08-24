@@ -2,7 +2,6 @@ import axios from 'axios';
 import { db } from './db';
 import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './planning';
 
-const authorization = () => ({});
 const retryable = (error: unknown) => axios.isAxiosError(error)
   && (!error.response || error.response.status === 429 || error.response.status >= 500);
 
@@ -36,7 +35,7 @@ export const PlanningAPI = {
   async create(scenario: PlanningScenario) {
     if (navigator.onLine) {
       try {
-        const response = await axios.post('/api/planning/scenarios', scenario, { headers: authorization() });
+        const response = await axios.post('/api/planning/scenarios', scenario);
         await db.planningScenarios.put({ ...response.data, syncStatus: 'synced' });
         return response.data as PlanningScenario;
       } catch (error) {
@@ -56,7 +55,7 @@ export const PlanningAPI = {
   async save(scenario: PlanningScenario, sessionId?: string): Promise<{ scenario: PlanningScenario; conflicted: boolean }> {
     if (navigator.onLine) {
       try {
-        const response = await axios.put(`/api/planning/scenarios/${scenario.id}`, scenario, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' } });
+        const response = await axios.put(`/api/planning/scenarios/${scenario.id}`, scenario, { headers: { 'X-Planning-Session': sessionId ?? '' } });
         await db.planningScenarios.put({ ...response.data, syncStatus: 'synced' });
         return { scenario: response.data, conflicted: false };
       } catch (error) {
@@ -83,7 +82,7 @@ export const PlanningAPI = {
   async remove(scenario: PlanningScenario, sessionId?: string) {
     if (navigator.onLine) {
       try {
-        await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' }, data: { name: scenario.name } });
+        await axios.delete(`/api/planning/scenarios/${scenario.id}`, { headers: { 'X-Planning-Session': sessionId ?? '' }, data: { name: scenario.name } });
         await db.planningScenarios.delete(scenario.id);
         return;
       } catch (error) {
@@ -99,7 +98,7 @@ export const PlanningAPI = {
 
   async publish(id: string, sessionId?: string): Promise<PlanningRevision & { warnings: string[] }> {
     if (!navigator.onLine) throw new Error('Publishing requires an internet connection');
-    const response = await axios.post(`/api/planning/scenarios/${id}/publish`, {}, { headers: { ...authorization(), 'X-Planning-Session': sessionId ?? '' } });
+    const response = await axios.post(`/api/planning/scenarios/${id}/publish`, {}, { headers: { 'X-Planning-Session': sessionId ?? '' } });
     await db.planningRevisions.put(response.data);
     return response.data;
   },
@@ -115,17 +114,17 @@ export const PlanningAPI = {
   },
 
   async acquireLock(id: string, sessionId: string, force = false) {
-    const response = await axios.post(`/api/planning/scenarios/${id}/lock`, { sessionId, force }, { headers: authorization() });
+    const response = await axios.post(`/api/planning/scenarios/${id}/lock`, { sessionId, force });
     return response.data as { sessionId: string; expiresAt: number };
   },
 
   async releaseLock(id: string, sessionId: string, force = false) {
-    await axios.delete(`/api/planning/scenarios/${id}/lock`, { headers: authorization(), data: { sessionId, force } });
+    await axios.delete(`/api/planning/scenarios/${id}/lock`, { data: { sessionId, force } });
   },
 
   async preview(scenario: PlanningScenario, sessionId: string) {
     await axios.put(`/api/planning/scenarios/${scenario.id}/preview`, scenario, {
-      headers: { ...authorization(), 'X-Planning-Session': sessionId },
+      headers: { 'X-Planning-Session': sessionId },
     });
   },
 
@@ -152,7 +151,7 @@ export const PlanningAPI = {
   async saveTemplate(template: PlanningTemplate) {
     if (navigator.onLine) {
       try {
-        const response = await axios.put(`/api/planning/templates/${template.id}`, template, { headers: authorization() });
+        const response = await axios.put(`/api/planning/templates/${template.id}`, template);
         await db.planningTemplates.put({ ...response.data, syncStatus: 'synced' });
         return response.data as PlanningTemplate;
       } catch (error) {
@@ -167,7 +166,7 @@ export const PlanningAPI = {
     const template = await db.planningTemplates.get(id);
     if (navigator.onLine) {
       try {
-        await axios.delete(`/api/planning/templates/${id}`, { headers: authorization() });
+        await axios.delete(`/api/planning/templates/${id}`);
         await db.planningTemplates.delete(id);
         return;
       } catch (error) {

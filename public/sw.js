@@ -1,8 +1,13 @@
 const CACHE = 'cnpdrrmo-v1';
-const SHELL = ['/', '/PDRRMO.jpg', '/baranggays.geojson'];
+const SHELL = ['/PDRRMO.jpg', '/baranggays.geojson'];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+  event.waitUntil(Promise.all([caches.open(CACHE), fetch('/')]).then(async ([cache, response]) => {
+    const html = await response.clone().text();
+    const assets = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(match => match[1]).filter(url => url.startsWith('/assets/'));
+    await cache.put('/', response);
+    await cache.addAll([...SHELL, ...assets]);
+  }));
   self.skipWaiting();
 });
 

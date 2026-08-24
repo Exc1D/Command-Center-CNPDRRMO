@@ -13,7 +13,8 @@ export interface Hazard {
   geometry: any; // GeoJSON geometry representation
   dateAdded: string;
   version?: number;
-  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete';
+  conflictData?: string;
+  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
 }
 
 export interface EvacuationCenter {
@@ -26,7 +27,8 @@ export interface EvacuationCenter {
   coordinates: [number, number]; // [lng, lat]
   dateAdded: string;
   version?: number;
-  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete';
+  conflictData?: string;
+  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
 }
 
 export class OfflineDB extends Dexie {

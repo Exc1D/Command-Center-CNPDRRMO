@@ -4,17 +4,59 @@ import { db, type EvacuationCenter, type Hazard } from './db';
 import { SYNC_STATUS, useStore } from './store';
 
 const OFFLINE_WARNING = 'Operating offline — changes are safely queued';
-type SyncRecord = { id: string; syncStatus?: string };
+type SyncRecord = { id: string; conflictData?: string; syncStatus?: string };
 
 async function reconcile<T extends SyncRecord>(table: Table<T, string>, server: T[]) {
   const local = await table.toArray();
   const pending = local.filter(item => item.syncStatus?.startsWith('pending_'));
+  const conflicts = new Map(local.filter(item => item.syncStatus === 'conflict').map(item => [item.id, item]));
   const pendingIds = new Set(pending.map(item => item.id));
   const serverIds = new Set(server.map(item => item.id));
-  const stale = local.filter(item => !item.syncStatus?.startsWith('pending_') && !serverIds.has(item.id)).map(item => item.id);
+  const stale = local.filter(item => !item.syncStatus?.startsWith('pending_') && item.syncStatus !== 'conflict' && !serverIds.has(item.id)).map(item => item.id);
+  const merged = server.filter(item => !pendingIds.has(item.id)).map(item => {
+    const conflict = conflicts.get(item.id);
+    return conflict ? { ...item, conflictData: conflict.conflictData, syncStatus: 'conflict' } as T : item;
+  });
   if (stale.length) await table.bulkDelete(stale);
-  await table.bulkPut(server.filter(item => !pendingIds.has(item.id)));
-  return [...server.filter(item => !pendingIds.has(item.id)), ...pending.filter(item => item.syncStatus !== SYNC_STATUS.PENDING_DELETE)];
+  await table.bulkPut(merged);
+  return [...merged, ...pending.filter(item => item.syncStatus !== SYNC_STATUS.PENDING_DELETE), ...[...conflicts.values()].filter(item => !serverIds.has(item.id))];
+}
+
+const fromServerHazard = (hazard: Hazard): Hazard => ({
+  ...hazard,
+  geometry: typeof hazard.geometry === 'string' ? JSON.parse(hazard.geometry) : hazard.geometry,
+  syncStatus: SYNC_STATUS.SYNCED,
+});
+const fromServerCenter = (center: EvacuationCenter): EvacuationCenter => ({
+  ...center,
+  coordinates: typeof center.coordinates === 'string' ? JSON.parse(center.coordinates) : center.coordinates,
+  syncStatus: SYNC_STATUS.SYNCED,
+});
+const sameFields = (left: Record<string, unknown>, right: Record<string, unknown>, fields: string[]) =>
+  fields.every(field => JSON.stringify(left[field]) === JSON.stringify(right[field]));
+const hazardFields = ['type', 'severity', 'title', 'municipality', 'barangay', 'notes', 'geometry', 'dateAdded'];
+const centerFields = ['name', 'type', 'capacity', 'municipality', 'barangay', 'coordinates', 'dateAdded'];
+
+async function resolveHazardConflict(error: unknown, local: Hazard) {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409 || !error.response.data?.current) return 'unhandled' as const;
+  const current = fromServerHazard(error.response.data.current as Hazard);
+  if (sameFields(current as unknown as Record<string, unknown>, local as unknown as Record<string, unknown>, hazardFields)) {
+    await db.hazards.put(current);
+    return 'idempotent' as const;
+  }
+  await db.hazards.put({ ...current, conflictData: JSON.stringify(local), syncStatus: 'conflict' });
+  return 'conflict' as const;
+}
+
+async function resolveCenterConflict(error: unknown, local: EvacuationCenter) {
+  if (!axios.isAxiosError(error) || error.response?.status !== 409 || !error.response.data?.current) return 'unhandled' as const;
+  const current = fromServerCenter(error.response.data.current as EvacuationCenter);
+  if (sameFields(current as unknown as Record<string, unknown>, local as unknown as Record<string, unknown>, centerFields)) {
+    await db.evacuationCenters.put(current);
+    return 'idempotent' as const;
+  }
+  await db.evacuationCenters.put({ ...current, conflictData: JSON.stringify(local), syncStatus: 'conflict' });
+  return 'conflict' as const;
 }
 
 function retryable(error: unknown) {
@@ -39,11 +81,7 @@ export const HazardAPI = {
     try {
       if (navigator.onLine) {
         const response = await axios.get('/api/hazards');
-        const server = (response.data as Hazard[]).map(hazard => ({
-          ...hazard,
-          geometry: typeof hazard.geometry === 'string' ? JSON.parse(hazard.geometry) : hazard.geometry,
-          syncStatus: SYNC_STATUS.SYNCED,
-        }));
+        const server = (response.data as Hazard[]).map(fromServerHazard);
         return reconcile(db.hazards, server);
       }
     } catch (error) {
@@ -71,6 +109,12 @@ export const HazardAPI = {
   },
 
   async updateHazard(hazard: Omit<Hazard, 'syncStatus'>) {
+    const existing = await db.hazards.get(hazard.id);
+    if (existing?.syncStatus === SYNC_STATUS.PENDING_ADD) {
+      await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_ADD });
+      if (navigator.onLine) await HazardAPI.syncPending();
+      return;
+    }
     try {
       if (navigator.onLine) {
         const response = await axios.put(`/api/hazards/${hazard.id}`, hazard);
@@ -78,6 +122,7 @@ export const HazardAPI = {
         return;
       }
     } catch (error) {
+      if (await resolveHazardConflict(error, hazard) !== 'unhandled') return;
       reportQueued(error);
     }
     await db.hazards.put({ ...hazard, syncStatus: SYNC_STATUS.PENDING_UPDATE });
@@ -99,6 +144,20 @@ export const HazardAPI = {
     }
     const existing = await db.hazards.get(id);
     if (existing) await db.hazards.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
+  },
+
+  async acceptHazardConflict(id: string) {
+    const existing = await db.hazards.get(id);
+    if (!existing || existing.syncStatus !== 'conflict') return;
+    const { conflictData: _, ...current } = existing;
+    await db.hazards.put({ ...current, syncStatus: SYNC_STATUS.SYNCED });
+  },
+
+  async applyHazardConflict(id: string) {
+    const existing = await db.hazards.get(id);
+    if (!existing?.conflictData) return;
+    const desired = JSON.parse(existing.conflictData) as Hazard;
+    await HazardAPI.updateHazard({ ...desired, version: existing.version });
   },
 
   syncPending() {
@@ -123,8 +182,13 @@ export const HazardAPI = {
           }
         });
         await process(SYNC_STATUS.PENDING_UPDATE, async hazard => {
-          const response = await axios.put(`/api/hazards/${hazard.id}`, hazard);
-          await db.hazards.update(hazard.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          try {
+            const response = await axios.put(`/api/hazards/${hazard.id}`, hazard);
+            await db.hazards.update(hazard.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          } catch (error) {
+            if (await resolveHazardConflict(error, hazard) === 'idempotent') return;
+            throw error;
+          }
         });
         await process(SYNC_STATUS.PENDING_DELETE, async hazard => {
           try { await axios.delete(`/api/hazards/${hazard.id}`); }
@@ -144,11 +208,7 @@ export const EvacuationCenterAPI = {
     try {
       if (navigator.onLine) {
         const response = await axios.get('/api/evacuation-centers');
-        const server = (response.data as EvacuationCenter[]).map(center => ({
-          ...center,
-          coordinates: typeof center.coordinates === 'string' ? JSON.parse(center.coordinates) : center.coordinates,
-          syncStatus: SYNC_STATUS.SYNCED,
-        }));
+        const server = (response.data as EvacuationCenter[]).map(fromServerCenter);
         return reconcile(db.evacuationCenters, server);
       }
     } catch (error) {
@@ -176,6 +236,12 @@ export const EvacuationCenterAPI = {
   },
 
   async updateCenter(center: Omit<EvacuationCenter, 'syncStatus'>) {
+    const existing = await db.evacuationCenters.get(center.id);
+    if (existing?.syncStatus === SYNC_STATUS.PENDING_ADD) {
+      await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_ADD });
+      if (navigator.onLine) await EvacuationCenterAPI.syncPending();
+      return;
+    }
     try {
       if (navigator.onLine) {
         const response = await axios.put(`/api/evacuation-centers/${center.id}`, center);
@@ -183,6 +249,7 @@ export const EvacuationCenterAPI = {
         return;
       }
     } catch (error) {
+      if (await resolveCenterConflict(error, center) !== 'unhandled') return;
       reportQueued(error);
     }
     await db.evacuationCenters.put({ ...center, syncStatus: SYNC_STATUS.PENDING_UPDATE });
@@ -204,6 +271,20 @@ export const EvacuationCenterAPI = {
     }
     const existing = await db.evacuationCenters.get(id);
     if (existing) await db.evacuationCenters.put({ ...existing, syncStatus: SYNC_STATUS.PENDING_DELETE });
+  },
+
+  async acceptCenterConflict(id: string) {
+    const existing = await db.evacuationCenters.get(id);
+    if (!existing || existing.syncStatus !== 'conflict') return;
+    const { conflictData: _, ...current } = existing;
+    await db.evacuationCenters.put({ ...current, syncStatus: SYNC_STATUS.SYNCED });
+  },
+
+  async applyCenterConflict(id: string) {
+    const existing = await db.evacuationCenters.get(id);
+    if (!existing?.conflictData) return;
+    const desired = JSON.parse(existing.conflictData) as EvacuationCenter;
+    await EvacuationCenterAPI.updateCenter({ ...desired, version: existing.version });
   },
 
   syncPending() {
@@ -229,8 +310,13 @@ export const EvacuationCenterAPI = {
           }
         });
         await process(SYNC_STATUS.PENDING_UPDATE, async center => {
-          const response = await axios.put(`/api/evacuation-centers/${center.id}`, center);
-          await db.evacuationCenters.update(center.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          try {
+            const response = await axios.put(`/api/evacuation-centers/${center.id}`, center);
+            await db.evacuationCenters.update(center.id, { version: response.data.version, syncStatus: SYNC_STATUS.SYNCED });
+          } catch (error) {
+            if (await resolveCenterConflict(error, center) === 'idempotent') return;
+            throw error;
+          }
         });
         await process(SYNC_STATUS.PENDING_DELETE, async center => {
           try { await axios.delete(`/api/evacuation-centers/${center.id}`); }

@@ -192,13 +192,21 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 export function createApp(db: Database.Database, correctPin: string, provinceBoundary?: Parameters<typeof createPlanningRouter>[2]) {
   if (!/^\d{4}$/.test(correctPin)) throw new Error('PIN_SECRET must contain exactly four digits');
   const app = express();
+  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
 
   // ponytail: process-local sessions and rate limits; use a shared store only for multi-instance deployment.
   const operationsSessions = new Map<string, { id: string; expiresAt: number }>();
   // ponytail: sessions are the audit identity; add named accounts when distinct operator roles are required.
   const pinAttempts = new Map<string, { count: number; resetAt: number }>();
-  const tokenFrom = (request: express.Request) => request.headers.authorization?.replace(/^Bearer\s+/i, '')
-    || request.headers.cookie?.match(/(?:^|;\s*)operationsToken=([^;]+)/)?.[1];
+  const recordAudit = (sessionId: string, method: string, route: string) => {
+    try {
+      db.prepare('INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)')
+        .run(sessionId, method, route, new Date().toISOString());
+    } catch (error) {
+      console.error('Failed to record operations audit entry:', error);
+    }
+  };
+  const tokenFrom = (request: express.Request) => request.headers.cookie?.match(/(?:^|;\s*)operationsToken=([^;]+)/)?.[1];
   const hasOperationsSession = (request: express.Request) => {
     const token = tokenFrom(request);
     if (!token) return false;
@@ -210,7 +218,11 @@ export function createApp(db: Database.Database, correctPin: string, provinceBou
     return true;
   };
 
-  app.post('/api/verify-pin', express.json({ limit: '1kb' }), (request, response) => {
+  app.post('/api/verify-pin', (request, response, next) => {
+    const identity = `ip:${request.ip || 'unknown'}`;
+    response.on('finish', () => recordAudit(identity, request.method, `${request.path}:${response.statusCode}`));
+    next();
+  }, express.json({ limit: '1kb' }), (request, response) => {
     const key = request.ip || 'unknown';
     const now = Date.now();
     if (!pinAttempts.has(key) && pinAttempts.size >= 10_000) {
@@ -253,12 +265,7 @@ export function createApp(db: Database.Database, correctPin: string, provinceBou
     const sessionId = operationsSessions.get(tokenFrom(request)!)!.id;
     response.on('finish', () => {
       if (response.statusCode < 400 && request.path !== '/api/logout') {
-        try {
-          db.prepare('INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)')
-            .run(sessionId, request.method, request.path, new Date().toISOString());
-        } catch (error) {
-          console.error('Failed to record operations audit entry:', error);
-        }
+        recordAudit(sessionId, request.method, request.path);
       }
     });
     next();

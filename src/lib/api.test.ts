@@ -52,6 +52,22 @@ describe('offline reconciliation', () => {
     expect((await HazardAPI.getAllHazards()).map(item => item.id)).toEqual(['visible']);
   });
 
+  it('keeps offline-created records pending for creation after edits', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false });
+    await db.hazards.put(hazard('new', 'pending_add'));
+    await HazardAPI.updateHazard({ ...hazard('new'), severity: 'Severe' });
+    expect((await db.hazards.get('new'))?.syncStatus).toBe('pending_add');
+  });
+
+  it('posts an edited queued create instead of issuing a missing-record update', async () => {
+    await db.hazards.put(hazard('new-online', 'pending_add'));
+    api.post.mockResolvedValue({ data: { version: 1 } });
+    await HazardAPI.updateHazard({ ...hazard('new-online'), severity: 'Severe' });
+    expect(api.put).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledWith('/api/hazards', expect.objectContaining({ severity: 'Severe' }));
+    expect(await db.hazards.get('new-online')).toMatchObject({ severity: 'Severe', syncStatus: 'synced' });
+  });
+
   it('serializes concurrent sync calls through the real mutex', async () => {
     await db.hazards.put(hazard('pending', 'pending_add'));
     api.post.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ data: { version: 1 } }), 30)));
@@ -84,6 +100,38 @@ describe('offline reconciliation', () => {
     api.post.mockRejectedValue(Object.assign(new Error('Conflict'), { isAxiosError: true, response: { status: 409 } }));
     await HazardAPI.syncPending();
     expect((await db.hazards.get('duplicate'))?.syncStatus).toBe('synced');
+  });
+
+  it('resolves response-lost updates and preserves genuine conflicts', async () => {
+    const replay = hazard('replay', 'pending_update');
+    await db.hazards.put(replay);
+    api.put.mockRejectedValueOnce(Object.assign(new Error('Conflict'), { isAxiosError: true, response: { status: 409, data: { current: { ...replay, version: 2 } } } }));
+    await HazardAPI.syncPending();
+    expect((await db.hazards.get('replay'))?.syncStatus).toBe('synced');
+
+    const local = hazard('conflict', 'pending_update');
+    await db.hazards.put(local);
+    api.put.mockRejectedValueOnce(Object.assign(new Error('Conflict'), { isAxiosError: true, response: { status: 409, data: { current: { ...local, severity: 'Severe', version: 2 } } } }));
+    await HazardAPI.syncPending();
+    const saved = await db.hazards.get('conflict');
+    expect(saved).toMatchObject({ severity: 'Severe', syncStatus: 'conflict' });
+    expect(JSON.parse(saved?.conflictData ?? '{}')).toMatchObject({ severity: 'Moderate' });
+    api.get.mockResolvedValue({ data: [{ ...local, severity: 'Severe', version: 2 }] });
+    expect((await HazardAPI.getAllHazards()).find(item => item.id === 'conflict')).toMatchObject({ severity: 'Severe', syncStatus: 'conflict' });
+    await HazardAPI.syncPending();
+    expect(api.put).toHaveBeenCalledTimes(2);
+    api.put.mockResolvedValueOnce({ data: { version: 3 } });
+    await HazardAPI.applyHazardConflict('conflict');
+    expect(await db.hazards.get('conflict')).toMatchObject({ severity: 'Moderate', version: 3, syncStatus: 'synced' });
+  });
+
+  it('handles a live conflict so callers can immediately refresh the resolution UI', async () => {
+    const local = hazard('live-conflict', 'synced');
+    await db.hazards.put(local);
+    api.put.mockRejectedValue(Object.assign(new Error('Conflict'), { isAxiosError: true, response: { status: 409, data: { current: { ...local, severity: 'Severe', version: 2 } } } }));
+
+    await expect(HazardAPI.updateHazard(local)).resolves.toBeUndefined();
+    expect(await db.hazards.get(local.id)).toMatchObject({ severity: 'Severe', syncStatus: 'conflict' });
   });
 
   it('reconciles evacuation centers with the same pending-work rules', async () => {

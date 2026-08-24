@@ -4,7 +4,7 @@ esbuild.build({
   entryPoints: ['server.ts'],
   bundle: true,
   platform: 'node',
-  target: 'node18',
+  target: 'node20',
   outfile: 'dist/server.cjs',
   external: ['express', 'better-sqlite3', 'fsevents', 'vite'],
   format: 'cjs',

@@ -129,9 +129,18 @@ export const useStore = create<AppState>((set) => ({
   closeEditModal: () => set({ isEditModalOpen: false, editModalHazard: null }),
 
   setHazards: (hazards) => set((state) => {
-    return { hazards, filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)) };
+    return {
+      hazards,
+      filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)),
+      selectedHazard: state.selectedHazard ? hazards.find(hazard => hazard.id === state.selectedHazard?.id) ?? null : null,
+    };
   }),
-  setEvacuationCenters: (evacuationCenters) => set({ evacuationCenters }),
+  setEvacuationCenters: (evacuationCenters) => set(state => ({
+    evacuationCenters,
+    selectedEvacuationCenter: state.selectedEvacuationCenter
+      ? evacuationCenters.find(center => center.id === state.selectedEvacuationCenter?.id) ?? null
+      : null,
+  })),
   toggleFilter: (type) => set((state) => {
     const newFilters = state.activeFilters.includes(type)
       ? state.activeFilters.filter(f => f !== type)

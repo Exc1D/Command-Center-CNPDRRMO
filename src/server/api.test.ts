@@ -43,7 +43,7 @@ describe('production API', () => {
     expect((await client.post('/api/hazards').send(hazard)).status).toBe(201);
     expect((await client.post('/api/hazards').send(hazard)).status).toBe(409);
     expect((await client.get('/api/hazards')).body).toHaveLength(1);
-    expect((db.prepare('SELECT COUNT(*) AS count FROM operations_audit').get() as { count: number }).count).toBe(1);
+    expect((db.prepare("SELECT COUNT(*) AS count FROM operations_audit WHERE path = '/api/hazards'").get() as { count: number }).count).toBe(1);
   });
 
   it('rejects missing dates and malformed geometry at the trust boundary', async () => {
@@ -66,8 +66,10 @@ describe('production API', () => {
   });
 
   it('rate-limits repeated PIN guesses', async () => {
-    for (let attempt = 0; attempt < 5; attempt += 1) expect((await client.post('/api/verify-pin').send({ pin: '0000' })).status).toBe(401);
-    expect((await client.post('/api/verify-pin').send({ pin: '0000' })).status).toBe(429);
+    for (let attempt = 0; attempt < 5; attempt += 1) expect((await client.post('/api/verify-pin').set('X-Forwarded-For', '203.0.113.1').send({ pin: '0000' })).status).toBe(401);
+    expect((await client.post('/api/verify-pin').set('X-Forwarded-For', '203.0.113.1').send({ pin: '0000' })).status).toBe(429);
+    expect((await client.post('/api/verify-pin').set('X-Forwarded-For', '203.0.113.2').send({ pin: '0000' })).status).toBe(401);
+    expect((db.prepare("SELECT COUNT(*) AS count FROM operations_audit WHERE path LIKE '/api/verify-pin:%'").get() as { count: number }).count).toBe(7);
   });
 
   it('uses the authenticated session—not a raw PIN header—for center deletion', async () => {

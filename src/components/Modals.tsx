@@ -184,7 +184,7 @@ export function DropTagModal() {
 }
 
 export function PopUpCard() {
-  const { selectedHazard, setSelectedHazard, openPinModal, openEditModal, isMapAuthorized } = useStore();
+  const { selectedHazard, setSelectedHazard, setHazards, openPinModal, openEditModal, isMapAuthorized } = useStore();
 
   if (!selectedHazard) return null;
 
@@ -234,12 +234,31 @@ export function PopUpCard() {
               {selectedHazard.notes || <span className="italic text-on-surface/40">No operational notes provided.</span>}
             </p>
           </div>
-          {selectedHazard.syncStatus && selectedHazard.syncStatus !== 'synced' && (
+          {selectedHazard.syncStatus && selectedHazard.syncStatus !== 'synced' && selectedHazard.syncStatus !== 'conflict' && (
              <div>
                <p className="text-[9px] uppercase font-bold text-primary tracking-[0.05em] flex items-center gap-1">
                  <AlertTriangle size={10}/> Local Buffer Active
                </p>
              </div>
+          )}
+          {selectedHazard.syncStatus === 'conflict' && (
+            <div className="rounded-sm bg-error-container p-3 text-[10px]">
+              <p className="font-bold uppercase mb-2"><AlertTriangle size={10} className="inline mr-1" />Sync conflict — server version shown</p>
+              <div className="flex gap-2">
+                <button className="flex-1 bg-surface-container-lowest rounded p-2 font-bold" onClick={async () => {
+                  await HazardAPI.acceptHazardConflict(selectedHazard.id);
+                  const hazards = await HazardAPI.getAllHazards();
+                  setHazards(hazards);
+                  setSelectedHazard(hazards.find(item => item.id === selectedHazard.id) ?? null);
+                }}>Keep server</button>
+                <button disabled={!isMapAuthorized} className="flex-1 bg-primary text-on-primary rounded p-2 font-bold disabled:opacity-40" onClick={async () => {
+                  await HazardAPI.applyHazardConflict(selectedHazard.id);
+                  const hazards = await HazardAPI.getAllHazards();
+                  setHazards(hazards);
+                  setSelectedHazard(hazards.find(item => item.id === selectedHazard.id) ?? null);
+                }}>Apply local</button>
+              </div>
+            </div>
           )}
         </div>
 

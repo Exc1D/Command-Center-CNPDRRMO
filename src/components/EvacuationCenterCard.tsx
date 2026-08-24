@@ -69,11 +69,28 @@ export function EvacuationCenterCard() {
           </div>
         </div>
 
-        {selectedEvacuationCenter.syncStatus && selectedEvacuationCenter.syncStatus !== 'synced' && (
+        {selectedEvacuationCenter.syncStatus && !['synced', 'conflict'].includes(selectedEvacuationCenter.syncStatus) && (
           <div className="text-[9px] uppercase font-bold text-primary tracking-[0.05em] flex items-center gap-1">
             Local Buffer Active
           </div>
         )}
+        {selectedEvacuationCenter.syncStatus === 'conflict' && <div className="rounded bg-error-container p-3 text-[10px] mb-3">
+          <p className="font-bold uppercase mb-2">Sync conflict — server version shown</p>
+          <div className="flex gap-2">
+            <button className="flex-1 bg-surface-container-lowest rounded p-2 font-bold" onClick={async () => {
+              await EvacuationCenterAPI.acceptCenterConflict(selectedEvacuationCenter.id);
+              const centers = await EvacuationCenterAPI.getAllCenters();
+              setEvacuationCenters(centers);
+              setSelectedEvacuationCenter(centers.find(item => item.id === selectedEvacuationCenter.id) ?? null);
+            }}>Keep server</button>
+            <button disabled={!isMapAuthorized} className="flex-1 bg-primary text-on-primary rounded p-2 font-bold disabled:opacity-40" onClick={async () => {
+              await EvacuationCenterAPI.applyCenterConflict(selectedEvacuationCenter.id);
+              const centers = await EvacuationCenterAPI.getAllCenters();
+              setEvacuationCenters(centers);
+              setSelectedEvacuationCenter(centers.find(item => item.id === selectedEvacuationCenter.id) ?? null);
+            }}>Apply local</button>
+          </div>
+        </div>}
         {isMapAuthorized && <button onClick={async () => {
           if (!confirm(`Delete evacuation center “${selectedEvacuationCenter.name}”?`)) return;
           try {
