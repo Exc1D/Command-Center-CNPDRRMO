@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && tsx esbuild.config.ts",
+    "build": "vite build && node scripts/check-geoman-icons.mjs && tsx esbuild.config.ts",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
