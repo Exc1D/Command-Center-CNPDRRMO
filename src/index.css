@@ -205,7 +205,7 @@ body {
   gap: 0.5rem !important;
   background: transparent !important;
 }
-.leaflet-bar a {
+.leaflet-bar a:not(.leaflet-pm-action) {
   background-color: var(--color-surface-container-lowest) !important;
   color: var(--color-on-surface) !important;
   border: none !important;
@@ -218,9 +218,18 @@ body {
   transition: all 0.2s !important;
   box-shadow: 0 4px 12px rgba(13, 28, 46, 0.04) !important;
 }
-.leaflet-bar a:hover {
+.leaflet-bar a:not(.leaflet-pm-action):hover {
   background-color: var(--color-surface-container) !important;
   color: var(--color-tertiary) !important;
+}
+.button-container.active .leaflet-pm-actions-container {
+  display: grid;
+  gap: 0.25rem;
+}
+.leaflet-pm-toolbar .leaflet-pm-actions-container .leaflet-pm-action {
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
 }
 .leaflet-control-zoom-in, .leaflet-control-zoom-out {
   background-color: var(--color-surface-container-lowest) !important;

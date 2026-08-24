@@ -40,6 +40,34 @@ export const CENTER_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+export const GEOMAN_TRANSLATIONS = {
+  tooltips: {
+    placeMarker: 'Click the map to add an evacuation center',
+    firstVertex: 'Click the map to place the first point',
+    continueLine: 'Click to add another point',
+    finishLine: 'Click the first point or Save drawing to finish',
+    finishPoly: 'Click the first point or Save drawing to finish',
+    finishRect: 'Release to finish the rectangle',
+    placeText: 'Click the map to add a note',
+  },
+  actions: {
+    finish: 'Save drawing',
+    removeLastVertex: 'Undo last point',
+    cancel: 'Stop tool',
+  },
+  buttonTitles: {
+    drawMarkerButton: 'Add evacuation center',
+    drawPolyButton: 'Draw hazard area',
+    drawLineButton: 'Draw hazard line',
+    drawRectButton: 'Draw rectangular hazard area',
+    drawTextButton: 'Add map note',
+    editButton: 'Edit a mapped hazard',
+    dragButton: 'Move a mapped hazard',
+    deleteButton: 'Delete a mapped hazard',
+    rotateButton: 'Rotate a mapped hazard',
+  },
+};
+
 export async function removeHazard(hazardId: string) {
   await HazardAPI.deleteHazard(hazardId);
   useStore.getState().setHazards(await HazardAPI.getAllHazards());
@@ -91,7 +119,7 @@ function GeomanSetup() {
       return;
     }
 
-    // Add Geoman controls
+    map.pm.setLang('en', GEOMAN_TRANSLATIONS, 'en');
     map.pm.addControls({
       position: 'topleft',
       drawMarker: true,  // Enable marker drawing for evacuation centers

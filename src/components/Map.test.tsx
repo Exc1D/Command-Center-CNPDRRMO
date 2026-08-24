@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { removeHazard, updateHazardGeometry } from './Map';
+import { GEOMAN_TRANSLATIONS, removeHazard, updateHazardGeometry } from './Map';
 import { useStore } from '../lib/store';
 
 const api = vi.hoisted(() => ({
@@ -33,5 +33,27 @@ describe('map persistence handlers', () => {
     await updateHazardGeometry(hazard, geometry);
     expect(api.updateHazard).toHaveBeenCalledWith({ ...hazard, geometry });
     expect(useStore.getState().hazards[0].geometry).toEqual(geometry);
+  });
+});
+
+describe('map tool guidance', () => {
+  it('uses clear drawing actions and tool hints', () => {
+    expect(GEOMAN_TRANSLATIONS).toMatchObject({
+      actions: {
+        finish: 'Save drawing',
+        removeLastVertex: 'Undo last point',
+        cancel: 'Stop tool',
+      },
+      buttonTitles: {
+        drawMarkerButton: 'Add evacuation center',
+        drawPolyButton: 'Draw hazard area',
+        drawLineButton: 'Draw hazard line',
+        drawRectButton: 'Draw rectangular hazard area',
+        editButton: 'Edit a mapped hazard',
+        dragButton: 'Move a mapped hazard',
+        deleteButton: 'Delete a mapped hazard',
+        rotateButton: 'Rotate a mapped hazard',
+      },
+    });
   });
 });
