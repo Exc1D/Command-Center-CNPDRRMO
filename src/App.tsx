@@ -65,7 +65,7 @@ export default function App() {
   }, [isMapAuthorized, setEvacuationCenters, setHazards]);
 
   return (
-    <div className="w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
+    <div className="app-shell w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
       {/* Sync Error Banner */}
       {syncState.lastSyncError && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
@@ -81,13 +81,13 @@ export default function App() {
         </div>
       )}
 
-      <header className="h-20 bg-surface-container-lowest shadow-ambient flex items-center justify-between px-8 z-[60] relative">
-        <div className="flex items-center gap-4">
-          <div className="relative w-12 h-12 flex items-center justify-center bg-surface-container rounded-full shadow-sm overflow-hidden">
+      <header className="h-[76px] shrink-0 bg-surface-container-lowest border-b border-outline-variant/35 flex items-center justify-between px-6 z-[60] relative">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="relative w-12 h-12 shrink-0 flex items-center justify-center bg-surface-container rounded-xl overflow-hidden ring-1 ring-outline-variant/40">
             <img
               src="/PDRRMO.jpg"
               alt="PDRRMO Logo"
-              className="w-12 h-12 object-contain bg-white"
+              className="w-12 h-12 object-contain bg-surface-container-lowest"
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -100,33 +100,38 @@ export default function App() {
               CN
             </span>
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-extrabold tracking-tight text-on-surface">
+          <div className="min-w-0">
+            <h1 className="text-xl font-display font-extrabold tracking-tight text-on-surface leading-tight">
               COMMAND CENTER
             </h1>
-            <p className="text-[11px] uppercase tracking-[0.05em] text-on-surface/60 font-medium">
-              Provincial Disaster Risk Reduction & Management Office
+            <p className="text-xs text-on-surface/60 font-medium truncate">
+              Camarines Norte Provincial DRRMO
             </p>
           </div>
+          <div className={`ml-3 hidden xl:flex items-center gap-2 rounded-full px-3 h-8 text-xs font-bold ${planning.isPlanningMode ? 'bg-planning-container text-on-planning-container' : 'bg-surface-container text-on-surface/70'}`}>
+            {planning.isPlanningMode ? 'Operational planning workspace' : 'Live operational map'}
+          </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col items-end">
-            <span className="text-[11px] uppercase text-primary font-bold tracking-[0.05em]">
-              ● {syncState.isSyncing ? 'Syncing' : isOnline ? 'Online • Local Cache Ready' : 'Offline • Changes Queued'}
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex flex-col items-end mr-2">
+            <span className={`text-xs font-bold ${isOnline ? 'text-success' : 'text-primary'}`}>
+              <span aria-hidden="true">●</span> {syncState.isSyncing ? 'Syncing operational data' : isOnline ? 'Online, cache ready' : 'Offline, changes queued'}
             </span>
-            <span className="text-[11px] text-on-surface/60 uppercase tracking-[0.05em] font-medium">
-              Station: Emergency Operations Center
+            <span className="text-[11px] text-on-surface/55 font-medium">
+              Map Status: {isOnline ? 'Online' : 'Offline'}
             </span>
           </div>
           <button
             onClick={() => setAnalyticsOpen(!isAnalyticsOpen)}
-            className={`h-10 px-4 flex items-center gap-2 transition-colors rounded-md border border-outline-variant/30 text-[11px] font-bold uppercase tracking-[0.05em] ${isAnalyticsOpen ? "bg-primary text-white" : "bg-surface-container hover:bg-surface-container-high text-on-surface"}`}
+            aria-label="View Analytics"
+            aria-pressed={isAnalyticsOpen}
+            className={`h-12 px-5 flex items-center gap-2 transition-colors rounded-xl border text-sm font-bold ${isAnalyticsOpen ? "bg-tertiary text-on-tertiary border-tertiary" : "bg-surface-container-lowest hover:bg-surface-container text-on-surface border-outline-variant/50"}`}
           >
             <BarChart2
-              size={16}
-              className={isAnalyticsOpen ? "text-white" : "text-tertiary"}
+              size={19}
+              className={isAnalyticsOpen ? "text-on-tertiary" : "text-tertiary"}
             />{" "}
-            View Analytics
+            Analytics
           </button>
           <button
             onClick={() => {
@@ -144,9 +149,10 @@ export default function App() {
                 setAnalyticsOpen(false);
               }
             }}
-            className={`h-10 px-4 flex items-center gap-2 rounded-md text-[11px] font-bold uppercase tracking-[0.05em] ${planning.isPlanningMode ? 'bg-[#8a5d00] text-white' : 'bg-surface-container text-on-surface'}`}
+            aria-pressed={planning.isPlanningMode}
+            className={`h-12 px-5 flex items-center gap-2 rounded-xl text-sm font-bold border transition-colors ${planning.isPlanningMode ? 'bg-planning text-on-planning border-planning hover:bg-planning/90' : 'bg-primary text-on-primary border-primary hover:bg-primary/90'}`}
           >
-            <MapPinned size={16} /> {planning.isPlanningMode ? 'Exit Planning' : 'Planning Mode'}
+            <MapPinned size={19} /> {planning.isPlanningMode ? 'Exit Planning' : 'Planning Mode'}
           </button>
         </div>
       </header>
@@ -184,22 +190,6 @@ export default function App() {
           {planning.isPlanningMode ? <PlanningOverlay /> : <PublishedPlansControl />}
         </section>
       </main>
-
-      <footer className="h-12 bg-surface-container-low flex items-center px-8 justify-between z-50">
-        <div className="flex items-center gap-6">
-          <div className="text-[11px] text-on-surface/60 uppercase tracking-[0.05em] font-bold">
-            © 2026 PDRRMO Camarines Norte
-          </div>
-          <div className="text-[11px] text-on-surface/80">
-            Government of Camarines Norte - All rights reserved.
-          </div>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-[11px] px-3 py-1 bg-surface-container text-tertiary font-bold rounded-md uppercase tracking-[0.05em]">
-            Map Status: {isOnline ? 'Online' : 'Offline'}
-          </div>
-        </div>
-      </footer>
 
       <DropTagModal />
       <PinModal />

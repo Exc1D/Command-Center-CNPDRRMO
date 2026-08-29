@@ -82,8 +82,13 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-80 h-full bg-surface-container-low flex flex-col text-on-surface z-[55] shadow-ambient relative">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-8 space-y-8 custom-scrollbar">
+    <aside className="operational-sidebar w-[360px] h-full bg-surface-container-low flex flex-col text-on-surface z-[55] relative border-r border-outline-variant/35">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-7 custom-scrollbar">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-tertiary mb-1">Operational picture</p>
+          <h2 className="text-xl font-display font-extrabold tracking-tight">Map layers</h2>
+          <p className="text-xs text-on-surface/60 mt-1">Focus the live map on the information you need.</p>
+        </div>
         
         {/* Verification Check */}
         <section>
@@ -97,10 +102,10 @@ export default function Sidebar() {
               }
             }}
             className={cn(
-              "w-full flex items-center justify-center gap-3 p-3 rounded-lg transition-all font-bold tracking-[0.05em] uppercase text-[11px]",
+              "w-full min-h-12 flex items-center justify-center gap-3 px-4 rounded-xl transition-colors font-bold text-sm",
                isMapAuthorized 
                  ? "bg-surface-container-highest text-tertiary shadow-sm border border-surface-container" 
-                 : "bg-[#ffdad6] text-[var(--color-primary-container)] hover:bg-[#ffb4ab]"
+                 : "bg-error-container text-on-error-container hover:bg-error-container/75"
             )}
           >
             {isMapAuthorized ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
@@ -211,7 +216,7 @@ export default function Sidebar() {
                 <button
                   key={type.id}
                   onClick={() => toggleFilter(type.id)}
-                  className={`w-full flex items-center justify-between cursor-pointer group p-3 rounded-xl shadow-ambient transition-all border-2 ${isActive ? 'border-primary bg-surface-container text-on-surface' : 'border-transparent bg-surface-container-lowest hover:bg-surface'}`}
+                  className={`w-full min-h-12 flex items-center justify-between cursor-pointer group px-4 rounded-xl transition-colors border ${isActive ? 'border-primary/40 bg-primary/8 text-on-surface' : 'border-outline-variant/30 bg-surface-container-lowest hover:bg-surface-container'}`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full transition-all" style={{ backgroundColor: type.color, boxShadow: isActive ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${type.color}` : 'none' }}></div>
@@ -244,7 +249,7 @@ export default function Sidebar() {
                         backgroundColor: isActive ? level.color : 'transparent'
                       }}
                     >
-                      {isActive && <Check size={12} className="text-white" />}
+                      {isActive && <Check size={12} className="text-on-primary" />}
                     </div>
                     <span className="text-sm font-medium" style={{ color: level.color }}>{level.label}</span>
                   </button>
@@ -262,17 +267,17 @@ export default function Sidebar() {
           <label className="text-[11px] font-bold uppercase tracking-[0.05em] text-on-surface/80 block mb-3">Facilities</label>
           <button
             onClick={toggleEvacuationCenters}
-            className={`w-full flex items-center justify-between cursor-pointer group p-3 rounded-xl shadow-ambient transition-all border-2 ${
+            className={`w-full min-h-12 flex items-center justify-between cursor-pointer group px-4 rounded-xl transition-colors border ${
               evacuationCentersVisible
-                ? 'border-[#059669] bg-surface-container text-on-surface'
-                : 'border-transparent bg-surface-container-lowest hover:bg-surface'
+                ? 'border-success/45 bg-success/10 text-on-surface'
+                : 'border-outline-variant/30 bg-surface-container-lowest hover:bg-surface-container'
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-[#059669] transition-all" />
+              <div className="w-3 h-3 rounded-full bg-success transition-colors" />
               <span className="text-sm font-semibold">Evacuation Center</span>
             </div>
-            <Check size={16} className={evacuationCentersVisible ? 'text-[#059669]' : 'text-transparent'} />
+            <Check size={16} className={evacuationCentersVisible ? 'text-success' : 'text-transparent'} />
           </button>
         </section>
 
@@ -306,7 +311,7 @@ export default function Sidebar() {
                     return (
                       <div
                         key={h.id}
-                        className={cn("p-4 rounded-xl cursor-pointer shadow-ambient transition-transform hover:-translate-y-1 relative overflow-hidden", bgClass)}
+                        className={cn("p-4 rounded-xl cursor-pointer border border-outline-variant/30 transition-colors hover:bg-surface-container relative", bgClass)}
                         onClick={() => {
                           setSelectedHazard(h);
                           try {
@@ -331,12 +336,14 @@ export default function Sidebar() {
                           }
                         }}
                       >
-                        <div className="absolute top-0 left-0 bottom-0 w-1.5" style={{ backgroundColor: typeDef?.color || 'var(--color-primary)' }} />
-                        <div className="ml-2">
+                        <div className="flex items-start gap-3">
+                          <span className="mt-1.5 w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: typeDef?.color || 'var(--color-primary)' }} />
+                          <div className="min-w-0">
                           <p className="text-[10px] text-on-surface/50 font-bold tracking-[0.05em] uppercase mb-1">{formatDate(h.dateAdded, 'HH:mm - MMM d')}</p>
                           <p className="text-sm font-display font-bold text-on-surface mb-1 leading-tight">{h.title || 'Untitled Area'}</p>
                           <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-on-surface/60 mb-1">{typeDef?.label} &middot; {h.severity}</p>
                           <p className="text-xs text-on-surface/80 truncate">{h.notes || 'Status monitored.'}</p>
+                          </div>
                         </div>
                       </div>
                     )
@@ -351,11 +358,11 @@ export default function Sidebar() {
         </section>
       </div>
 
-      <div className="p-6 bg-surface-container">
+      <div className="p-4 bg-surface-container-low border-t border-outline-variant/35">
         <button 
           onClick={handleExportPDF}
           disabled={exporting}
-          className="w-full py-3 btn-primary font-bold text-[11px] uppercase tracking-[0.05em] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full h-12 btn-primary font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {exporting ? (
             <span className="animate-pulse tracking-[0.1em]">Gathering Intel...</span>

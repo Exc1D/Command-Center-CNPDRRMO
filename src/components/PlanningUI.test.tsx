@@ -44,4 +44,19 @@ describe('PlanningSidebar', () => {
     expect(screen.getByPlaceholderText('Scenario name')).toBeDisabled();
     expect(await screen.findByRole('button', { name: /^save$/i })).toBeDisabled();
   });
+
+  it('keeps symbols primary and exposes plan details and layers without scrolling', async () => {
+    const user = userEvent.setup();
+    render(<PlanningSidebar />);
+
+    expect(screen.getByRole('heading', { name: 'Place a DRRM symbol' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Plan details' }));
+    expect(screen.getByRole('heading', { name: 'Plan details' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Plan file' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'layers' }));
+    expect(screen.getByRole('heading', { name: 'Planning layers' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Show drawings' })).toBeInTheDocument();
+  });
 });
