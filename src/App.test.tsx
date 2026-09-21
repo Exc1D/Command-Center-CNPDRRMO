@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import App from './App';
 import { HazardAPI } from './lib/api';
 import { useStore } from './lib/store';
+import { usePlanningStore } from './lib/planningStore';
 
 // Hoisted mock functions - must be declared before vi.mock()
 const mockGetAllHazards = vi.hoisted(() => vi.fn());
@@ -62,6 +63,12 @@ vi.mock('./components/Sidebar', () => ({
   default: () => <div data-testid="sidebar">Sidebar</div>,
 }));
 
+vi.mock('./components/PlanningUI', () => ({
+  PlanningSidebar: () => <div data-testid="planning-sidebar">PlanningSidebar</div>,
+  PlanningOverlay: () => <div>PlanningOverlay</div>,
+  PublishedPlansControl: () => <div>PublishedPlansControl</div>,
+}));
+
 // Mock ErrorBoundary
 vi.mock('./components/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: any) => children,
@@ -88,6 +95,7 @@ describe('App', () => {
       isAnalyticsOpen: false,
       syncState: { isSyncing: false, lastSyncError: null },
     });
+    usePlanningStore.setState({ isPlanningMode: true, history: null, dirty: false, temporary: true });
   });
 
   afterEach(() => {
@@ -158,8 +166,15 @@ describe('App', () => {
     it('reports offline status from the real browser event', async () => {
       render(<App />);
       act(() => window.dispatchEvent(new Event('offline')));
-      await waitFor(() => expect(screen.getByText('Map Status: Offline')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Offline, changes queued')).toBeInTheDocument());
     });
+  });
+
+  it('opens on the operational planning workflow', () => {
+    render(<App />);
+
+    expect(screen.getByTestId('planning-sidebar')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /monitor map/i })).toBeInTheDocument();
   });
 
   describe('Analytics toggle', () => {

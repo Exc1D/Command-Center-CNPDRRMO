@@ -73,7 +73,7 @@ export function canApplyPlanningHistory(current: PlanningScenario, target?: Plan
 }
 
 export const usePlanningStore = create<PlanningState>((set) => ({
-  isPlanningMode: false,
+  isPlanningMode: true,
   scenarios: [],
   publishedOverlays: [],
   history: null,
@@ -89,12 +89,12 @@ export const usePlanningStore = create<PlanningState>((set) => ({
   sessionId: crypto.randomUUID(),
   lockAcquired: false,
   message: null,
-  enter: () => set(state => ({ isPlanningMode: true, history: state.history ?? createHistory(createPlanningScenario('Untitled Plan')) })),
+  enter: () => set({ isPlanningMode: true }),
   exit: () => set({ isPlanningMode: false, tool: 'select', selectedIds: [], lockAcquired: false }),
   setScenarios: scenarios => set({ scenarios }),
   setPublishedOverlays: publishedOverlays => set({ publishedOverlays }),
-  newBoard: () => set({ history: createHistory(createPlanningScenario('Untitled Plan')), dirty: false, temporary: true, selectedIds: [], tool: 'select', lockAcquired: false }),
-  load: (scenario, temporary = false) => set({ history: createHistory(scenario), dirty: false, temporary, selectedIds: [], tool: 'select', lockAcquired: false }),
+  newBoard: () => set({ history: createHistory(createPlanningScenario('Untitled Plan')), dirty: false, temporary: true, selectedIds: [], tool: 'select', lockAcquired: false, message: null }),
+  load: (scenario, temporary = false) => set({ history: createHistory(scenario), dirty: false, temporary, selectedIds: [], tool: 'select', lockAcquired: false, message: null }),
   showPreview: scenario => set(state => ({ history: state.history ? { ...state.history, present: scenario } : createHistory(scenario) })),
   edit: change => set(state => {
     if (!state.history) return state;

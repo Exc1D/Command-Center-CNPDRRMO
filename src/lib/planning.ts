@@ -654,6 +654,10 @@ export function validateForPublish(scenario: PlanningScenario) {
   const warnings: string[] = [];
   const parsed = planningScenarioSchema.safeParse(scenario);
   if (!parsed.success) errors.push(...parsed.error.issues.map(issue => issue.message));
+  if (scenario.name === 'Untitled Plan') errors.push('Give the plan a specific name');
+  if (!scenario.notes.trim()) errors.push('State the operational objective');
+  if (!scenario.validFrom || !scenario.validUntil) errors.push('Set the operational period');
+  if (!scenario.classification) errors.push('Choose an information classification');
   if (scenario.objects.length === 0) errors.push('Add at least one planning object');
   const unlabeled = scenario.objects.filter(object => object.kind !== 'text' && !object.label?.trim()).length;
   if (unlabeled > 0) warnings.push(`${unlabeled} object${unlabeled === 1 ? '' : 's'} have no label`);

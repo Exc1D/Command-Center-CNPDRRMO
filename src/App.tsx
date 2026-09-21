@@ -113,12 +113,9 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden lg:flex flex-col items-end mr-2">
-            <span className={`text-xs font-bold ${isOnline ? 'text-success' : 'text-primary'}`}>
+          <div className="hidden lg:flex items-center mr-2">
+            <span className={`text-xs font-bold ${isOnline ? 'text-success' : 'text-planning'}`}>
               <span aria-hidden="true">●</span> {syncState.isSyncing ? 'Syncing operational data' : isOnline ? 'Online, cache ready' : 'Offline, changes queued'}
-            </span>
-            <span className="text-[11px] text-on-surface/55 font-medium">
-              Map Status: {isOnline ? 'Online' : 'Offline'}
             </span>
           </div>
           <button
@@ -150,9 +147,9 @@ export default function App() {
               }
             }}
             aria-pressed={planning.isPlanningMode}
-            className={`h-12 px-5 flex items-center gap-2 rounded-xl text-sm font-bold border transition-colors ${planning.isPlanningMode ? 'bg-planning text-on-planning border-planning hover:bg-planning/90' : 'bg-primary text-on-primary border-primary hover:bg-primary/90'}`}
+            className={`h-12 px-5 flex items-center gap-2 rounded-xl text-sm font-bold border transition-colors ${planning.isPlanningMode ? 'bg-surface-container-lowest text-on-surface border-outline-variant/50 hover:bg-surface-container' : 'bg-planning text-on-planning border-planning hover:bg-planning/90'}`}
           >
-            <MapPinned size={19} /> {planning.isPlanningMode ? 'Exit Planning' : 'Planning Mode'}
+            <MapPinned size={19} /> {planning.isPlanningMode ? 'Monitor map' : 'Plan response'}
           </button>
         </div>
       </header>

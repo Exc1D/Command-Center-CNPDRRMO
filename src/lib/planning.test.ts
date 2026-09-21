@@ -170,6 +170,17 @@ describe('planning documents', () => {
     expect(result.errors).toContain('Add at least one planning object');
   });
 
+  it('requires the operational decisions needed for publication', () => {
+    const result = validateForPublish(createPlanningScenario('Typhoon evacuation'));
+
+    expect(result.errors).toEqual(expect.arrayContaining([
+      'State the operational objective',
+      'Set the operational period',
+      'Choose an information classification',
+    ]));
+    expect(validateForPublish(createPlanningScenario('Untitled Plan')).errors).toContain('Give the plan a specific name');
+  });
+
   it('rejects planning objects that cannot be rendered safely', () => {
     const scenario = createPlanningScenario('Broken import');
     scenario.objects = [{ id: crypto.randomUUID(), kind: 'circle', layer: 'drawings', coordinates: [], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0 }];

@@ -50,6 +50,9 @@ describe('planning server', () => {
   it('exposes only immutable published snapshots explicitly classified as public', async () => {
     const scenario = createPlanningScenario('Public evacuation plan');
     scenario.classification = 'Public';
+    scenario.notes = 'Move residents before the storm surge reaches the highway.';
+    scenario.validFrom = new Date().toISOString();
+    scenario.validUntil = new Date(Date.now() + 3_600_000).toISOString();
     scenario.objects.push({ id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[122.95, 14.1]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0, symbolKey: 'eoc' });
     await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(scenario);
     await request(app).post(`/api/planning/scenarios/${scenario.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
@@ -80,6 +83,10 @@ describe('planning server', () => {
 
   it('publishes immutable numbered revisions', async () => {
     const original = createPlanningScenario('Typhoon evacuation');
+    original.notes = 'Move residents before the storm surge reaches the highway.';
+    original.validFrom = new Date().toISOString();
+    original.validUntil = new Date(Date.now() + 3_600_000).toISOString();
+    original.classification = 'Internal';
     original.objects.push({ id: crypto.randomUUID(), kind: 'symbol', layer: 'symbols', coordinates: [[122.95, 14.1]], style: { color: '#ff0000', width: 3, fillOpacity: 0.2, lineStyle: 'solid' }, locked: false, order: 0, symbolKey: 'eoc' });
     await request(app).post('/api/planning/scenarios').set('Authorization', 'Bearer valid').send(original);
     await request(app).post(`/api/planning/scenarios/${original.id}/lock`).set('Authorization', 'Bearer valid').send({ sessionId: 'one' });
