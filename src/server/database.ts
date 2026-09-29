@@ -26,6 +26,9 @@ export async function createDatabase(url?: string): Promise<Database> {
   });
 
   const schema = [
+    `CREATE TABLE IF NOT EXISTS private_reference_files (
+      name TEXT PRIMARY KEY, content BLOB NOT NULL, sha256 TEXT NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS hazards (
       id TEXT PRIMARY KEY, type TEXT, severity TEXT, title TEXT, municipality TEXT,
       barangay TEXT, notes TEXT, geometry TEXT, dateAdded TEXT, version INTEGER NOT NULL DEFAULT 1

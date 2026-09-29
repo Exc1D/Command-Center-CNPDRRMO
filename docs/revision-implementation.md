@@ -52,6 +52,8 @@ The script reads the supplied filenames and the existing repository flood datase
 
 For deployment, install the generated .private/population/*.geojson and .private/population-exposure.json on the application server **outside static hosting**, at the same project-relative paths. This directory is gitignored and deliberately absent from the Vite build. All population endpoints require the existing operations session and successful responses return Cache-Control: no-store; the service worker skips API requests. Vite explicitly denies direct access to .private. Never copy this directory into public or dist. Regenerate and deploy the aggregate whenever hazard sources or population derivatives change; the analysis screen shows its preparation time and input hashes, not a live source-data feed.
 
+For Render's ephemeral filesystem, the existing Turso database can retain these files privately. With the target database's `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` configured locally, run `npx tsx scripts/upload-private-reference.ts` after preparing the datasets. Wait for the upload to finish before deploying/restarting the service. An optional path argument reads those two variables from a private JSON configuration file. The command runs the normal database migrations (including the existing household-estimate label correction), then replaces only the `private_reference_files` table with compressed, checksummed copies. At startup the server verifies and restores the allowlisted files to `.private` before accepting requests. Empty database storage leaves existing local files available for development. No raw population data enters Git, public assets or build output.
+
 Other preparation decisions:
 
 - Rivers were transformed from ESRI:102457 (PRS92 / UTM zone 51N) to WGS84, including the datum transformation. Two empty source river features have no drawable output.
@@ -176,3 +178,22 @@ Validation completed on 27 September 2026: all 182 tests across 23 files passed,
 ### Follow-up items
 
 - Preview remains in Monitoring with the sidebar open; no plan was saved or published during this check.
+
+## Post-Implementation Review: Private reference data on Render (29 September 2026)
+
+### What looks solid
+
+- The existing private Turso database stores compressed source derivatives; startup restores only allowlisted files before accepting requests. SHA-256 verification, bounded decompression, restrictive file permissions and symlink rejection protect the restore path. Population routes retain operations-session authorization and no-store responses.
+- All 196 tests across 28 files, TypeScript checks and the production build passed. The hosted database roundtrip restored 11 files totaling 20,933,678 bytes with exact byte matches to the prepared local datasets. Review caught and fixed a cross-realm binary type check.
+
+### Concerns (non-blocking)
+
+- Uploads must finish before the service restarts; restoration is not intended to overlap a dataset replacement. Render's existing free instance can take time to wake after inactivity. The existing build-size advisory remains.
+
+### Issues (must fix before shipping)
+
+- No remaining implementation blocker found. Production deployment and live endpoint verification follow this commit.
+
+### Follow-up items
+
+- Regenerate and upload the derivatives when corrected population or hazard sources arrive. Existing source gaps and provisional population counts remain documented above.

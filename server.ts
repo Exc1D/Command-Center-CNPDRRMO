@@ -1,5 +1,6 @@
 import { estimateExposure } from './src/server/population';
 import { analyzeLayerExposure } from './src/server/layerExposure';
+import { restorePrivateReferenceFiles } from './src/server/privateReferenceFiles';
 import 'dotenv/config';
 import express from "express";
 import path from "path";
@@ -413,6 +414,7 @@ async function startServer() {
   const correctPin = process.env.PIN_SECRET;
   if (!correctPin) throw new Error('PIN_SECRET environment variable is required');
   const db = await createDatabase();
+  await restorePrivateReferenceFiles(db);
   const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
   const app = createApp(db, correctPin, provinceBoundary);
 
