@@ -1,3 +1,5 @@
+import { estimateExposure } from './src/server/population';
+import { analyzeLayerExposure } from './src/server/layerExposure';
 import 'dotenv/config';
 import express from "express";
 import path from "path";
@@ -7,120 +9,14 @@ import { randomUUID } from "node:crypto";
 import { createPlanningRouter } from "./src/server/planning";
 import { all, createDatabase, execute, one, type Database } from "./src/server/database";
 
+import { HAZARD_TYPES, LEGACY_TYPES, canonicalLocation, municipalities, REFERENCE_LAYERS, FLOOD_COLORS } from './src/lib/reference';
+
 export { createDatabase } from "./src/server/database";
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 function generateErrorId() {
   return `ERR-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// Batch update: Auto-detect location for existing records without municipality
-async function batchUpdateLocations(db: Database) {
-  const hazardsWithoutLocation = await all<{ id: string; geometry: string }>(db, "SELECT * FROM hazards WHERE municipality IS NULL OR municipality = ''");
-  if (hazardsWithoutLocation.length === 0) {
-    console.log('No records need location batch update');
-    return;
-  }
-  console.log(`Batch updating location for ${hazardsWithoutLocation.length} records...`);
-
-  // Load barangay GeoJSON
-  const geojson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/baranggays.geojson'), 'utf8'));
-
-  function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
-
-  function getCentroid(geometry) {
-    if (!geometry) return null;
-    if (geometry.type === 'Point') {
-      return { lat: geometry.coordinates[1], lng: geometry.coordinates[0] };
-    }
-    if (geometry.type === 'Polygon' && geometry.coordinates?.[0]) {
-      const coords = geometry.coordinates[0];
-      let latSum = 0, lngSum = 0;
-      for (const c of coords) {
-        latSum += c[1];
-        lngSum += c[0];
-      }
-      return { lat: latSum / coords.length, lng: lngSum / coords.length };
-    }
-    if (geometry.type === 'LineString' && geometry.coordinates?.[0]) {
-      const coords = geometry.coordinates;
-      let latSum = 0, lngSum = 0;
-      for (const c of coords) {
-        latSum += c[1];
-        lngSum += c[0];
-      }
-      return { lat: latSum / coords.length, lng: lngSum / coords.length };
-    }
-    return null;
-  }
-
-  function pointInPolygon(point, polygon) {
-    if (!polygon || !point) return false;
-    const coords = polygon.coordinates?.[0] || [];
-    let inside = false;
-    for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-      const xi = coords[i][0], yi = coords[i][1];
-      const xj = coords[j][0], yj = coords[j][1];
-      if (((yi > point.lat) !== (yj > point.lat)) && (point.lng < (xj - xi) * (point.lat - yi) / (yj - yi) + xi)) {
-        inside = !inside;
-      }
-    }
-    return inside;
-  }
-
-  for (const hazard of hazardsWithoutLocation as Array<{id: string; geometry: string}>) {
-    try {
-      const geometry = typeof hazard.geometry === 'string' ? JSON.parse(hazard.geometry) : hazard.geometry;
-      const centroid = getCentroid(geometry);
-
-      if (!centroid) continue;
-
-      let detectedBarangays = [];
-      let detectedMunicipality = null;
-
-      // First check if centroid is inside any barangay polygon (but we have points, so use proximity)
-      for (const feature of geojson.features) {
-        const bCoords = feature.geometry.coordinates;
-        const bLat = bCoords[1];
-        const bLng = bCoords[0];
-        const dist = haversineDistance(centroid.lat, centroid.lng, bLat, bLng);
-
-        if (dist < 0.5) { // Within 500m
-          detectedBarangays.push({
-            name: feature.properties.name,
-            municipality: feature.properties.municipality,
-            distance: dist
-          });
-        }
-      }
-
-      // Sort by distance and take the nearest
-      detectedBarangays.sort((a, b) => a.distance - b.distance);
-
-      if (detectedBarangays.length > 0) {
-        // Get unique municipalities from detected barangays
-        detectedMunicipality = detectedBarangays[0].municipality;
-
-        const barangayNames = detectedBarangays.slice(0, 3).map(b => b.name);
-        const barangayStr = barangayNames.join(', ');
-
-        await execute(db, 'UPDATE hazards SET municipality = ?, barangay = ? WHERE id = ?', detectedMunicipality, barangayStr, hazard.id);
-        console.log(`Updated hazard ${hazard.id}: ${detectedMunicipality}, ${barangayStr}`);
-      }
-    } catch (e) {
-      console.error(`Failed to update hazard ${hazard.id}:`, (e as Error).message);
-    }
-  }
 }
 
 // API Routes
@@ -135,7 +31,9 @@ const geometrySchema = z.discriminatedUnion('type', [
 
 const hazardSchema = z.object({
   id: z.string().uuid(),
-  type: z.enum(['flood', 'landslide', 'vehicular_accident', 'earthquake', 'storm_surge', 'tsunami']),
+  type: z.string().refine(value => [...HAZARD_TYPES,...LEGACY_TYPES].some(t => t.id === value)),
+  affectedPopulationBasis: z.enum(['reported','population_estimate','household_estimate']).transform(value => value === 'household_estimate' ? 'population_estimate' : value).optional(),
+  affectedPopulation: z.number().int().min(0).max(100_000_000).nullable().optional(),
   severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical']),
   title: z.string().trim().max(120).optional(),
   municipality: z.string().trim().max(120).optional(),
@@ -218,6 +116,19 @@ export function createApp(db: Database, correctPin: string, provinceBoundary?: P
     response.json({ valid: true });
   });
 
+  app.get('/api/reference/population/:municipality', async (request, response) => {
+    response.setHeader('Cache-Control', 'no-store');
+    if (!hasOperationsSession(request)) return response.status(401).json({error:'Authorization required'});
+    const municipality = request.params.municipality;
+    if (!municipalities.includes(municipality)) return response.status(404).json({error:'Municipality not found'});
+    try {
+      const contents = await fs.promises.readFile(path.join(process.cwd(), '.private/population', municipality + '.geojson'), 'utf8');
+      response.type('json').send(contents);
+    } catch {
+      response.status(404).json({error:'Population data unavailable for this municipality'});
+    }
+  });
+
   app.get('/api/session', (request, response) => response.json({ valid: hasOperationsSession(request) }));
   app.post('/api/logout', (request, response) => {
     const token = tokenFrom(request);
@@ -240,6 +151,35 @@ export function createApp(db: Database, correctPin: string, provinceBoundary?: P
   });
   app.use(express.json({ limit: '6mb' }));
 
+  app.post('/api/reference/layer-exposure', async (request,response) => {
+    response.setHeader('Cache-Control','no-store');
+    const parsed=z.object({
+      layers:z.array(z.string().refine(id=>REFERENCE_LAYERS.some(l=>l.id===id))).min(1).max(4),
+      floodClasses:z.array(z.string().refine(value=>Object.hasOwn(FLOOD_COLORS,value))).max(4).default([]),
+      municipality:z.string().refine(value=>value==='' || municipalities.includes(value)).default(''),
+      barangay:z.string().max(120).default(''),
+    }).strict().safeParse(request.body);
+    if(!parsed.success || (parsed.data.barangay && !canonicalLocation(parsed.data.municipality,parsed.data.barangay))) return response.status(400).json({error:'Choose valid hazard layers and a municipality/barangay from the location list.'});
+    if(parsed.data.barangay) parsed.data.barangay=canonicalLocation(parsed.data.municipality,parsed.data.barangay)!.barangay;
+    try {response.json(await analyzeLayerExposure(parsed.data));}
+    catch {response.status(503).json({error:'Hazard–population analysis is unavailable. Prepare the private population exposure dataset on the server, then retry.'});}
+  });
+
+  app.post('/api/reference/population-exposure', async (request,response) => {
+    response.setHeader('Cache-Control','no-store');
+    const parsed=z.object({geometry:geometrySchema, radiusMetres:z.number().min(1).max(50000).optional()}).safeParse(request.body);
+    if(!parsed.success) return response.status(400).json({error:'Invalid exposure area'});
+    if(parsed.data.geometry.type==='LineString') return response.status(400).json({error:'Use a polygon area or a point with an explicit radius'});
+    if(parsed.data.geometry.type==='Point' && parsed.data.radiusMetres===undefined) return response.status(400).json({error:'Choose a radius for the incident point'});
+    if(parsed.data.geometry.type==='Polygon' && parsed.data.geometry.coordinates.some(ring => {
+      const first=ring[0], last=ring.at(-1)!;
+      return first[0]!==last[0] || first[1]!==last[1] || new Set(ring.map(point=>point.join(','))).size<3;
+    })) return response.status(400).json({error:'Population analysis requires closed polygon rings with at least three distinct vertices'});
+    if(parsed.data.geometry.type==='Polygon' && parsed.data.geometry.coordinates.flat().length>2000) return response.status(400).json({error:'Use an incident area with at most 2,000 vertices for population analysis'});
+    try {response.json(await estimateExposure(parsed.data.geometry as Parameters<typeof estimateExposure>[0],parsed.data.radiusMetres));}
+    catch {response.status(503).json({error:'Population analysis unavailable. Source files may be missing or invalid.'});}
+  });
+
   app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
 
 app.get("/api/hazards", async (req, res) => {
@@ -259,11 +199,16 @@ app.post("/api/hazards", async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
-    const { id, type, severity, title, municipality, barangay, notes, geometry, dateAdded } = parsed.data;
+    const { id, type, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    const location = canonicalLocation(parsed.data.municipality,parsed.data.barangay);
+    if (!location) return res.status(400).json({error:'Select a valid municipality and barangay'});
+    const {municipality,barangay} = location;
+    // Retain legacy types arriving from an existing offline queue with their original meaning.
+
     await execute(db, `
-      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded);
+      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported');
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
@@ -287,11 +232,23 @@ app.put("/api/hazards/:id", async (req, res) => {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
 
-    const { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version } = parsed.data;
+    let { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
+    if (!current) return res.status(404).json({error:'Hazard not found'});
+    if ((municipality !== undefined && municipality !== current.municipality) || (barangay !== undefined && barangay !== current.barangay)) {
+      if (!canonicalLocation(municipality ?? String(current.municipality || ''), barangay ?? String(current.barangay || ''))) return res.status(400).json({error:'Select a valid municipality and barangay'});
+    }
+
+    if (geometry && JSON.stringify(geometry) !== current.geometry && (affectedPopulationBasis ?? current.affectedPopulationBasis) === 'population_estimate') {
+      affectedPopulation = null;
+      affectedPopulationBasis = 'reported';
+    }
 
     const result = await execute(db, `
       UPDATE hazards
-      SET type = COALESCE(?, type),
+      SET affectedPopulationBasis = COALESCE(?, affectedPopulationBasis),
+          affectedPopulation = CASE WHEN ? THEN ? ELSE affectedPopulation END,
+          type = COALESCE(?, type),
           severity = COALESCE(?, severity),
           title = COALESCE(?, title),
           municipality = COALESCE(?, municipality),
@@ -302,6 +259,9 @@ app.put("/api/hazards/:id", async (req, res) => {
           version = version + 1
       WHERE id = ? AND version = ?
     `,
+      affectedPopulationBasis,
+      affectedPopulation !== undefined ? 1 : 0,
+      affectedPopulation ?? null,
       type,
       severity,
       title,
@@ -453,7 +413,6 @@ async function startServer() {
   const correctPin = process.env.PIN_SECRET;
   if (!correctPin) throw new Error('PIN_SECRET environment variable is required');
   const db = await createDatabase();
-  await batchUpdateLocations(db);
   const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
   const app = createApp(db, correctPin, provinceBoundary);
 

@@ -1,3 +1,4 @@
+import { ReferenceControls } from './ReferenceControls';
 import { useEffect, useRef, useState } from 'react';
 import {
   Archive,
@@ -82,6 +83,13 @@ const PRIMARY_TOOL_BUTTONS = [
 
 const DRAW_TOOLS = TOOL_BUTTONS.filter(item => ['freehand', 'line', 'polygon', 'rectangle', 'circle', 'eraser'].includes(item.tool));
 const DRAW_TOOL_SET = new Set<PlanningTool>(DRAW_TOOLS.map(item => item.tool));
+const SYMBOL_CATEGORIES = [...new Set(PLANNING_SYMBOLS.map(symbol => symbol.category))];
+
+function SymbolOptions() {
+  return SYMBOL_CATEGORIES.map(category => <optgroup key={category} label={category}>
+    {PLANNING_SYMBOLS.filter(symbol => symbol.category === category).map(symbol => <option key={symbol.key} value={symbol.key}>{symbol.label}</option>)}
+  </optgroup>);
+}
 
 function localDateTime(iso?: string) {
   if (!iso) return '';
@@ -112,6 +120,11 @@ export async function saveCurrentPlanningScenario() {
       activeFilters: operational.activeFilters,
       susceptibilityFilters: operational.activeSusceptibilityFilters,
     evacuationCentersVisible: operational.evacuationCentersVisible,
+    referenceLayers: operational.referenceLayers,
+    elementLayers: operational.elementLayers,
+    incidentsVisible: operational.incidentsVisible,
+    selectedMunicipality: operational.selectedMunicipality,
+    selectedBarangay: operational.selectedBarangay,
   } };
     state.setMessage('Saving plan...');
     const result = state.temporary
@@ -180,7 +193,6 @@ export function PlanningSidebar() {
   const [province, setProvince] = useState<ProvinceGeoJSON | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const scenario = planning.history?.present;
-  const symbolCategories = [...new Set(PLANNING_SYMBOLS.map(symbol => symbol.category))];
   const filteredSymbols = PLANNING_SYMBOLS.filter(symbol => {
     const matchesSearch = `${symbol.label} ${symbol.category}`.toLowerCase().includes(symbolQuery.toLowerCase());
     return matchesSearch && (symbolQuery.trim() || symbol.category === symbolCategory);
@@ -224,7 +236,7 @@ export function PlanningSidebar() {
 
   if (!scenario) return <aside className="planning-sidebar w-[420px] h-full bg-surface-container-low flex flex-col z-[55] border-r border-outline-variant/40">
     <div className="p-7 border-b border-outline-variant/35">
-      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-planning mb-2">Operational planning</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-planning mb-2 min-h-6 pr-12">Operational planning</p>
       <h2 className="text-2xl font-display font-extrabold tracking-tight">Make the next decision clear</h2>
       <p className="text-sm leading-relaxed text-on-surface/65 mt-3">Define the objective, map assignments and resources, then review the plan before it reaches the operational map.</p>
     </div>
@@ -268,6 +280,7 @@ export function PlanningSidebar() {
     { label: 'Information classification is chosen', complete: Boolean(scenario.classification) },
   ];
   const selectedSymbol = PLANNING_SYMBOLS.find(symbol => symbol.key === planning.symbolKey);
+  const SelectedSymbolIcon = getPlanningSymbolIcon(planning.symbolKey);
   const canPublish = !planning.temporary && canEdit && navigator.onLine && !planning.dirty && validation.errors.length === 0;
   const publishBlockers = [
     ...(!operational.isMapAuthorized ? ['Enter the operations PIN to edit this plan'] : []),
@@ -293,8 +306,8 @@ export function PlanningSidebar() {
   return (
     <aside className="planning-sidebar w-[392px] h-full bg-surface-container-low flex flex-col z-[55] border-r border-outline-variant/40">
       <div className="p-5 pb-4 border-b border-outline-variant/35">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
+        <div className="flex items-start justify-between gap-4 mb-4 pr-12">
+          <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-planning mb-1">Operational plan</p>
             <h2 className="text-xl font-display font-extrabold tracking-tight truncate max-w-56">{scenario.name || 'Untitled Plan'}</h2>
             <p className="text-xs text-on-surface/55 mt-1">{planning.dirty ? 'Changes need saving' : planning.temporary ? 'New plan, not saved yet' : canEdit ? `Draft version ${scenario.draftVersion}, ready to edit` : 'Live view, another operator may be editing'}</p>
@@ -339,13 +352,13 @@ export function PlanningSidebar() {
           <section>
             <h3 className="text-base font-bold">Map assignments and resources</h3>
             <p className="text-xs leading-relaxed text-on-surface/55 mt-1">Use the four map modes below. Label each placement with its owner, action, or purpose.</p>
-            <div className="mt-4 min-h-12 px-3 rounded-xl bg-planning-container text-on-planning-container flex items-center gap-3"><MapPin size={18} /><div><span className="block text-[11px] font-bold">Selected symbol</span><span className="block text-sm font-semibold">{selectedSymbol?.label}</span></div></div>
+            <div className="mt-4 min-h-12 px-3 rounded-xl bg-planning-container text-on-planning-container flex items-center gap-3"><SelectedSymbolIcon size={22} aria-hidden /><div><span className="block text-[11px] font-bold">Selected symbol</span><span className="block text-sm font-semibold">{selectedSymbol?.label}</span></div></div>
           </section>
 
           <section>
             <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-bold">Resource and facility symbols</h3><span className="text-xs text-on-surface/50">{filteredSymbols.length}</span></div>
             <div className="relative mb-3"><Search size={17} className="absolute left-3 top-3.5 text-on-surface/40" /><input aria-label="Search DRRM symbols" value={symbolQuery} onChange={event => setSymbolQuery(event.target.value)} className="w-full h-12 bg-surface-container-lowest border border-outline-variant/45 pl-10 pr-3 rounded-xl text-sm" placeholder="Search all symbols" /></div>
-            {!symbolQuery.trim() && <select aria-label="Symbol category" value={symbolCategory} onChange={event => setSymbolCategory(event.target.value)} className="w-full h-12 mb-3 bg-surface-container-lowest border border-outline-variant/45 px-3 rounded-xl text-sm">{symbolCategories.map(category => <option key={category}>{category}</option>)}</select>}
+            {!symbolQuery.trim() && <select aria-label="Symbol category" value={symbolCategory} onChange={event => setSymbolCategory(event.target.value)} className="w-full h-12 mb-3 bg-surface-container-lowest border border-outline-variant/45 px-3 rounded-xl text-sm">{SYMBOL_CATEGORIES.map(category => <option key={category}>{category}</option>)}</select>}
             <div className="grid grid-cols-2 gap-2">{filteredSymbols.map(symbol => {
               const Icon = getPlanningSymbolIcon(symbol.key);
               const selected = planning.symbolKey === symbol.key;
@@ -364,11 +377,9 @@ export function PlanningSidebar() {
           <details className="border-t border-outline-variant/35 pt-3">
             <summary className="min-h-12 flex items-center justify-between text-sm font-bold cursor-pointer"><span className="flex items-center gap-2"><Layers3 size={17} /> Map reference and layers</span><ChevronRight size={17} /></summary>
             <div className="pt-3 space-y-4">
-              <select aria-label="Municipality" value={selectedMunicipality} onChange={event => { const value = event.target.value; setSelectedMunicipality(value); const municipality = MUNICIPALITIES.find(item => item.name === value); operational.flyTo(municipality?.center ?? MAP_CONFIG.PROVINCE_CENTER, municipality ? MAP_CONFIG.MUNICIPALITY_ZOOM : MAP_CONFIG.DEFAULT_ZOOM); }} className="w-full h-12 bg-surface-container-lowest border border-outline-variant/45 px-3 rounded-xl text-sm"><option value="ALL">Province overview</option>{MUNICIPALITIES.map(item => <option key={item.name}>{item.name}</option>)}</select>
-              {selectedMunicipality !== 'ALL' && <select aria-label="Barangay" onChange={event => { const barangay = MUNICIPALITIES.find(item => item.name === selectedMunicipality)?.barangays.find(item => item.name === event.target.value); if (barangay) operational.flyTo([barangay.lat, barangay.lng], MAP_CONFIG.BARANGAY_ZOOM); }} className="w-full h-12 bg-surface-container-lowest border border-outline-variant/45 px-3 rounded-xl text-sm"><option>All barangays</option>{MUNICIPALITIES.find(item => item.name === selectedMunicipality)?.barangays.map(item => <option key={item.name}>{item.name}</option>)}</select>}
-              <div className="grid grid-cols-3 gap-2">{(['street', 'topo', 'satellite'] as const).map(base => <button key={base} onClick={() => operational.setBaseMap(base)} className={`h-11 rounded-lg text-xs capitalize font-bold ${operational.baseMap === base ? 'bg-tertiary text-on-tertiary' : 'bg-surface-container-lowest border border-outline-variant/40'}`}>{base}</button>)}</div>
+              <ReferenceControls />
               <div className="space-y-2">{(Object.keys(scenario.layers) as PlanningLayer[]).map(layer => <div key={layer} className="min-h-14 flex items-center gap-3 bg-surface-container-lowest border border-outline-variant/35 rounded-xl px-3 text-sm"><input className="w-5 h-5" disabled={!canEdit} aria-label={`Show ${layer}`} type="checkbox" checked={scenario.layers[layer].visible} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], visible: event.target.checked } } }))} /><span className="flex-1 capitalize font-semibold">{layer}</span><label className="min-h-11 flex items-center gap-2 px-2 text-xs"><input className="w-5 h-5" disabled={!canEdit} aria-label={`Lock ${layer}`} type="checkbox" checked={scenario.layers[layer].locked} onChange={event => planning.edit(current => ({ ...current, layers: { ...current.layers, [layer]: { ...current.layers[layer], locked: event.target.checked } } }))} /><Lock size={15} /> Lock</label></div>)}</div>
-              <div className="space-y-1">{DISASTER_TYPES.map(type => <label key={type.id} className="min-h-11 flex items-center gap-3 text-sm px-2 rounded-lg hover:bg-surface-container-lowest"><input className="w-5 h-5" type="checkbox" checked={operational.activeFilters.includes(type.id)} onChange={() => operational.toggleFilter(type.id)} />{type.label}</label>)}{operational.activeFilters.includes('flood') && SUSCEPTIBILITY_LEVELS.map(level => <label key={level.id} className="min-h-11 flex items-center gap-3 text-sm px-6 rounded-lg hover:bg-surface-container-lowest"><input className="w-5 h-5" type="checkbox" checked={operational.activeSusceptibilityFilters.includes(level.id)} onChange={() => operational.toggleSusceptibilityFilter(level.id)} />{level.label}</label>)}<label className="min-h-11 flex items-center gap-3 text-sm px-2 rounded-lg hover:bg-surface-container-lowest"><input className="w-5 h-5" type="checkbox" checked={operational.evacuationCentersVisible} onChange={operational.toggleEvacuationCenters} />Evacuation centers</label></div>
+
             </div>
           </details>
         </div>}
@@ -432,10 +443,11 @@ export function PlanningOverlay() {
     const keydown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (canEdit) saveCurrentPlanningScenario(); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (canEdit && (event.shiftKey ? canRedo : canUndo)) event.shiftKey ? planning.redo() : planning.undo(); return; }
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
       if (event.key === 'Escape') planning.setTool('select');
       const tool = TOOL_BUTTONS.find(item => item.shortcut.toLowerCase() === event.key.toLowerCase())?.tool;
-      if (tool && (canEdit || tool === 'pan' || tool === 'select') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.setTool(tool);
-      if (canEdit && (event.key === 'Delete' || event.key === 'Backspace') && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) planning.removeObjects(planning.selectedIds);
+      if (tool && (canEdit || tool === 'pan' || tool === 'select')) planning.setTool(tool);
+      if (canEdit && (event.key === 'Delete' || event.key === 'Backspace')) planning.removeObjects(planning.selectedIds);
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
@@ -464,14 +476,24 @@ export function PlanningOverlay() {
   if (!scenario) return null;
 
   const drawActive = DRAW_TOOL_SET.has(planning.tool);
+  const SelectedSymbolIcon = getPlanningSymbolIcon(planning.symbolKey);
 
   return (
     <>
-      <div className="absolute top-4 left-4 z-[700] bg-surface-container-lowest text-on-surface border border-outline-variant/45 rounded-xl px-4 h-11 flex items-center gap-2 text-xs font-bold shadow-panel">
+      <div className="planning-mode-status absolute top-4 left-4 z-[700] bg-surface-container-lowest text-on-surface border border-outline-variant/45 rounded-xl px-4 h-11 flex items-center gap-2 text-xs font-bold shadow-panel">
         <span className={`w-2 h-2 rounded-full ${planning.dirty ? 'bg-planning' : canEdit ? 'bg-success' : 'bg-tertiary'}`} />
         {planning.dirty ? 'Changes need saving' : planning.temporary ? 'New plan, not saved' : canEdit ? 'Saved plan' : 'Live view only'}
       </div>
-      {(drawMenuOpen || drawActive) && <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 z-[699] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-3 max-w-[calc(100%-2rem)]">
+      {planning.tool === 'symbol' && <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 z-[699] w-[520px] max-w-[calc(100%-2rem)] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-4">
+        <div className="flex items-center gap-3">
+          <SelectedSymbolIcon size={28} aria-hidden className="shrink-0 text-planning" />
+          <label className="flex-1 min-w-0 text-xs font-bold">Choose a planning symbol
+            <select aria-label="Planning symbol" disabled={!canEdit || scenario.layers.symbols.locked} value={planning.symbolKey} onChange={event => planning.setSymbolKey(event.target.value)} className="block w-full min-h-12 mt-1 bg-surface-container border border-outline-variant/45 px-3 rounded-xl text-sm font-semibold disabled:opacity-40"><SymbolOptions /></select>
+          </label>
+        </div>
+        <p className="text-xs text-on-surface/65 mt-3">Choose a symbol, then click the map to place it. Press Esc to cancel.</p>
+      </div>}
+      {planning.tool !== 'symbol' && (drawMenuOpen || drawActive) && <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 z-[699] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-3 max-w-[calc(100%-2rem)]">
         <div className="flex items-center gap-2 overflow-x-auto planning-tool-dock">
           {DRAW_TOOLS.map(({ tool, label, shortcut, icon: Icon }) => {
             const eraserLocked = tool === 'eraser' && Object.values(scenario.layers).every(item => item.locked);
@@ -513,7 +535,7 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
     <div className="planning-properties absolute right-4 top-4 z-[650] w-[300px] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-5 max-h-[calc(100%-7rem)] overflow-y-auto">
       <div className="flex justify-between items-center mb-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-tertiary mb-1">Plan contents</p><h3 className="text-base font-bold">{object ? 'Object properties' : 'Object inventory'}</h3></div>{object && <button className="w-11 h-11 grid place-items-center rounded-xl hover:bg-surface-container" aria-label="Close object properties" onClick={() => planning.select([])}><X size={18} /></button>}</div>
       <>
-        {object.kind === 'symbol' && <p className="text-xs font-semibold mb-2">{PLANNING_SYMBOLS.find(symbol => symbol.key === object.symbolKey)?.label ?? 'DRRM symbol'}</p>}
+        {object.kind === 'symbol' && <label className="block text-xs font-semibold mb-3">Symbol type<select aria-label="Object symbol" disabled={!canEdit} value={object.symbolKey} onChange={event => planning.updateObject(object.id, { symbolKey: event.target.value })} className="block w-full min-h-12 mt-1 bg-surface-container border border-outline-variant/45 px-3 rounded-xl text-sm disabled:opacity-40"><SymbolOptions /></select></label>}
         <label className="text-[9px] uppercase">Label</label><input aria-label="Object label" disabled={!canEdit} value={object.label ?? ''} onChange={event => planning.updateObject(object.id, { label: event.target.value })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2" />
         <div className="grid grid-cols-2 gap-2 mb-2"><label className="text-[9px] uppercase">Color<input aria-label="Object color" disabled={!canEdit} type="color" value={object.style.color} onChange={event => planning.updateObject(object.id, { style: { ...object.style, color: event.target.value } })} className="block w-full h-8" /></label><label className="text-[9px] uppercase">Width<select aria-label="Object width" disabled={!canEdit} value={object.style.width} onChange={event => planning.updateObject(object.id, { style: { ...object.style, width: Number(event.target.value) } })} className="block w-full h-8 bg-surface-container-lowest rounded"><option value="2">Thin</option><option value="3">Medium</option><option value="6">Thick</option></select></label></div>
         {!['symbol', 'text'].includes(object.kind) && <select aria-label="Object line style" disabled={!canEdit} value={object.style.lineStyle} onChange={event => planning.updateObject(object.id, { style: { ...object.style, lineStyle: event.target.value as PlanningObject['style']['lineStyle'] } })} className="w-full p-2 bg-surface-container-lowest rounded text-xs mb-2"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>}
@@ -528,20 +550,4 @@ function PlanningProperties({ canEdit }: { canEdit: boolean }) {
       </>
     </div>
   );
-}
-
-export function PublishedPlansControl() {
-  const planning = usePlanningStore();
-  const [open, setOpen] = useState(false);
-  useEffect(() => { if (open) refreshScenarios(); }, [open]);
-  const published = planning.scenarios.filter(scenario => !scenario.archivedAt && scenario.publishedRevision && (!scenario.validUntil || new Date(scenario.validUntil) >= new Date()));
-  return <div className="absolute bottom-5 right-5 z-[600] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-2 w-64">
-    <button onClick={() => setOpen(!open)} className="w-full min-h-12 px-3 flex items-center justify-between text-sm font-bold rounded-xl hover:bg-surface-container"><span>Published Plans</span><span className="min-w-7 h-7 px-2 grid place-items-center rounded-full bg-surface-container text-xs">{planning.publishedOverlays.length}</span></button>
-    {open && <div className="space-y-2 mt-2 px-2 pb-2">{published.length === 0 ? <p className="text-xs text-on-surface/55 py-2">No current published plans</p> : published.map(scenario => <label key={scenario.id} className="min-h-11 flex items-center gap-3 text-xs"><input className="w-5 h-5" type="checkbox" checked={planning.publishedOverlays.some(revision => revision.scenarioId === scenario.id)} onChange={async event => {
-      if (!event.target.checked) return planning.setPublishedOverlays(planning.publishedOverlays.filter(revision => revision.scenarioId !== scenario.id));
-      const revisions = await PlanningAPI.revisions(scenario.id, useStore.getState().isMapAuthorized);
-      const latest = revisions[0];
-      if (latest) planning.setPublishedOverlays([...planning.publishedOverlays.filter(revision => revision.scenarioId !== scenario.id), latest]);
-    }} /><span>{scenario.name} • r{scenario.publishedRevision}</span></label>)}</div>}
-  </div>;
 }

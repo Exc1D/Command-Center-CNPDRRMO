@@ -3,6 +3,111 @@
 @import "leaflet/dist/leaflet.css";
 @import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
+.nav-text-button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-on-surface);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-underline-offset: 0.3em;
+  transition: color 180ms ease-out, opacity 180ms ease-out;
+}
+.nav-text-button:hover,
+.nav-text-button[aria-pressed="true"] {
+  color: var(--color-tertiary);
+  text-decoration: underline;
+}
+.nav-text-button[aria-pressed="true"] { text-decoration-thickness: 2px; }
+.nav-text-button:focus-visible { outline: 2px solid var(--color-tertiary); outline-offset: 2px; }
+.nav-text-button:active { color: var(--color-primary); }
+.nav-text-button:disabled { opacity: 0.5; cursor: default; }
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.mode-label { display: grid; gap: 2px; text-align: left; color: var(--color-on-surface); opacity: 0.6; transition: opacity 180ms ease-out, color 180ms ease-out; }
+.mode-label strong { font-size: 13px; font-weight: 700; }
+.mode-label small { font-size: 10px; font-weight: 500; white-space: nowrap; }
+.mode-switch[aria-checked="false"] .mode-label-monitor { opacity: 1; color: var(--color-tertiary); }
+.mode-switch[aria-checked="true"] .mode-label-planning { opacity: 1; color: var(--color-on-planning-container); }
+.mode-switch-track { width: 44px; height: 24px; padding: 3px; flex-shrink: 0; border-radius: 20px; background: var(--color-tertiary); transition: background-color 200ms ease-out; }
+.mode-switch-track > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface-container-lowest); transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.mode-switch[aria-checked="true"] .mode-switch-track { background: var(--color-planning); }
+.mode-switch[aria-checked="true"] .mode-switch-track > span { transform: translateX(20px); }
+.mode-switch:hover .mode-label { opacity: 1; }
+.sidebar-rail { --sidebar-width: min(360px, calc(100vw - 64px)); position: relative; z-index: 500; width: var(--sidebar-width); flex-shrink: 0; }
+.sidebar-rail[data-planning="true"] { --sidebar-width: min(420px, calc(100vw - 64px)); }
+.sidebar-rail[data-open="false"] { width: 0; }
+.sidebar-panel { width: var(--sidebar-width); height: 100%; transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease-out, visibility 220ms; }
+.sidebar-panel[aria-hidden="true"] { transform: translateX(-100%); opacity: 0; visibility: hidden; pointer-events: none; }
+.sidebar-panel > aside { width: 100%; max-width: none; animation: panel-reveal 200ms ease-out; }
+.sidebar-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 10px;
+  background: var(--color-surface-container-lowest);
+  color: var(--color-tertiary);
+  cursor: pointer;
+  transition: background-color 180ms ease-out;
+}
+.sidebar-toggle[aria-expanded="false"] { right: auto; left: 12px; box-shadow: 0 2px 10px oklch(0.23 0.035 248 / 0.08); }
+.sidebar-toggle:hover { background: var(--color-surface-container); }
+.sidebar-toggle svg { transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+.sidebar-toggle:hover svg { transform: translateX(-2px); }
+.sidebar-toggle[aria-expanded="false"]:hover svg { transform: translateX(2px); }
+.sidebar-rail[data-open="false"] + section .leaflet-top.leaflet-left { top: 56px; }
+.sidebar-rail[data-open="false"] + section .planning-mode-status { left: 68px; }
+.operations-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-tertiary);
+  border-radius: 10px;
+  background: var(--color-tertiary);
+  color: var(--color-on-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease-out, transform 150ms ease-out;
+}
+.operations-button span { flex: 1; text-align: left; }
+.operations-button svg { flex-shrink: 0; }
+.operations-button:hover { background: oklch(0.36 0.1 242); }
+.operations-button:active { transform: scale(0.98); }
+.analytics-panel { animation: panel-arrive 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.planning-tool-dock { animation: panel-reveal 200ms ease-out; }
+.planning-sidebar details > summary > svg { transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.planning-sidebar details[open] > summary > svg { transform: rotate(90deg); }
+@keyframes panel-reveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panel-arrive { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 680px) {
+  .app-header { height: auto; min-height: 76px; padding: 12px 16px 8px; flex-wrap: wrap; gap: 8px; }
+  .app-header h1 { font-size: 18px; }
+  .header-actions { width: 100%; justify-content: space-between; gap: 4px; }
+  .header-actions .nav-text-button { padding-inline: 4px; }
+  .mode-switch { gap: 8px; padding-inline: 4px; }
+}
+
 /* Geoman's masked data URLs are rejected by browsers after Vite processes them. */
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%235b5b5b%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M4%2018%2010%2012%2014%2016%2021%209%22%2F%3E%3Ccircle%20cx%3D%224%22%20cy%3D%2218%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2212%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2214%22%20cy%3D%2216%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3Ccircle%20cx%3D%2221%22%20cy%3D%229%22%20r%3D%221.5%22%20fill%3D%22%235b5b5b%22%2F%3E%3C%2Fsvg%3E");
@@ -327,3 +432,25 @@ textarea:disabled {
     animation-iteration-count: 1 !important;
   }
 }
+
+.reference-select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-outline-variant); border-radius: 12px; background: var(--color-surface-container-lowest); color: var(--color-on-surface); font-size: 14px; }
+.app-shell select:not([multiple]):not([size]) {
+  appearance: none;
+  padding-left: 12px;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='m1 1 5 5 5-5' stroke='%233d5367' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  background-repeat: no-repeat;
+}
+@media (forced-colors: active) {
+  .app-shell select:not([multiple]):not([size]) { appearance: auto; background-image: none; padding-right: 12px; }
+}
+.reference-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
+.reference-check input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--color-tertiary); }
+.reference-select:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--color-tertiary); outline-offset: 2px; }
+.incident-icon { background: white; border: 2px solid currentColor; border-radius: 12px; display: grid; place-items: center; font-size: 24px; font-weight: bold; box-shadow: 0 2px 6px #0004; }
+
+/* Map overlays must not intercept incident or planning marker placement. */
+.incident-drawing .leaflet-overlay-pane *, .incident-drawing .leaflet-marker-pane *,
+.planning-placing .leaflet-overlay-pane *, .planning-placing .leaflet-marker-pane * { pointer-events: none !important; }

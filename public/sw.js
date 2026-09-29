@@ -1,4 +1,4 @@
-const CACHE = 'cnpdrrmo-v1';
+const CACHE = 'cnpdrrmo-v2';
 const SHELL = ['/PDRRMO.jpg', '/baranggays.geojson'];
 
 self.addEventListener('install', event => {

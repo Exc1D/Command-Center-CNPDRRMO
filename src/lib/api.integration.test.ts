@@ -31,6 +31,8 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
     municipality: 'Daet',
     barangay: 'Bagasbas',
     notes: 'Testing offline-first',
+    affectedPopulation: 37,
+    affectedPopulationBasis: 'population_estimate',
     geometry: { type: 'Point', coordinates: [122.9803837, 14.1337179] },
     dateAdded: new Date().toISOString(),
   };
@@ -38,7 +40,7 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
   await HazardAPI.addHazard(hazard);
 
   const stored = await db.hazards.get(hazard.id);
-  expect(stored?.syncStatus).toBe('pending_add');
+  expect(stored).toMatchObject({syncStatus:'pending_add',affectedPopulation:37,affectedPopulationBasis:'population_estimate'});
 
   Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   vi.spyOn(axios, 'post').mockResolvedValue({ data: {} });
@@ -46,5 +48,6 @@ it('full offline-first workflow: add offline, go online, syncPending', async () 
   await HazardAPI.syncPending();
 
   const synced = await db.hazards.get(hazard.id);
-  expect(synced?.syncStatus).toBe('synced');
+  expect(synced).toMatchObject({syncStatus:'synced',affectedPopulation:37,affectedPopulationBasis:'population_estimate'});
+  expect(axios.post).toHaveBeenCalledWith('/api/hazards',expect.objectContaining({affectedPopulation:37,affectedPopulationBasis:'population_estimate'}));
 });

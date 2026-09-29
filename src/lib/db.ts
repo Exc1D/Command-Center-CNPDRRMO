@@ -7,6 +7,8 @@ export interface Hazard {
   severity: string;
   title?: string;
   susceptibility?: string;
+  affectedPopulation?: number | null;
+  affectedPopulationBasis?: 'reported' | 'population_estimate';
   municipality?: string;
   barangay?: string;
   notes: string;

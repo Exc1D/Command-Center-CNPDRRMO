@@ -536,6 +536,10 @@ export function PlanningMapLayer() {
     if (!scenario || !canEdit || !province || !['symbol', 'text'].includes(planning.tool)) return;
     const targetLayer = planning.tool === 'symbol' ? 'symbols' : 'labels';
     if (scenario.layers[targetLayer].locked) return;
+    const container = map.getContainer();
+    // Reference popups must not intercept the click that places a planning object.
+    map.closePopup();
+    container.classList.add('planning-placing');
     const click = (event: L.LeafletMouseEvent) => {
       const point: [number, number] = [event.latlng.lng, event.latlng.lat];
       if (!pathInsideProvince([point], province)) return planning.setMessage('Planning objects must remain inside Camarines Norte');
@@ -558,7 +562,7 @@ export function PlanningMapLayer() {
       planning.setTool('select');
     };
     map.on('click', click);
-    return () => { map.off('click', click); };
+    return () => { map.off('click', click); container.classList.remove('planning-placing'); };
   }, [map, scenario, canEdit, planning.tool, planning.symbolKey, planning.symbolSize, planning.style, province]);
 
   return null;

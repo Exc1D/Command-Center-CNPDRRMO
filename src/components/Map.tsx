@@ -8,15 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { MAP_CONFIG } from '../lib/constants';
 import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
-import floodSusceptibilityUrl from '../../CamarinesNorte_FloodPerMunicipality.geojson?url';
+import { ReferenceMapLayers, incidentIcon } from './ReferenceMapLayers';
+import { hazardDefinition } from '../lib/reference';
 import { getCentroid } from '../lib/utils';
-
-const SUSCEP_STYLES: Record<string, { color: string; fillOpacity: number }> = {
-  'Very High': { color: '#001f3f', fillOpacity: 0.35 },
-  'High': { color: '#7b2cbf', fillOpacity: 0.35 },
-  'Moderate': { color: '#d63384', fillOpacity: 0.35 },
-  'Low': { color: '#fccde5', fillOpacity: 0.4 }
-};
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -42,7 +36,7 @@ export const CENTER_TYPE_LABELS: Record<string, string> = {
 
 export const GEOMAN_TRANSLATIONS = {
   tooltips: {
-    placeMarker: 'Click the map to add an evacuation center',
+    placeMarker: 'Click the map to add an incident',
     firstVertex: 'Click the map to place the first point',
     continueLine: 'Click to add another point',
     finishLine: 'Click the first point or Save drawing to finish',
@@ -56,7 +50,8 @@ export const GEOMAN_TRANSLATIONS = {
     cancel: 'Stop tool',
   },
   buttonTitles: {
-    drawMarkerButton: 'Add evacuation center',
+    drawMarkerButton: 'Add incident',
+    drawCircleMarkerButton: 'Add evacuation center',
     drawPolyButton: 'Draw hazard area',
     drawLineButton: 'Draw hazard line',
     drawRectButton: 'Draw rectangular hazard area',
@@ -74,7 +69,10 @@ export async function removeHazard(hazardId: string) {
 }
 
 export async function updateHazardGeometry(hazard: any, geometry: any) {
-  await HazardAPI.updateHazard({ ...hazard, geometry });
+  await HazardAPI.updateHazard({ ...hazard, geometry, ...(hazard.affectedPopulationBasis === 'population_estimate' ? {
+    affectedPopulation: null, affectedPopulationBasis: 'reported',
+    notes: (hazard.notes || '') + '\nIncident geometry changed; previous population estimate requires recalculation.',
+  } : {}) });
   useStore.getState().setHazards(await HazardAPI.getAllHazards());
 }
 
@@ -115,7 +113,13 @@ function GeomanSetup() {
 
   useEffect(() => {
     if (!isMapAuthorized) {
-      if (map.pm) map.pm.removeControls();
+      if (map.pm) {
+        map.pm.disableDraw();
+        if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
+        if (map.pm.globalDragModeEnabled()) map.pm.disableGlobalDragMode();
+        if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+        map.pm.removeControls();
+      }
       return;
     }
 
@@ -123,16 +127,26 @@ function GeomanSetup() {
     map.pm.addControls({
       position: 'topleft',
       drawMarker: true,  // Enable marker drawing for evacuation centers
-      drawCircleMarker: false,
+      drawCircleMarker: true,
       drawPolyline: true,
       drawRectangle: true,
       drawPolygon: true,
       drawCircle: false,
+      drawText: false,
       editMode: true,
       dragMode: true,
       cutPolygon: false,
       removalMode: true, // Enabled for shape deletion feature
     });
+
+    map.getContainer().querySelectorAll('.leaflet-pm-toolbar a[role="button"]').forEach(button => {
+      const label=button.closest('[title]')?.getAttribute('title');
+      if(label) button.setAttribute('aria-label',label);
+    });
+    const beginDrawing=()=>map.getContainer().classList.add('incident-drawing');
+    const endDrawing=()=>map.getContainer().classList.remove('incident-drawing');
+    map.on('pm:drawstart',beginDrawing);
+    map.on('pm:drawend',endDrawing);
 
     // Styles for drawn paths based on Editorial Resilience
     map.pm.setPathOptions({
@@ -145,10 +159,11 @@ function GeomanSetup() {
     map.on('pm:create', (e) => {
       const layer = e.layer;
       const geojson = (layer as any).toGeoJSON();
+      map.pm.disableDraw();
 
       // FIXED: Use instanceof check for more reliable marker detection
       // Geoman's pmType may not be set yet at this point, so check the layer class directly
-      if (layer instanceof L.Marker) {
+      if (e.shape === 'CircleMarker') {
         // Evacuation center marker
         map.removeLayer(layer);
         const coords: [number, number] = [geojson.geometry.coordinates[0], geojson.geometry.coordinates[1]];
@@ -173,7 +188,16 @@ function GeomanSetup() {
     });
 
     return () => {
-      if (map.pm) map.pm.removeControls();
+      if (map.pm) {
+        map.pm.disableDraw();
+        if (map.pm.globalEditModeEnabled()) map.pm.disableGlobalEditMode();
+        if (map.pm.globalDragModeEnabled()) map.pm.disableGlobalDragMode();
+        if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+        map.pm.removeControls();
+      }
+      map.off('pm:drawstart',beginDrawing);
+      map.off('pm:drawend',endDrawing);
+      endDrawing();
       map.off('pm:create');
       map.off('pm:remove');
     };
@@ -204,7 +228,7 @@ function EvacuationCenterMarkersHandler() {
 
   useEffect(() => {
     if (!evacuationCentersVisible) return;
-    loadEvacuationCenters();
+    loadEvacuationCenters().catch(()=>useStore.getState().setSyncError('Could not load evacuation centers'));
   }, [evacuationCentersVisible]);
 
   useEffect(() => {
@@ -218,7 +242,7 @@ function EvacuationCenterMarkersHandler() {
     evacuationCenters.forEach((center) => {
       if (!Array.isArray(center.coordinates) || center.coordinates.length < 2 || !center.coordinates.every(Number.isFinite)) return;
       const marker = L.marker([center.coordinates[1], center.coordinates[0]], {
-        icon: evacuationCenterIcon
+        icon: evacuationCenterIcon, pmIgnore: true
       }) as any;
       marker._evacuationCenterMarker = true;
 
@@ -238,6 +262,7 @@ function EvacuationCenterMarkersHandler() {
       marker.addTo(map);
       markersRef.current.push(marker);
     });
+    return ()=>{markersRef.current.forEach(marker=>map.removeLayer(marker));markersRef.current=[];};
   }, [evacuationCentersVisible, evacuationCenters, map, setSelectedEvacuationCenter]);
 
   return null;
@@ -247,57 +272,9 @@ export default function DangerMap() {
   const baseMap = useStore(state => state.baseMap);
   const filteredHazards = useStore(state => state.filteredHazards);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
-  const activeFilters = useStore(state => state.activeFilters);
-  const activeSusceptibilityFilters = useStore(state => state.activeSusceptibilityFilters);
-  const [susceptibilityGeoJSON, setSusceptibilityGeoJSON] = useState<any>(null);
+  const isMapAuthorized = useStore(state => state.isMapAuthorized);
+  const incidentsVisible = useStore(state => state.incidentsVisible);
   const isPlanningMode = usePlanningStore(state => state.isPlanningMode);
-
-  useEffect(() => {
-    if (activeFilters.includes('flood')) {
-      fetch(floodSusceptibilityUrl)
-        .then(res => res.json())
-        .then(data => setSusceptibilityGeoJSON(data))
-        .catch(err => console.error('Failed to load flood susceptibility data:', err));
-    } else {
-      setSusceptibilityGeoJSON(null);
-    }
-  }, [activeFilters]);
-
-  const suscepStyle = (feature: any) => {
-    const suscep = feature?.properties?.Suscep;
-    const style = SUSCEP_STYLES[suscep] || { color: '#999', fillOpacity: 0.2 };
-    return {
-      color: style.color,
-      weight: 1,
-      opacity: 0.6,
-      fillColor: style.color,
-      fillOpacity: style.fillOpacity
-    };
-  };
-
-  const onEachSuscepFeature = (feature: any, layer: L.Layer) => {
-    const suscep = feature?.properties?.Suscep;
-    const municipality = feature?.properties?.Municipali;
-    const label = `${municipality}: ${suscep || 'Unknown'}`;
-
-    layer.bindTooltip(label, {
-      permanent: false,
-      direction: 'center',
-      className: 'susceptibility-tooltip'
-    });
-
-    layer.on({
-      mouseover: (e) => {
-        const target = e.target;
-        target.setStyle({ fillOpacity: 0.6, weight: 2 });
-      },
-      mouseout: (e) => {
-        const target = e.target;
-        target.setStyle(suscepStyle(feature));
-      }
-    });
-  };
-
   const mapUrls = {
     street: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     topo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
@@ -305,7 +282,7 @@ export default function DangerMap() {
   };
 
   const getStyle = (hazard: any) => {
-    const typeDef = DISASTER_TYPES.find(t => t.id === hazard.type);
+    const typeDef = hazardDefinition(hazard.type);
     const baseColor = typeDef?.color || 'var(--color-primary)';
     
     let opacity = 0.25;
@@ -346,16 +323,15 @@ export default function DangerMap() {
     layer.on({
       mouseover: (e) => {
         const target = e.target;
-        target.setStyle({
+        if (target instanceof L.Path) target.setStyle({
           fillOpacity: 0.5,
           weight: 4
         });
       },
       mouseout: (e) => {
         const target = e.target;
-        target.setStyle({
-          fillOpacity: 0.25,
-          weight: 3
+        if (target instanceof L.Path) target.setStyle({
+          ...getStyle(feature.properties.fullData)
         });
       },
       click: (e) => {
@@ -389,28 +365,19 @@ export default function DangerMap() {
         <TileLayer
           key={baseMap}
           url={mapUrls[baseMap]}
-          attribution="&copy; DRRMC Camarines Norte"
+          attribution={baseMap === "satellite" ? "Tiles © Esri and contributors" : baseMap === "topo" ? "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)" : "© OpenStreetMap contributors"}
         />
         {!isPlanningMode && <GeomanSetup />}
         {isPlanningMode && <PlanningMapLayer />}
-        <PublishedPlanningLayers />
-        <MapScaleControl />
+        {isPlanningMode && <PublishedPlanningLayers />}
+        <MapScaleControl /><MapResizeHandler />
         <FlyToHandler />
         <EvacuationCenterMarkersHandler />
 
-        {susceptibilityGeoJSON && (
-          <GeoJSON
-            key={`susceptibility-layer-${activeSusceptibilityFilters.join('-')}`}
-            data={susceptibilityGeoJSON}
-            filter={feature => activeSusceptibilityFilters.length === 0 || activeSusceptibilityFilters.includes(feature?.properties?.Suscep)}
-            style={suscepStyle}
-            onEachFeature={onEachSuscepFeature}
-            pane="overlayPane"
-          />
-        )}
+        <ReferenceMapLayers />
 
         <FeatureGroup>
-          {filteredHazards.filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
+          {incidentsVisible && filteredHazards.filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
             const geojson = {
               type: "Feature",
               properties: { fullData: hazard },
@@ -418,7 +385,9 @@ export default function DangerMap() {
             };
             return (
               <GeoJSON
-                key={hazard.id + hazard.syncStatus + hazard.severity}
+                key={JSON.stringify(hazard)+isMapAuthorized+isPlanningMode}
+                pmIgnore={!isMapAuthorized || isPlanningMode}
+                pointToLayer={(_feature,latlng)=>L.marker(latlng,{title:hazard.title || hazardDefinition(hazard.type)?.label || 'Incident',alt:hazard.title || 'Incident',icon:incidentIcon(hazard.type),pmIgnore:!isMapAuthorized || isPlanningMode})}
                 data={geojson as any}
                 style={() => getStyle(hazard)}
                 onEachFeature={onEachFeature}
@@ -429,4 +398,14 @@ export default function DangerMap() {
       </MapContainer>
     </div>
   );
+}
+
+function MapResizeHandler() {
+  const map=useMap();
+  useEffect(()=>{
+    const observer=new ResizeObserver(()=>map.invalidateSize({pan:true,animate:false}));
+    observer.observe(map.getContainer());
+    return ()=>observer.disconnect();
+  },[map]);
+  return null;
 }

@@ -1,3 +1,5 @@
+import { IncidentForm } from './IncidentForm';
+import { hazardDefinition } from '../lib/reference';
 import { useState, useEffect } from 'react';
 import { useStore, DISASTER_TYPES } from '../lib/store';
 import { HazardAPI } from '../lib/api';
@@ -7,180 +9,8 @@ import { Trash2, Edit3, X, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { detectLocationFromGeometry, formatDate } from '../lib/utils';
 
 export function DropTagModal() {
-  const { isDropTagModalOpen, dropTagTempGeometry, closeDropTagModal, setHazards } = useStore();
-  const [type, setType] = useState('flood');
-  const [severity, setSeverity] = useState('Moderate');
-  const [title, setTitle] = useState('');
-  const [municipality, setMunicipality] = useState('');
-  const [barangay, setBarangay] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
-
-  useEffect(() => {
-    if (isDropTagModalOpen) {
-      setType('flood');
-      setSeverity('Moderate');
-      setTitle('');
-      setMunicipality('');
-      setBarangay('');
-      setNotes('');
-      setIsDetecting(true);
-    }
-  }, [isDropTagModalOpen]);
-
-  useEffect(() => {
-    if (isDropTagModalOpen && dropTagTempGeometry && !municipality && !barangay) {
-      detectLocationFromGeometry(dropTagTempGeometry).then((location) => {
-        if (location) {
-          setMunicipality(location.municipality);
-          setBarangay(location.barangay);
-        }
-        setIsDetecting(false);
-      });
-    }
-  }, [isDropTagModalOpen, dropTagTempGeometry, municipality, barangay]);
-
-  const handleSave = async () => {
-    if (!municipality || !barangay) return;
-    setIsSaving(true);
-    try {
-      const newHazard = {
-        id: uuidv4(),
-        type,
-        severity,
-        title: title.trim() || 'Untitled Zone',
-        municipality,
-        barangay,
-        notes,
-        geometry: dropTagTempGeometry,
-        dateAdded: new Date().toISOString()
-      };
-
-      await HazardAPI.addHazard(newHazard);
-      const hazards = await HazardAPI.getAllHazards();
-      setHazards(hazards);
-      closeDropTagModal();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (!isDropTagModalOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-surface-container-highest shadow-ambient w-full max-w-sm overflow-hidden text-on-surface rounded-xl p-6 relative border border-white/50"
-      >
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <div className="text-[10px] uppercase text-primary mb-1 font-bold tracking-[0.05em] flex items-center gap-2">
-              <AlertTriangle className="w-3 h-3" /> New Hazard Mapping
-            </div>
-            <h2 className="text-xl font-display font-bold text-on-surface">Locational Data Entry</h2>
-          </div>
-          <button onClick={closeDropTagModal} className="text-on-surface/40 hover:text-on-surface transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Area / Incident Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Brgy. Bagasbas Coastline"
-              className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Municipality</label>
-              <input
-                type="text"
-                value={municipality}
-                onChange={(e) => setMunicipality(e.target.value)}
-                placeholder={isDetecting ? 'Detecting...' : 'Municipality'}
-                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Barangay</label>
-              <input
-                type="text"
-                value={barangay}
-                onChange={(e) => setBarangay(e.target.value)}
-                placeholder={isDetecting ? 'Detecting...' : 'Barangay'}
-                className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface transition-colors font-medium"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Disaster Type</label>
-            <div className="grid grid-cols-2 gap-2">
-              {DISASTER_TYPES.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setType(t.id)}
-                  className={`py-2 px-3 text-[11px] text-left rounded-md tracking-[0.05em] uppercase transition-all flex items-center gap-2 font-bold ${
-                    type === t.id 
-                      ? 'bg-surface-container shadow-ambient text-tertiary border border-transparent' 
-                      : 'bg-surface-container-lowest border border-outline-variant text-on-surface/60 hover:bg-surface-container hover:text-on-surface'
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.1)]" style={{ backgroundColor: t.color }}></span>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Severity Level</label>
-            <select 
-              value={severity}
-              onChange={(e) => setSeverity(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface font-medium transition-colors"
-            >
-              <option value="Minor">Minor / Monitoring</option>
-              <option value="Moderate">Moderate / Alert</option>
-              <option value="Severe">Severe / Evacuation</option>
-              <option value="Critical">Critical / Life-Threatening</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-on-surface/60 uppercase tracking-[0.05em] mb-2">Intelligence / Field Notes</label>
-            <textarea 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Provide observational context..."
-              className="w-full bg-surface-container-lowest border border-outline-variant p-2 text-sm rounded-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface resize-none transition-colors"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <button
-            onClick={handleSave}
-            disabled={isSaving || !municipality || !barangay}
-            className="w-full py-3 btn-primary font-bold text-[11px] uppercase tracking-[0.05em] shadow-ambient disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isSaving ? 'Locking Data...' : !municipality || !barangay ? 'Location Required' : 'Lock Zone Data'}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
+  const {isDropTagModalOpen,dropTagTempGeometry,closeDropTagModal}=useStore();
+  return isDropTagModalOpen ? <IncidentForm geometry={dropTagTempGeometry} onClose={closeDropTagModal}/> : null;
 }
 
 export function PopUpCard() {
@@ -188,7 +18,7 @@ export function PopUpCard() {
 
   if (!selectedHazard) return null;
 
-  const typeDef = DISASTER_TYPES.find(t => t.id === selectedHazard.type);
+  const typeDef = hazardDefinition(selectedHazard.type);
 
   return (
     <motion.div 
@@ -223,7 +53,7 @@ export function PopUpCard() {
           </button>
         </div>
         
-        <div className="space-y-4 mb-6">
+        <div className="space-y-4 mb-6"><p className="text-sm">{selectedHazard.municipality || "Location unknown"} · {selectedHazard.barangay || "Barangay unknown"}</p><p className="text-sm">Affected population: {selectedHazard.affectedPopulation == null ? "Unknown" : selectedHazard.affectedPopulation.toLocaleString()} {selectedHazard.affectedPopulationBasis === "population_estimate" && "(provisional population estimate)"}</p>
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Timestamp</p>
             <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">{formatDate(selectedHazard.dateAdded, 'MM/dd/yyyy HH:mm:ss')}</p>
@@ -394,7 +224,7 @@ export function PinModal() {
         transition={{ duration: 0.3 }}
         className="w-80 bg-surface-container-lowest shadow-ambient rounded-xl p-8 relative border border-white/50"
       >
-        <button onClick={closePinModal} className="absolute top-4 right-4 text-on-surface/40 hover:text-on-surface">
+        <button aria-label="Close PIN verification" onClick={closePinModal} className="absolute top-4 right-4 text-on-surface/40 hover:text-on-surface">
           <X className="w-5 h-5" />
         </button>
 
@@ -442,10 +272,11 @@ export function PinModal() {
             0
           </button>
           <button
+            aria-label="Remove last PIN digit"
             onClick={() => setPin(prev => prev.slice(0, -1))}
             className="h-14 bg-transparent hover:bg-error-container text-on-surface/40 hover:text-primary flex items-center justify-center transition-colors rounded-md"
           >
-            <Trash2 className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </motion.div>

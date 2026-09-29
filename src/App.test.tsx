@@ -66,7 +66,6 @@ vi.mock('./components/Sidebar', () => ({
 vi.mock('./components/PlanningUI', () => ({
   PlanningSidebar: () => <div data-testid="planning-sidebar">PlanningSidebar</div>,
   PlanningOverlay: () => <div>PlanningOverlay</div>,
-  PublishedPlansControl: () => <div>PublishedPlansControl</div>,
 }));
 
 // Mock ErrorBoundary
@@ -95,7 +94,7 @@ describe('App', () => {
       isAnalyticsOpen: false,
       syncState: { isSyncing: false, lastSyncError: null },
     });
-    usePlanningStore.setState({ isPlanningMode: true, history: null, dirty: false, temporary: true });
+    usePlanningStore.setState(usePlanningStore.getInitialState());
   });
 
   afterEach(() => {
@@ -163,18 +162,63 @@ describe('App', () => {
       });
     });
 
-    it('reports offline status from the real browser event', async () => {
+    it('refreshes after reconnecting without decorative connection labels', async () => {
       render(<App />);
+      await waitFor(() => expect(mockGetAllHazards).toHaveBeenCalled());
+      mockGetAllHazards.mockClear();
       act(() => window.dispatchEvent(new Event('offline')));
-      await waitFor(() => expect(screen.getByText('Offline, changes queued')).toBeInTheDocument());
+      act(() => window.dispatchEvent(new Event('online')));
+      await waitFor(() => expect(mockGetAllHazards).toHaveBeenCalled());
+      expect(screen.queryByText(/Online, cache ready|Offline, changes queued|Syncing operational data/)).not.toBeInTheDocument();
     });
   });
 
-  it('opens on the operational planning workflow', () => {
+  it('opens in monitoring and supports keyboard mode switching with hints', async () => {
     render(<App />);
 
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    const modeSwitch = screen.getByRole('switch', { name: 'Planning mode' });
+    expect(modeSwitch).toHaveAttribute('aria-checked', 'false');
+    expect(modeSwitch).toHaveAccessibleDescription('View incidents Build a response');
+    expect(screen.queryByText(/Operational planning workspace|Live operational map/)).not.toBeInTheDocument();
+    act(() => useStore.setState({ isAnalyticsOpen: true }));
+    modeSwitch.focus();
+    await userEvent.keyboard(' ');
+    expect(modeSwitch).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('planning-sidebar')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /monitor map/i })).toBeInTheDocument();
+    expect(useStore.getState().isAnalyticsOpen).toBe(false);
+    await userEvent.keyboard('{Enter}');
+    expect(modeSwitch).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+  });
+
+  it('retains an unsaved plan when leaving planning is canceled', async () => {
+    usePlanningStore.getState().enter();
+    usePlanningStore.getState().newBoard();
+    usePlanningStore.getState().edit(plan => ({ ...plan, notes: 'Keep this draft' }));
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
+    render(<App />);
+    await userEvent.click(screen.getByRole('switch', { name: 'Planning mode' }));
+    expect(confirm).toHaveBeenCalledWith('Discard unsaved planning changes?');
+    expect(usePlanningStore.getState().isPlanningMode).toBe(true);
+    expect(usePlanningStore.getState().history?.present.notes).toBe('Keep this draft');
+    expect(usePlanningStore.getState().dirty).toBe(true);
+  });
+
+  it('collapses and keeps the sidebar mounted for reopening', async () => {
+    render(<App />);
+    const sidebar = screen.getByTestId('sidebar');
+    const panel = sidebar.parentElement!;
+    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' });
+    expect(screen.getByRole('banner')).not.toContainElement(toggle);
+    await userEvent.click(toggle);
+    expect(panel).toHaveAttribute('aria-hidden', 'true');
+    expect(panel).toHaveAttribute('inert');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+    expect(panel).toHaveAttribute('aria-hidden', 'false');
+    expect(panel).not.toHaveAttribute('inert');
+    expect(screen.getByTestId('sidebar')).toBe(sidebar);
   });
 
   describe('Analytics toggle', () => {

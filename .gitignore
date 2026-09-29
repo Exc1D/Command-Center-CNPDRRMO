@@ -7,3 +7,5 @@ coverage/
 .env*
 *.db
 !.env.example
+
+.private/

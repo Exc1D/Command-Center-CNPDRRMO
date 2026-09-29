@@ -45,7 +45,8 @@ describe('map tool guidance', () => {
         cancel: 'Stop tool',
       },
       buttonTitles: {
-        drawMarkerButton: 'Add evacuation center',
+        drawMarkerButton: 'Add incident',
+        drawCircleMarkerButton: 'Add evacuation center',
         drawPolyButton: 'Draw hazard area',
         drawLineButton: 'Draw hazard line',
         drawRectButton: 'Draw rectangular hazard area',
@@ -56,4 +57,10 @@ describe('map tool guidance', () => {
       },
     });
   });
+});
+
+it('invalidates a population estimate when its incident geometry changes',async()=>{
+  api.getAllHazards.mockResolvedValue([]);
+  await updateHazardGeometry({id:'estimate',affectedPopulation:37,affectedPopulationBasis:'population_estimate',notes:'Original estimate'}, {type:'Point',coordinates:[123,14]});
+  expect(api.updateHazard).toHaveBeenCalledWith(expect.objectContaining({affectedPopulation:null,notes:expect.stringContaining('requires recalculation')}));
 });

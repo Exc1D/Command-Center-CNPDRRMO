@@ -54,6 +54,8 @@ export async function createDatabase(url?: string): Promise<Database> {
   await db.batch(schema.map(sql => ({ sql, args: [] })), 'write');
 
   const migrations = [
+    ['hazards', 'affectedPopulationBasis', "TEXT NOT NULL DEFAULT 'reported'"],
+    ['hazards', 'affectedPopulation', 'INTEGER CHECK (affectedPopulation >= 0)'],
     ['hazards', 'title', 'TEXT'], ['hazards', 'municipality', 'TEXT'], ['hazards', 'barangay', 'TEXT'],
     ['hazards', 'version', 'INTEGER NOT NULL DEFAULT 1'], ['evacuation_centers', 'version', 'INTEGER NOT NULL DEFAULT 1'],
   ];
@@ -62,5 +64,6 @@ export async function createDatabase(url?: string): Promise<Database> {
     if (!columns.some(item => item.name === column)) await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
   }
 
+  await db.execute("UPDATE hazards SET affectedPopulationBasis = 'population_estimate' WHERE affectedPopulationBasis = 'household_estimate'");
   return db;
 }

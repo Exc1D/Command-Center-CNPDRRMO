@@ -79,3 +79,35 @@ describe('production API', () => {
     expect((await client.delete(`/api/evacuation-centers/${center.id}`)).status).toBe(200);
   });
 });
+
+it('validates population estimates and persists nullable population and its basis through optimistic updates', async()=>{
+  const db=await createDatabase(':memory:');
+  try {
+    const client=request.agent(createApp(db,'2468'));
+    expect((await client.get('/api/reference/population/Daet')).status).toBe(401);
+    expect((await client.post('/api/reference/population-exposure').send({})).status).toBe(401);
+    await client.post('/api/verify-pin').send({pin:'2468'});
+    expect((await client.get('/api/reference/population/Unknown')).status).toBe(404);
+    expect((await client.post('/api/reference/population-exposure').send({geometry:hazard.geometry})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,barangay:'Angas'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,affectedPopulation:-1})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,type:'rain_induced_landslide',affectedPopulation:0})).status).toBe(201);
+    expect((await client.get('/api/hazards')).body[0].affectedPopulation).toBe(0);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,affectedPopulation:52,affectedPopulationBasis:'population_estimate'})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0]).toMatchObject({affectedPopulation:52,affectedPopulationBasis:'population_estimate'});
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:2,municipality:'Basud'})).status).toBe(400);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:2,affectedPopulation:null})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0].affectedPopulation).toBeNull();
+  } finally {db.close();}
+});
+
+it('invalidates stored population estimates when an API client changes the incident geometry',async()=>{
+  const db=await createDatabase(':memory:');
+  try{
+    const client=request.agent(createApp(db,'2468'));
+    await client.post('/api/verify-pin').send({pin:'2468'});
+    await client.post('/api/hazards').send({...hazard,affectedPopulation:123,affectedPopulationBasis:'population_estimate'});
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,geometry:{type:'Point',coordinates:[123,14]}})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0]).toMatchObject({affectedPopulation:null,affectedPopulationBasis:'reported'});
+  }finally{db.close();}
+});

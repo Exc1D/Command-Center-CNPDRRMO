@@ -33,8 +33,8 @@ const fromServerCenter = (center: EvacuationCenter): EvacuationCenter => ({
   syncStatus: SYNC_STATUS.SYNCED,
 });
 const sameFields = (left: Record<string, unknown>, right: Record<string, unknown>, fields: string[]) =>
-  fields.every(field => JSON.stringify(left[field]) === JSON.stringify(right[field]));
-const hazardFields = ['type', 'severity', 'title', 'municipality', 'barangay', 'notes', 'geometry', 'dateAdded'];
+  fields.every(field => JSON.stringify(left[field] ?? (field === 'affectedPopulationBasis' ? 'reported' : null)) === JSON.stringify(right[field] ?? (field === 'affectedPopulationBasis' ? 'reported' : null)));
+const hazardFields = ['type', 'severity', 'title', 'municipality', 'barangay', 'notes', 'geometry', 'dateAdded', 'affectedPopulation', 'affectedPopulationBasis'];
 const centerFields = ['name', 'type', 'capacity', 'municipality', 'barangay', 'coordinates', 'dateAdded'];
 
 async function resolveHazardConflict(error: unknown, local: Hazard) {

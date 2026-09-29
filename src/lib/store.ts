@@ -2,9 +2,20 @@ import { create } from 'zustand';
 import { Hazard, EvacuationCenter } from './db';
 import type { PlanningScenario } from './planning';
 
+import { HAZARD_TYPES, FLOOD_COLORS, filterIncidents } from './reference';
+
 type BaseMapType = 'street' | 'topo' | 'satellite';
 
 interface AppState {
+  referenceLayers: string[];
+  elementLayers: string[];
+  incidentsVisible: boolean;
+  selectedMunicipality: string;
+  selectedBarangay: string;
+  toggleReferenceLayer: (id: string) => void;
+  toggleElementLayer: (id: string) => void;
+  toggleIncidents: () => void;
+  setLocationFilter: (municipality: string, barangay: string) => void;
   hazards: Hazard[];
   filteredHazards: Hazard[];
   activeFilters: string[];
@@ -70,21 +81,8 @@ interface AppState {
   setAnalyticsOpen: (val: boolean) => void;
 }
 
-export const DISASTER_TYPES = [
-  { id: 'flood', label: 'Flood', color: '#1d4ed8' }, // deep blue
-  { id: 'storm_surge', label: 'Storm Surge', color: '#0369a1' },
-  { id: 'landslide', label: 'Landslide', color: '#f59e0b' }, // amber
-  { id: 'vehicular_accident', label: 'Vehicular Accident', color: '#dc2626' },
-  { id: 'earthquake', label: 'Earthquake Fault', color: '#991b1b' }, // crimson red
-  { id: 'tsunami', label: 'Tsunami', color: '#0ea5e9' }
-];
-
-export const SUSCEPTIBILITY_LEVELS = [
-  { id: 'Very High', label: 'Very High', color: '#001f3f' },
-  { id: 'High', label: 'High', color: '#7b2cbf' },
-  { id: 'Moderate', label: 'Moderate', color: '#d63384' },
-  { id: 'Low', label: 'Low', color: '#fccde5' }
-];
+export const DISASTER_TYPES = HAZARD_TYPES;
+export const SUSCEPTIBILITY_LEVELS = Object.entries(FLOOD_COLORS).map(([id,color]) => ({id,label:id,color}));
 
 export const SYNC_STATUS = {
   SYNCED: 'synced',
@@ -94,9 +92,18 @@ export const SYNC_STATUS = {
 } as const;
 
 export const useStore = create<AppState>((set) => ({
+  referenceLayers: [],
+  elementLayers: [],
+  incidentsVisible: true,
+  selectedMunicipality: '',
+  selectedBarangay: '',
+  toggleReferenceLayer: id => set(s => ({referenceLayers: s.referenceLayers.includes(id) ? s.referenceLayers.filter(x => x !== id) : [...s.referenceLayers,id]})),
+  toggleElementLayer: id => set(s => ({elementLayers: s.elementLayers.includes(id) ? s.elementLayers.filter(x => x !== id) : [...s.elementLayers,id]})),
+  toggleIncidents: () => set(s => ({incidentsVisible: !s.incidentsVisible})),
+  setLocationFilter: (selectedMunicipality,selectedBarangay) => set(s => ({selectedMunicipality,selectedBarangay,filteredHazards:filterIncidents(s.hazards,s.activeFilters,selectedMunicipality,selectedBarangay)})),
   hazards: [],
   filteredHazards: [],
-  activeFilters: [],
+  activeFilters: HAZARD_TYPES.map(t=>t.id),
   activeSusceptibilityFilters: [],
   baseMap: 'street',
   selectedHazard: null,
@@ -131,7 +138,7 @@ export const useStore = create<AppState>((set) => ({
   setHazards: (hazards) => set((state) => {
     return {
       hazards,
-      filteredHazards: hazards.filter(h => state.activeFilters.includes(h.type)),
+      filteredHazards: filterIncidents(hazards,state.activeFilters,state.selectedMunicipality,state.selectedBarangay),
       selectedHazard: state.selectedHazard ? hazards.find(hazard => hazard.id === state.selectedHazard?.id) ?? null : null,
     };
   }),
@@ -147,8 +154,7 @@ export const useStore = create<AppState>((set) => ({
       : [...state.activeFilters, type];
     return {
       activeFilters: newFilters,
-      filteredHazards: state.hazards.filter(h => newFilters.includes(h.type)),
-      activeSusceptibilityFilters: newFilters.includes('flood') ? state.activeSusceptibilityFilters : []
+      filteredHazards: filterIncidents(state.hazards,newFilters,state.selectedMunicipality,state.selectedBarangay)
     };
   }),
   toggleSusceptibilityFilter: (level) => set((state) => {
@@ -167,7 +173,12 @@ export const useStore = create<AppState>((set) => ({
     activeFilters: mapState.activeFilters,
     activeSusceptibilityFilters: mapState.susceptibilityFilters,
     evacuationCentersVisible: mapState.evacuationCentersVisible,
-    filteredHazards: state.hazards.filter(hazard => mapState.activeFilters.includes(hazard.type)),
+    referenceLayers: mapState.referenceLayers ?? [],
+    elementLayers: (mapState.elementLayers ?? []).map(id=>id==='households'?'population':id),
+    incidentsVisible: mapState.incidentsVisible ?? true,
+    selectedMunicipality: mapState.selectedMunicipality ?? '',
+    selectedBarangay: mapState.selectedBarangay ?? '',
+    filteredHazards: filterIncidents(state.hazards,mapState.activeFilters,mapState.selectedMunicipality,mapState.selectedBarangay),
   })),
   setMapAuthorized: (isMapAuthorized) => set({ isMapAuthorized }),
   

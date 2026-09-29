@@ -76,8 +76,7 @@ describe('EditHazardModal', () => {
   it('renders modal when isEditModalOpen is true', () => {
     render(<EditHazardModal />);
 
-    expect(screen.getByText('Edit Hazard Record')).toBeInTheDocument();
-    expect(screen.getByText('Modify Incident Data')).toBeInTheDocument();
+    expect(screen.getByText('Edit Incident Details')).toBeInTheDocument();
   });
 
   it('does not render when isEditModalOpen is false', () => {
@@ -85,14 +84,14 @@ describe('EditHazardModal', () => {
 
     render(<EditHazardModal />);
 
-    expect(screen.queryByText('Edit Hazard Record')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit Incident Details')).not.toBeInTheDocument();
   });
 
   it('pre-fills form with hazard data', () => {
     render(<EditHazardModal />);
 
     // Check that the title input has the hazard's title
-    const titleInput = screen.getByPlaceholderText('e.g. Brgy. Bagasbas Coastline');
+    const titleInput = screen.getByLabelText('Incident Title');
     expect((titleInput as HTMLInputElement).value).toBe('Test Hazard');
   });
 
@@ -102,17 +101,17 @@ describe('EditHazardModal', () => {
     // Should show all disaster types
     expect(screen.getByText('Flood')).toBeInTheDocument();
     expect(screen.getByText('Storm Surge')).toBeInTheDocument();
-    expect(screen.getByText('Landslide')).toBeInTheDocument();
-    expect(screen.getByText('Vehicular Accident')).toBeInTheDocument();
-    expect(screen.getByText('Earthquake Fault')).toBeInTheDocument();
+    expect(screen.getByText('Rain-Induced Landslide')).toBeInTheDocument();
+    expect(screen.queryByText('Vehicular Accident')).not.toBeInTheDocument();
+    expect(screen.getByText('Earthquake')).toBeInTheDocument();
     expect(screen.getByText('Tsunami')).toBeInTheDocument();
   });
 
   it('displays severity select with current value', () => {
     render(<EditHazardModal />);
 
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(screen.getByRole('combobox', {name:'Severity Level'})).toBeInTheDocument();
+    const select = screen.getByRole('combobox', {name:'Severity Level'}) as HTMLSelectElement;
     expect(select.value).toBe('Moderate');
   });
 

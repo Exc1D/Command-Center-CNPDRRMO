@@ -88,9 +88,9 @@ describe('DropTagModal', () => {
   it('renders modal when isDropTagModalOpen is true', async () => {
     render(<DropTagModal />);
 
-    expect(screen.getByText('New Hazard Mapping')).toBeInTheDocument();
-    expect(screen.getByText('Locational Data Entry')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByPlaceholderText('Municipality')).toHaveValue('Daet'));
+    expect(screen.getByText('Incident Details')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Suggest nearby location'));
+    await waitFor(() => expect(screen.getByLabelText('Municipality')).toHaveValue('Daet'));
   });
 
   it('does not render when isDropTagModalOpen is false', () => {
@@ -106,8 +106,9 @@ describe('DropTagModal', () => {
 
     expect(screen.getByText('Flood')).toBeInTheDocument();
     expect(screen.getByText('Storm Surge')).toBeInTheDocument();
-    expect(screen.getByText('Landslide')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByPlaceholderText('Municipality')).toHaveValue('Daet'));
+    expect(screen.getByText('Rain-Induced Landslide')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Suggest nearby location'));
+    await waitFor(() => expect(screen.getByLabelText('Municipality')).toHaveValue('Daet'));
   });
 
   it('close button is clickable', async () => {
@@ -115,7 +116,7 @@ describe('DropTagModal', () => {
 
     render(<DropTagModal />);
 
-    const closeButton = screen.getByTestId('icon-x').closest('button');
+    const closeButton = screen.getByRole('button', {name:/Close incident details|Close PIN verification/});
     if (closeButton) {
       await userEvent.click(closeButton);
     }
@@ -175,11 +176,32 @@ describe('PinModal', () => {
 
     render(<PinModal />);
 
-    const closeButton = screen.getByTestId('icon-x').closest('button');
+    const closeButton = screen.getByRole('button', {name:/Close incident details|Close PIN verification/});
     if (closeButton) {
       await userEvent.click(closeButton);
     }
 
     expect(closePinModalSpy).toHaveBeenCalled();
   });
+});
+
+it('uses a population estimate without treating unknown population as zero and preserves the calculation notes',async()=>{
+  vi.clearAllMocks();
+  mockAddHazard.mockResolvedValue(undefined);mockGetAllHazards.mockResolvedValue([]);
+  const originalFetch=global.fetch;
+  global.fetch=vi.fn().mockResolvedValue({ok:true,json:async()=>({matchedRecords:3,populationSum:9,missingPopulationRecords:1,duplicateIdRecords:1,method:'Population points within 500 m radius',calculatedAt:'2026-09-21T00:00:00Z',coverageNote:'Incomplete source data',unavailableMunicipalities:['Santa Elena']})});
+  useStore.setState({...useStore.getInitialState(),isDropTagModalOpen:true,dropTagTempGeometry:{type:'Point',coordinates:[122.98,14.13]}});
+  try {
+    render(<DropTagModal/>);
+    expect(screen.getByLabelText('Affected Population')).toHaveValue(null);
+    await userEvent.selectOptions(screen.getByLabelText('Municipality'),'Daet');
+    await userEvent.selectOptions(screen.getByLabelText('Barangay'),'Bagasbas');
+    expect(screen.getByRole('button',{name:'Calculate population exposure'})).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Analysis radius (metres)'),'500');
+    await userEvent.click(screen.getByRole('button',{name:'Calculate population exposure'}));
+    await userEvent.click(await screen.findByRole('button',{name:'Use as provisional estimate'}));
+    expect(screen.getByLabelText('Affected Population')).toHaveValue(9);
+    await userEvent.click(screen.getByRole('button',{name:'Save Incident'}));
+    await waitFor(()=>expect(mockAddHazard).toHaveBeenCalledWith(expect.objectContaining({affectedPopulation:9,affectedPopulationBasis:'population_estimate',notes:expect.stringContaining('500 m radius')})));
+  }finally{global.fetch=originalFetch;cleanup();}
 });

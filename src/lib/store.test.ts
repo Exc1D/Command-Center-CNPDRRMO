@@ -27,7 +27,7 @@ describe('useStore', () => {
   });
 
   describe('default state', () => {
-    it('default activeFilters is empty', () => {
+    it('an explicitly empty incident selection remains empty', () => {
       const state = useStore.getState();
       expect(state.activeFilters).toEqual([]);
     });
@@ -160,4 +160,17 @@ describe('useStore', () => {
       expect(state.evacuationCenters).toEqual([]);
     });
   });
+});
+
+it('keeps reference layers and incident overlays independent of incident type and location filters',()=>{
+  useStore.setState({...useStore.getInitialState(),activeFilters:['flood']});
+  useStore.getState().setHazards([{id:'a',type:'flood',municipality:'Daet',barangay:'Bagasbas'},{id:'b',type:'flood',municipality:'Basud',barangay:'Angas'}] as any);
+  useStore.getState().toggleReferenceLayer('landslide');
+  useStore.getState().toggleIncidents();
+  expect(useStore.getState().filteredHazards).toHaveLength(2);
+  expect(useStore.getState().referenceLayers).toEqual(['landslide']);
+  useStore.getState().setLocationFilter('Daet','Bagasbas');
+  expect(useStore.getState().filteredHazards.map(h=>h.id)).toEqual(['a']);
+  useStore.getState().toggleFilter('flood');
+  expect(useStore.getState().referenceLayers).toEqual(['landslide']);
 });

@@ -8,10 +8,10 @@ import { DropTagModal, PopUpCard, PinModal } from "./components/Modals";
 import { EditHazardModal } from "./components/EditHazardModal";
 import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
 import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
-import { PlanningOverlay, PlanningSidebar, PublishedPlansControl } from "./components/PlanningUI";
+import { PlanningOverlay, PlanningSidebar } from "./components/PlanningUI";
 import { usePlanningStore } from "./lib/planningStore";
 import { PlanningAPI } from "./lib/planningApi";
-import { BarChart2, MapPinned, X } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel').then(module => ({ default: module.AnalyticsPanel })));
 
@@ -26,7 +26,7 @@ export default function App() {
     syncState,
     clearSyncError,
   } = useStore();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [sidebarOpen,setSidebarOpen] = useState(true);
   const planning = usePlanningStore();
 
   useEffect(() => {
@@ -50,17 +50,9 @@ export default function App() {
     };
     refresh();
 
-    const handleOnline = async () => {
-      setIsOnline(true);
-      await refresh();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", refresh);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", refresh);
     };
   }, [isMapAuthorized, setEvacuationCenters, setHazards]);
 
@@ -68,12 +60,13 @@ export default function App() {
     <div className="app-shell w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
       {/* Sync Error Banner */}
       {syncState.lastSyncError && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
+        <div role="alert" className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
           <span className="flex-1 text-sm font-medium">
             {syncState.lastSyncError}
           </span>
           <button
             onClick={clearSyncError}
+            aria-label="Dismiss sync error"
             className="p-1 hover:bg-error/20 rounded"
           >
             <X size={16} />
@@ -81,7 +74,7 @@ export default function App() {
         </div>
       )}
 
-      <header className="h-[76px] shrink-0 bg-surface-container-lowest border-b border-outline-variant/35 flex items-center justify-between px-6 z-[60] relative">
+      <header className="app-header h-[76px] shrink-0 bg-surface-container-lowest border-b border-outline-variant/35 flex items-center justify-between px-6 z-[60] relative">
         <div className="flex items-center gap-4 min-w-0">
           <div className="relative w-12 h-12 shrink-0 flex items-center justify-center bg-surface-container rounded-xl overflow-hidden ring-1 ring-outline-variant/40">
             <img
@@ -108,26 +101,14 @@ export default function App() {
               Camarines Norte Provincial DRRMO
             </p>
           </div>
-          <div className={`ml-3 hidden xl:flex items-center gap-2 rounded-full px-3 h-8 text-xs font-bold ${planning.isPlanningMode ? 'bg-planning-container text-on-planning-container' : 'bg-surface-container text-on-surface/70'}`}>
-            {planning.isPlanningMode ? 'Operational planning workspace' : 'Live operational map'}
-          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden lg:flex items-center mr-2">
-            <span className={`text-xs font-bold ${isOnline ? 'text-success' : 'text-planning'}`}>
-              <span aria-hidden="true">●</span> {syncState.isSyncing ? 'Syncing operational data' : isOnline ? 'Online, cache ready' : 'Offline, changes queued'}
-            </span>
-          </div>
+        <div className="header-actions flex items-center gap-3">
           <button
             onClick={() => setAnalyticsOpen(!isAnalyticsOpen)}
             aria-label="View Analytics"
             aria-pressed={isAnalyticsOpen}
-            className={`h-12 px-5 flex items-center gap-2 transition-colors rounded-xl border text-sm font-bold ${isAnalyticsOpen ? "bg-tertiary text-on-tertiary border-tertiary" : "bg-surface-container-lowest hover:bg-surface-container text-on-surface border-outline-variant/50"}`}
+            className="nav-text-button"
           >
-            <BarChart2
-              size={19}
-              className={isAnalyticsOpen ? "text-on-tertiary" : "text-tertiary"}
-            />{" "}
             Analytics
           </button>
           <button
@@ -146,25 +127,39 @@ export default function App() {
                 setAnalyticsOpen(false);
               }
             }}
-            aria-pressed={planning.isPlanningMode}
-            className={`h-12 px-5 flex items-center gap-2 rounded-xl text-sm font-bold border transition-colors ${planning.isPlanningMode ? 'bg-surface-container-lowest text-on-surface border-outline-variant/50 hover:bg-surface-container' : 'bg-planning text-on-planning border-planning hover:bg-planning/90'}`}
+            role="switch"
+            aria-label="Planning mode"
+            aria-checked={planning.isPlanningMode}
+            aria-describedby="monitor-mode-hint planning-mode-hint"
+            title={planning.isPlanningMode ? 'Switch to monitoring' : 'Switch to planning'}
+            className="mode-switch"
           >
-            <MapPinned size={19} /> {planning.isPlanningMode ? 'Monitor map' : 'Plan response'}
+            <span className="mode-label mode-label-monitor"><strong>Monitor</strong><small id="monitor-mode-hint">View incidents</small></span>
+            <span className="mode-switch-track" aria-hidden="true"><span /></span>
+            <span className="mode-label mode-label-planning"><strong>Planning</strong><small id="planning-mode-hint">Build a response</small></span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
-        <ErrorBoundary
-          fallback={
-            <div className="flex items-center justify-center w-80 bg-surface-container text-tertiary">
-              Sidebar failed
-            </div>
-          }
-        >
-          {planning.isPlanningMode ? <PlanningSidebar /> : <Sidebar />}
-        </ErrorBoundary>
-        <section className="flex-1 relative bg-surface flex items-center justify-center overflow-hidden">
+      <main className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="sidebar-rail" data-open={sidebarOpen} data-planning={planning.isPlanningMode}>
+          <div id="map-sidebar" className="sidebar-panel" aria-hidden={!sidebarOpen} inert={!sidebarOpen}>
+            <ErrorBoundary fallback={<div className="h-full flex items-center justify-center bg-surface-container text-tertiary">Sidebar failed</div>}>
+              {planning.isPlanningMode ? <PlanningSidebar /> : <Sidebar />}
+            </ErrorBoundary>
+          </div>
+          <button
+            className="sidebar-toggle"
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-controls="map-sidebar"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen(open => !open)}
+          >
+            {sidebarOpen ? <PanelLeftClose size={20} aria-hidden="true" /> : <PanelLeftOpen size={20} aria-hidden="true" />}
+          </button>
+        </div>
+        <section className="flex-1 min-w-0 relative bg-surface flex items-center justify-center overflow-hidden">
           <ErrorBoundary
             fallback={
               <div className="absolute inset-0 flex items-center justify-center bg-surface text-tertiary">
@@ -184,7 +179,7 @@ export default function App() {
           >
           {isAnalyticsOpen && <Suspense fallback={null}><AnalyticsPanel /></Suspense>}
           </ErrorBoundary>
-          {planning.isPlanningMode ? <PlanningOverlay /> : <PublishedPlansControl />}
+          {planning.isPlanningMode && <PlanningOverlay />}
         </section>
       </main>
 

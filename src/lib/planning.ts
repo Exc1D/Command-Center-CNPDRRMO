@@ -46,6 +46,11 @@ export interface PlanningScenario {
   archivedAt?: string;
   updatedAt: string;
   mapState: {
+    referenceLayers?: string[];
+    elementLayers?: string[];
+    incidentsVisible?: boolean;
+    selectedMunicipality?: string;
+    selectedBarangay?: string;
     center: [number, number];
     zoom: number;
     baseMap: 'street' | 'topo' | 'satellite';
@@ -474,7 +479,7 @@ function pointInRing(point: [number, number], ring: [number, number][]) {
   return inside;
 }
 
-function pointInPolygon(point: [number, number], rings: [number, number][][]) {
+export function pointInPolygon(point: [number, number], rings: [number, number][][]) {
   return pointInRing(point, rings[0]) && !rings.slice(1).some(ring => pointInRing(point, ring));
 }
 
@@ -573,6 +578,11 @@ export const planningScenarioSchema = z.object({
   archivedAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime(),
   mapState: z.object({
+    referenceLayers: z.array(z.string().max(40)).max(20).optional(),
+    elementLayers: z.array(z.string().max(40)).max(20).optional(),
+    incidentsVisible: z.boolean().optional(),
+    selectedMunicipality: z.string().max(120).optional(),
+    selectedBarangay: z.string().max(120).optional(),
     center: coordinateSchema,
     zoom: z.number().min(1).max(20),
     baseMap: z.enum(['street', 'topo', 'satellite']),

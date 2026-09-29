@@ -73,7 +73,7 @@ export function canApplyPlanningHistory(current: PlanningScenario, target?: Plan
 }
 
 export const usePlanningStore = create<PlanningState>((set) => ({
-  isPlanningMode: true,
+  isPlanningMode: false,
   scenarios: [],
   publishedOverlays: [],
   history: null,

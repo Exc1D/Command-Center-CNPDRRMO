@@ -1,286 +1,157 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useStore, DISASTER_TYPES } from '../lib/store';
-import { X, BarChart2, Table as TableIcon, List as ListIcon, Search } from 'lucide-react';
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { formatDate } from '../lib/utils';
+import { useState } from 'react';
+import { X, Download } from 'lucide-react';
+import { useStore } from '../lib/store';
+import { hazardDefinition, municipalities, canonicalLocation, REFERENCE_LAYERS, HAZARD_TYPES } from '../lib/reference';
+import { HistoricalData } from './HistoricalData';
+import { PopulationExposure } from './PopulationExposure';
+import { LocationFields, LocationOverview, IncidentFilters } from './ReferenceControls';
+import { formatDate, getCentroid } from '../lib/utils';
+import type { Hazard } from '../lib/db';
 
-const SEVERITY_COLORS: Record<string, string> = {
-  Minor: '#9ca3af',
-  Moderate: '#fbbf24',
-  Severe: '#f97316',
-  Critical: '#ef4444',
-};
-
-const SEVERITY_OPTIONS = [
-  { id: 'Minor', label: 'Minor', bgClass: 'bg-surface-container', textClass: 'text-tertiary' },
-  { id: 'Moderate', label: 'Moderate', bgClass: 'bg-[#fef3c7]', textClass: 'text-[#ca8a04]' },
-  { id: 'Severe', label: 'Severe', bgClass: 'bg-[#ffe4cc]', textClass: 'text-[#ea580c]' },
-  { id: 'Critical', label: 'Critical', bgClass: 'bg-error-container', textClass: 'text-[var(--color-primary-container)]' },
-];
-
+const severities=['Minor','Moderate','Severe','Critical'];
+const colors=['#6b7280','#b77900','#c2410c','#b91c1c'];
+export function summarizeMunicipalities(rows:Hazard[]) {
+  const normalized=rows.map(h=>({...h,municipality:municipalities.find(m=>m.toLowerCase()===h.municipality?.trim().toLowerCase()) || 'Unresolved location'}));
+  return [...municipalities,...(normalized.some(h=>h.municipality==='Unresolved location')?['Unresolved location']:[])].map(m=>({
+    municipality:m, counts:severities.map(s=>normalized.filter(h=>h.municipality===m && h.severity===s).length),
+  }));
+}
+export function summarizeBarangays(rows:Hazard[]) {
+  const groups=new Map<string,{municipality:string;barangay:string;counts:number[];total:number;affected:number;unknown:number;estimated:number}>();
+  for(const h of rows) {
+    const location=canonicalLocation(h.municipality,h.barangay);
+    const municipality=location?.municipality || h.municipality?.trim() || 'Unknown municipality';
+    const barangay=location?.barangay || h.barangay?.trim() || 'Unknown barangay';
+    const key=JSON.stringify([municipality.toLowerCase(),barangay.toLowerCase()]);
+    const group=groups.get(key) ?? {municipality,barangay,counts:[0,0,0,0],total:0,affected:0,unknown:0,estimated:0};
+    const severity=severities.indexOf(h.severity);
+    if(severity>=0) group.counts[severity]++;
+    group.total++;
+    if(h.affectedPopulation==null) group.unknown++; else group.affected+=h.affectedPopulation;
+    if(h.affectedPopulation!=null && h.affectedPopulationBasis==='population_estimate') group.estimated++;
+    groups.set(key,group);
+  }
+  return [...groups.values()].sort((a,b)=>a.municipality.localeCompare(b.municipality)||a.barangay.localeCompare(b.barangay));
+}
+function BarangayAnalytics({rows}:{rows:Hazard[]}) {
+  const setLocationFilter=useStore(s=>s.setLocationFilter);
+  return <section className="space-y-4">
+    <h3 className="font-bold">Barangay incident analytics</h3>
+    <p className="text-xs">Grouped by municipality and barangay. Select a barangay to inspect its incidents and profile. Only locations with matching incidents appear; an empty result does not establish zero risk.</p>
+    <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><caption className="text-left font-semibold mb-2">Barangay severity and affected population</caption>
+      <thead><tr>{['Municipality','Barangay',...severities,'Incidents','Known affected','Unknown counts','Estimates'].map(label=><th key={label} className="p-2 text-left">{label}</th>)}</tr></thead>
+      <tbody>{summarizeBarangays(rows).map(g=><tr key={JSON.stringify([g.municipality,g.barangay])} className="border-t border-outline-variant/40">
+        <td className="p-2">{g.municipality}</td><th className="p-2 text-left font-medium">{canonicalLocation(g.municipality,g.barangay)?<button className="underline min-h-11" onClick={()=>setLocationFilter(g.municipality,g.barangay)}>{g.barangay}</button>:g.barangay}</th>
+        {[...g.counts,g.total,g.unknown===g.total?'Unknown':g.affected.toLocaleString(),g.unknown,g.estimated].map((value,i)=><td className="p-2" key={i}>{value}</td>)}
+      </tr>)}</tbody></table></div>
+    {!rows.length && <p>No incidents match the selected filters.</p>}
+    <p className="text-xs">Known affected is a sum of incident entries, including provisional estimates; people may be counted more than once. Unknown counts and estimates are numbers of incidents.</p>
+    <div className="overflow-x-auto"><table className="w-full min-w-[500px] text-sm"><caption className="text-left font-semibold mb-2">Hazard and severity breakdown · selected locations</caption>
+      <thead><tr><th className="p-2 text-left">Hazard</th>{severities.map(label=><th key={label} className="p-2">{label}</th>)}<th>Incidents</th></tr></thead>
+      <tbody>{[...new Set(rows.map(h=>h.type))].sort().map(type=><tr key={type} className="border-t border-outline-variant/40"><th className="p-2 text-left font-medium">{hazardDefinition(type)?.label || type}</th>{severities.map(severity=><td key={severity} className="p-2 text-center">{rows.filter(h=>h.type===type && h.severity===severity).length}</td>)}<td className="p-2 text-center">{rows.filter(h=>h.type===type).length}</td></tr>)}</tbody>
+    </table></div>
+  </section>;
+}
 export function AnalyticsPanel() {
-  const { isAnalyticsOpen, setAnalyticsOpen, filteredHazards, flyTo, setSelectedHazard } = useStore();
-  const [activeTab, setActiveTab] = useState<'chart' | 'table' | 'list'>('chart');
-  const [activeSeverities, setActiveSeverities] = useState<string[]>(['Minor', 'Moderate', 'Severe', 'Critical']);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  if (!isAnalyticsOpen) return null;
-
-  const severityData = SEVERITY_OPTIONS.map(s => ({
-    name: s.id,
-    value: filteredHazards.filter(h => h.severity === s.id).length,
-    color: SEVERITY_COLORS[s.id],
-  })).filter(d => d.value > 0);
-
-  const summaryData = (() => {
-    const groups: Record<string, Record<string, number>> = {};
-    for (const h of filteredHazards) {
-      const loc = `${h.municipality || 'Unknown'}, ${h.barangay || 'Unknown'}`;
-      if (!groups[loc]) groups[loc] = {};
-      groups[loc][h.severity] = (groups[loc][h.severity] || 0) + 1;
-    }
-    return Object.entries(groups).map(([location, severities]) => ({
-      location,
-      severities,
-      total: Object.values(severities).reduce((a, b) => a + b, 0),
-    }));
-  })();
-
-  return (
-    <AnimatePresence>
-      <motion.aside
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 20 }}
-        className="absolute top-4 right-4 bottom-4 w-[450px] bg-surface-container-low shadow-ambient rounded-2xl border border-white/50 flex flex-col overflow-hidden z-[500] pointer-events-auto"
-      >
-        <div className="p-6 pb-4 border-b border-outline-variant/30 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] uppercase text-primary mb-1 font-bold tracking-[0.05em]">Provincial DRRMC</div>
-            <h2 className="text-xl font-display font-bold text-on-surface">Data Analytics</h2>
-          </div>
-          <button 
-            onClick={() => setAnalyticsOpen(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface/60 hover:text-on-surface"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex border-b border-outline-variant/30">
-          <button 
-            onClick={() => setActiveTab('chart')}
-            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors flex justify-center items-center gap-2 ${activeTab === 'chart' ? 'text-primary bg-surface-container border-b-2 border-primary' : 'text-on-surface/50 hover:bg-surface-container-lowest'}`}
-          >
-            <BarChart2 size={14} /> Chart
-          </button>
-          <button 
-            onClick={() => setActiveTab('table')}
-            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors flex justify-center items-center gap-2 ${activeTab === 'table' ? 'text-primary bg-surface-container border-b-2 border-primary' : 'text-on-surface/50 hover:bg-surface-container-lowest'}`}
-          >
-            <TableIcon size={14} /> Table
-          </button>
-          <button 
-            onClick={() => setActiveTab('list')}
-            className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors flex justify-center items-center gap-2 ${activeTab === 'list' ? 'text-primary bg-surface-container border-b-2 border-primary' : 'text-on-surface/50 hover:bg-surface-container-lowest'}`}
-          >
-            <ListIcon size={14} /> List
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 bg-surface">
-          {activeTab === 'chart' && (
-            <div className="h-full flex flex-col">
-              <h3 className="text-sm font-bold text-on-surface mb-6 uppercase tracking-[0.05em]">Severity Distribution</h3>
-              {severityData.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-on-surface/40 text-sm font-medium">No active data points</div>
-              ) : (
-                <div className="flex-1 min-h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={severityData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={2}
-                        dataKey="value"
-                      >
-                        {severityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'var(--color-surface-container-highest)', border: '1px solid var(--color-outline-variant)', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
-                      />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        formatter={(value) => <span style={{ color: 'var(--color-on-surface)', fontSize: '11px', fontWeight: 600 }}>{value}</span>}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'table' && (
-            <div className="h-full flex flex-col">
-              <h3 className="text-sm font-bold text-on-surface mb-4 uppercase tracking-[0.05em]">Summary Matrix</h3>
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-container-low border-b border-outline-variant">
-                    <tr>
-                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Location</th>
-                      <th className="p-3 text-[10px] uppercase text-on-surface/60 font-bold tracking-[0.05em]">Severity Level</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/30">
-                    {summaryData.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-surface-container-lowest transition-colors">
-                        <td className="p-3 font-semibold text-on-surface">{row.location}</td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-1">
-                            {Object.entries(row.severities).map(([sev, count]) => (
-                              <span
-                                key={sev}
-                                className={`text-[9px] uppercase tracking-[0.05em] font-bold px-2 py-0.5 rounded-sm border ${
-                                  sev === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
-                                  sev === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
-                                  sev === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
-                                  'bg-surface-container text-tertiary border-transparent'
-                                }`}
-                              >
-                                {sev}: {count}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredHazards.length === 0 && (
-                      <tr>
-                        <td colSpan={2} className="p-6 text-center text-on-surface/40 font-medium text-xs">No active data points</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'list' && (
-            <div className="h-full flex flex-col">
-              <h3 className="text-sm font-bold text-on-surface mb-4 uppercase tracking-[0.05em]">Raw Feed</h3>
-
-              <div className="mb-4 space-y-3">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/40" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search incidents..."
-                    className="w-full bg-surface-container-lowest border border-outline-variant pl-9 pr-3 py-2 text-sm rounded-lg text-on-surface placeholder:text-on-surface/40 focus:outline-none focus:border-primary transition-colors"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {SEVERITY_OPTIONS.map(s => {
-                    const isActive = activeSeverities.includes(s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          setActiveSeverities(prev =>
-                            isActive ? prev.filter(x => x !== s.id) : [...prev, s.id]
-                          );
-                        }}
-                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.05em] rounded-sm border transition-all ${isActive ? `${s.bgClass} ${s.textClass} border-current` : 'bg-surface-container-lowest border-outline-variant text-on-surface/50 hover:bg-surface-container'}`}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                {filteredHazards.length === 0 ? (
-                  <div className="p-6 text-center text-on-surface/40 font-medium text-xs bg-surface-container-lowest rounded-xl border border-outline-variant">No incidents reported</div>
-                ) : (
-                  filteredHazards
-                    .filter(h => activeSeverities.includes(h.severity))
-                    .filter(h => {
-                      if (!searchQuery.trim()) return true;
-                      const q = searchQuery.toLowerCase();
-                      return (h.title || '').toLowerCase().includes(q) || (h.notes || '').toLowerCase().includes(q);
-                    })
-                    .map(h => {
-                      const tDef = DISASTER_TYPES.find(t => t.id === h.type);
-                      return (
-                        <div
-                          key={h.id}
-                          onClick={() => {
-                            setSelectedHazard(h);
-                            try {
-                              if (h.geometry.type === 'Polygon' && h.geometry.coordinates?.[0]?.[0]) {
-                                const coords = h.geometry.coordinates[0][0];
-                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                                  flyTo([coords[1], coords[0]], 14);
-                                }
-                              } else if (h.geometry.type === 'Point' && h.geometry.coordinates) {
-                                const coords = h.geometry.coordinates;
-                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                                  flyTo([coords[1], coords[0]], 15);
-                                }
-                              } else if (h.geometry.type === 'LineString' && h.geometry.coordinates?.[0]) {
-                                const coords = h.geometry.coordinates[0];
-                                if (coords && typeof coords[1] === 'number' && typeof coords[0] === 'number') {
-                                  flyTo([coords[1], coords[0]], 14);
-                                }
-                              }
-                            } catch (e) {
-                              console.error("Invalid geometry for flyTo", e);
-                            }
-                          }}
-                          className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/50 hover:border-outline-variant transition-colors group cursor-pointer"
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: tDef?.color }}></span>
-                              <span className="text-[10px] uppercase font-bold text-on-surface/60 tracking-[0.05em]">{tDef?.label}</span>
-                            </div>
-                            <span className={`text-[9px] uppercase tracking-[0.05em] font-bold px-2 py-0.5 rounded-sm border ${
-                              h.severity === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
-                              h.severity === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
-                              h.severity === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
-                              'bg-surface-container text-tertiary border-transparent'
-                            }`}>
-                              {h.severity}
-                            </span>
-                          </div>
-                          <h4 className="text-sm font-bold text-on-surface mb-2 leading-tight">{h.title || 'Untitled Incident'}</h4>
-                          {h.notes && (
-                            <p className="text-xs text-on-surface/70 leading-relaxed line-clamp-2 bg-surface-container-low p-2 rounded-sm mb-3">
-                              {h.notes}
-                            </p>
-                          )}
-                          <div className="text-[9px] uppercase font-bold text-on-surface/40 tracking-[0.05em]">
-                            Logged: {formatDate(h.dateAdded, 'MM/dd/yyyy HH:mm')}
-                          </div>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.aside>
-    </AnimatePresence>
-  );
+  const s=useStore();
+  const [tab,setTab]=useState('Summary');
+  const [query,setQuery]=useState('');
+  const [exporting,setExporting]=useState(false);
+  const [error,setError]=useState('');
+  const incidentView=tab!=='History' && tab!=='Population exposure';
+  const rows=s.filteredHazards.filter(h=>[h.title,h.notes,h.municipality,h.barangay].some(v=>v?.toLowerCase().includes(query.toLowerCase())));
+  if(!s.isAnalyticsOpen) return null;
+  async function exportReport() {
+    setExporting(true);setError('');
+    try {
+      const [{jsPDF},{default:html2canvas}]=await Promise.all([import('jspdf'),import('html2canvas')]);
+      const pdf=new jsPDF({orientation:'landscape'});
+      pdf.setFontSize(16);pdf.text('Camarines Norte - Incident Report',12,15);
+      pdf.setFontSize(10);
+      pdf.text(pdf.splitTextToSize([s.selectedMunicipality || 'Province overview',s.selectedBarangay || 'All barangays','Hazards: '+s.activeFilters.map(t=>hazardDefinition(t)?.label || t).join(', '),'Search: '+(query||'None'),'Generated: '+new Date().toLocaleString()].join(' | '),270),12,23);
+      let y=45;
+      const headings=['Municipality','Barangay','Hazard','Incident','Severity','Affected'];
+      const xs=[12,57,97,154,227,257];
+      const widths=[42,37,54,70,27,28];
+      const heading=()=>{pdf.setFont('helvetica','bold');headings.forEach((v,i)=>pdf.text(v,xs[i],y));pdf.setFont('helvetica','normal');y+=8;};
+      heading();
+      for(const h of rows) {
+        const cells=[h.municipality||'Unknown',h.barangay||'Unknown',hazardDefinition(h.type)?.label||h.type,h.title||'Untitled',h.severity,h.affectedPopulation==null?'Unknown':String(h.affectedPopulation)+(h.affectedPopulationBasis==='population_estimate'?' (est.)':'')].map((v,i)=>pdf.splitTextToSize(v,widths[i]));
+        const height=Math.max(...cells.map(c=>c.length))*5+5;
+        if(y+height>190){pdf.addPage();y=15;heading();}
+        cells.forEach((v,i)=>pdf.text(v,xs[i],y));y+=height;
+      }
+      if(!rows.length) pdf.text('No incidents match the selected filters.',12,y);
+      pdf.addPage();y=15;pdf.text('Barangay incident summary',12,y);y+=8;
+      pdf.setFontSize(9);pdf.text('Affected counts can overlap across incidents. Unknown and estimates refer to incident counts.',12,y);y+=10;
+      for(const group of summarizeBarangays(rows)) {
+        const lines=pdf.splitTextToSize(`${group.municipality} / ${group.barangay}: ${group.total} incidents | ${severities.map((s,i)=>s+': '+group.counts[i]).join(', ')} | Known affected: ${group.unknown===group.total?'Unknown':group.affected} | Unknown counts: ${group.unknown} | Estimates: ${group.estimated}`,270);
+        if(y+lines.length*5>190){pdf.addPage();y=15;pdf.text('Barangay incident summary (continued)',12,y);y+=10;}
+        pdf.text(lines,12,y);y+=lines.length*5+5;
+      }
+      if(!rows.length) pdf.text('No incidents match the selected filters.',12,y);
+      pdf.addPage();pdf.text('Map context - current visible layers',12,15);
+      const element=document.querySelector('.leaflet-container') as HTMLElement | null;
+      if(element) {
+        try {const canvas=await html2canvas(element,{useCORS:true,scale:1,backgroundColor:'#ffffff',onclone:doc=>{
+          // html2canvas 1.x cannot parse OKLCH. Let the browser resolve colors in the export clone.
+          const pixel=doc.createElement('canvas');pixel.width=1;pixel.height=1;
+          const context=pixel.getContext('2d')!;
+          const converted=new Map<string,string>();
+          const rgb=(value:string)=>{
+            if(!converted.has(value)){
+              context.clearRect(0,0,1,1);context.fillStyle=value;context.fillRect(0,0,1,1);
+              const [r,g,b,a]=context.getImageData(0,0,1,1).data;
+              converted.set(value,'rgba('+[r,g,b,a/255].join(',')+')');
+            }
+            return converted.get(value)!;
+          };
+          doc.querySelectorAll<HTMLElement>('*').forEach(node=>{
+            const style=doc.defaultView!.getComputedStyle(node);
+            for(const property of ['color','background-color','border-top-color','border-right-color','border-bottom-color','border-left-color','outline-color','text-decoration-color','-webkit-text-stroke-color','box-shadow','text-shadow']){
+              const value=style.getPropertyValue(property);
+              if(/oklch|oklab|color\(/.test(value)) node.style.setProperty(property,value.replace(/(?:oklch|oklab|color)\([^)]*\)/g,rgb),'important');
+            }
+          });
+        }}); const scale=Math.min(270/canvas.width,155/canvas.height);pdf.addImage(canvas.toDataURL('image/jpeg',0.8),'JPEG',12,25,canvas.width*scale,canvas.height*scale);}
+        catch (error) {console.warn('Map report capture failed',error);setError('Report exported without the map image; the incident matrix is complete.');pdf.text('Map capture unavailable. Incident matrix remains complete.',12,30);}
+      }
+      pdf.setFontSize(9);
+      pdf.text('Reference layers: '+(s.referenceLayers.join(', ') || 'None')+' | Incident overlays: '+(s.incidentsVisible?'Visible':'Hidden'),12,190);
+      pdf.addPage();y=15;pdf.setFontSize(14);pdf.text('Map legends',12,y);y+=10;pdf.setFontSize(10);
+      for(const layer of REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id))) {
+        if(y>160){pdf.addPage();y=15;}
+        pdf.setFont('helvetica','bold');pdf.text(layer.label,12,y);y+=7;pdf.setFont('helvetica','normal');
+        for(const [label,color] of Object.entries(layer.colors)) {
+          pdf.setFillColor(color);pdf.rect(12,y-4,5,5,'F');
+          pdf.text(label+(label.startsWith('Debris')?' (black hatch)':''),20,y);y+=7;
+        }
+        y+=4;
+      }
+      if(y>130){pdf.addPage();y=15;}
+      pdf.text('Incident types (severity is recorded separately)',12,y);y+=8;
+      for(const type of HAZARD_TYPES.filter(t=>s.activeFilters.includes(t.id))) {
+        pdf.setFillColor(type.color);pdf.rect(12,y-4,5,5,'F');pdf.text(type.label,20,y);y+=7;
+      }
+      pdf.save('Camarines-Norte-Incidents-'+new Date().toISOString().slice(0,10)+'.pdf');
+    }catch {setError('Report export failed. Please try again.');}
+    finally {setExporting(false);}
+  }
+  return <aside aria-label="Data Analytics" className="analytics-panel absolute inset-3 sm:left-auto sm:w-[min(760px,95%)] z-[800] bg-surface-container-lowest shadow-ambient rounded-2xl border border-outline-variant flex flex-col overflow-hidden">
+    <header className="p-4 flex items-center justify-between border-b border-outline-variant gap-3"><h2 className="text-xl font-bold">Data Analytics</h2><div className="flex gap-2">{incidentView && <button className="min-h-11 px-3 border rounded-xl text-sm flex items-center gap-2" onClick={exportReport} disabled={exporting}><Download size={16}/>{exporting?'Exporting…':'Export Report'}</button>}<button aria-label="Close analytics" className="min-w-11 min-h-11 grid place-items-center" onClick={()=>s.setAnalyticsOpen(false)}><X/></button></div></header>
+    <div className="overflow-y-auto p-4 space-y-4">
+      <nav aria-label="Analytics views" className="flex gap-2 flex-wrap">{['Summary','Population exposure','Matrix','Incident Logs','Barangay','History'].map(t=><button key={t} aria-pressed={tab===t} onClick={()=>setTab(t)} className="nav-text-button">{t}</button>)}</nav>
+      <div className="grid sm:grid-cols-2 gap-4"><LocationFields municipality={s.selectedMunicipality} barangay={s.selectedBarangay} onChange={s.setLocationFilter}/>{incidentView && <IncidentFilters/>}</div>
+      {incidentView && <><label className="block text-sm">Search incidents<input className="reference-select mt-1" placeholder="Search incidents..." value={query} onChange={e=>setQuery(e.target.value)}/></label>
+      <p className="text-sm"><strong>{rows.length} incidents</strong> · Affected population entered: {rows.reduce((n,h)=>n+(h.affectedPopulation ?? 0),0).toLocaleString()} · {rows.filter(h=>h.affectedPopulation==null).length} unknown</p>
+      <p className="text-xs text-on-surface/60">Affected population is summed per incident and may count the same people more than once. {rows.filter(h=>h.affectedPopulationBasis==="population_estimate").length} incident counts are provisional population estimates. Location and hazard filters are shared with the map.</p></>}
+      {error && <p role="alert">{error}</p>}
+      {tab==='Population exposure' && <PopulationExposure/>}
+      {tab==='Summary' && <section><h3 className="font-bold mb-3">Municipality severity summary</h3><div className="flex flex-wrap gap-3 text-xs mb-3">{severities.map((v,i)=><span key={v} style={{color:colors[i]}}>■ {v}</span>)}</div><table className="w-full text-sm"><thead><tr><th className="text-left p-2">Municipality</th>{severities.map(v=><th key={v} className="p-2">{v}</th>)}<th>Total</th></tr></thead><tbody>{summarizeMunicipalities(rows).filter(r=>!s.selectedMunicipality || r.municipality===s.selectedMunicipality).map(r=><tr key={r.municipality} className="border-t border-outline-variant/40"><th className="text-left p-2 font-medium">{r.municipality}</th>{r.counts.map((n,i)=><td key={i} className="text-center p-2" style={{color:colors[i]}}>{n}</td>)}<td className="text-center font-bold">{r.counts.reduce((a,b)=>a+b,0)}</td></tr>)}</tbody></table></section>}
+      {tab==='Matrix' && <div className="overflow-x-auto"><h3 className="font-bold mb-3">Summary Matrix</h3><table className="w-full text-sm min-w-[620px]"><thead><tr>{['Municipality','Barangay','Hazard','Incident','Severity','Affected'].map(h=><th key={h} className="p-2 text-left">{h}</th>)}</tr></thead><tbody>{rows.map(h=><tr key={h.id} className="border-t border-outline-variant/40">{[h.municipality||'Unknown',h.barangay||'Unknown',hazardDefinition(h.type)?.label||h.type,h.title||'Untitled',h.severity,h.affectedPopulation==null?'Unknown':String(h.affectedPopulation)+(h.affectedPopulationBasis==='population_estimate'?' (est.)':'')].map((v,i)=><td key={i} className="p-2">{v}</td>)}</tr>)}</tbody></table>{!rows.length && <p className="py-6">No incidents match the selected filters.</p>}</div>}
+      {tab==='Incident Logs' && <div className="space-y-3">{rows.slice().sort((a,b)=>b.dateAdded.localeCompare(a.dateAdded)).map(h=><button key={h.id} className="w-full rounded-xl border border-outline-variant p-4 text-left space-y-2" onClick={()=>{s.setSelectedHazard(h);const c=getCentroid(h.geometry);if(c)s.flyTo([c.lat,c.lng],15);s.setAnalyticsOpen(false);}}><p className="font-bold">{h.title || 'Untitled Incident'}</p><p className="text-sm">{hazardDefinition(h.type)?.label || h.type} · {h.severity} · {h.municipality || 'Unknown'}, {h.barangay || 'Unknown'}</p><p className="text-xs">{formatDate(h.dateAdded,'MM/dd/yyyy HH:mm')} · Affected: {h.affectedPopulation ?? 'Unknown'} · {h.syncStatus || 'synced'}</p><p className="text-sm whitespace-pre-wrap">{h.notes}</p></button>)}{!rows.length && <p>No incidents match the selected filters.</p>}</div>}
+      {tab==='Barangay' && <div className="space-y-6"><BarangayAnalytics rows={rows}/><section><h3 className="font-bold mb-3">Location profile</h3><LocationOverview/></section></div>}
+      {tab==='History' && <HistoricalData/>}
+    </div>
+  </aside>;
 }

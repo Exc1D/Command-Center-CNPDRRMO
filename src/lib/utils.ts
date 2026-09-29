@@ -130,10 +130,7 @@ export async function detectLocationFromGeometry(
   if (detectedBarangays.length === 0) return null;
 
   const municipality = detectedBarangays[0].municipality;
-  const barangayNames = detectedBarangays
-    .slice(0, 3)
-    .map((b) => b.name)
-    .join(', ');
+  const barangayNames = detectedBarangays[0].name;
 
   return {
     municipality,
