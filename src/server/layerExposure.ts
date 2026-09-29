@@ -22,6 +22,7 @@ function add(total:ExposureCounts, row:ExposureCounts) {
 }
 
 export function summarizeLayerExposure(index:ExposureIndex, selection:ExposureSelection) {
+  if(selection.layers.some(layer=>!index.classes.some(c=>c.layer===layer))) throw new Error('Selected hazard is missing from the exposure aggregate');
   const classes=index.classes.filter(c=>selection.layers.includes(c.layer) && (c.layer!=='flood' || !selection.floodClasses.length || selection.floodClasses.includes(c.label)));
   const byClass=classes.map(c=>({...c,...emptyCounts()}));
   const byLayer=REFERENCE_LAYERS.filter(l=>selection.layers.includes(l.id)).map(l=>({id:l.id,label:l.label,...emptyCounts()}));
@@ -62,7 +63,7 @@ const indexSchema=z.object({
   repairs:z.array(z.object({source:z.string(),feature:count})),
   classes:z.array(z.object({id:z.string().min(1),layer:z.string().refine(id=>REFERENCE_LAYERS.some(l=>l.id===id)),label:z.string().min(1)})).min(1),
   buckets:z.array(z.object({municipality:z.string(),barangay:z.string().nullable(),classes:z.array(z.string()),matchedRecords:count,populationSum:count,missingPopulationRecords:count,duplicateIdRecords:count})).min(1),
-}).refine(index=>REFERENCE_LAYERS.every(l=>index.classes.some(c=>c.layer===l.id)) && new Set(index.classes.map(c=>c.id)).size===index.classes.length && index.buckets.every(b=>
+}).refine(index=>new Set(index.classes.map(c=>c.id)).size===index.classes.length && index.buckets.every(b=>
   index.municipalities.includes(b.municipality) && b.classes.every(id=>index.classes.some(c=>c.id===id)) &&
   b.missingPopulationRecords<=b.matchedRecords && b.duplicateIdRecords<=b.matchedRecords &&
   (b.missingPopulationRecords<b.matchedRecords || b.populationSum===0)), 'Invalid exposure aggregate');

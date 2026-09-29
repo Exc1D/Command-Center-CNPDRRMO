@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp, createDatabase } from '../../server';
 import { analyzeLayerExposure } from './layerExposure';
 import type { Database } from './database';
+import { REFERENCE_LAYERS } from '../lib/reference';
 
 vi.mock('./layerExposure',()=>({analyzeLayerExposure:vi.fn()}));
 let db:Database;
@@ -24,6 +25,9 @@ it('authorizes, validates geography and layers, prevents caching, and reports mi
   expect(analyzeLayerExposure).toHaveBeenCalledWith(selection);
   expect((await client.post('/api/reference/layer-exposure').send({...selection,barangay:' BAGASBAS '})).status).toBe(200);
   expect(analyzeLayerExposure).toHaveBeenLastCalledWith(selection);
+  const allLayers={...selection,layers:REFERENCE_LAYERS.map(layer=>layer.id)};
+  expect((await client.post('/api/reference/layer-exposure').send(allLayers)).status).toBe(200);
+  expect(analyzeLayerExposure).toHaveBeenLastCalledWith(allLayers);
   vi.mocked(analyzeLayerExposure).mockRejectedValue(new Error('private file missing'));
   const unavailable=await client.post('/api/reference/layer-exposure').send(selection);
   expect(unavailable.status).toBe(503);

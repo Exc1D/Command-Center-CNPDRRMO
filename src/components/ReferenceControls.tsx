@@ -34,24 +34,23 @@ export function LocationOverview() {
     {b && rows.map(p=><div key={p.barangay} className="space-y-2">
       <p>Barangay captain: {p.captain || 'Not supplied'}<br/>Contact: {p.contact || 'Not supplied'}<br/>DRRM contact: Not supplied</p>
       {Object.entries(p.susceptibility).map(([hazard,levels])=><p key={hazard}><strong>{hazard}:</strong> {levels.join(', ') || 'No class recorded'}</p>)}
-      <p className="text-on-surface/60">Multiple classes can occur within a barangay. No recorded class does not mean safe. Tsunami workbook classes are separate from map depth bands.</p>
+      <p className="text-on-surface/60">No recorded class does not mean safe. Tsunami classes differ from map depth bands.</p>
       {Object.entries(p.demographics).map(([label,value])=><p key={label}>{label}: {value===null?'Not supplied':value.toLocaleString()}</p>)}
     </div>)}
     {elementLayers.includes('population') && <div className="rounded-xl border border-outline-variant p-3">
-      <strong>Population · {m || 'Province'}</strong>{b && <p>This population summary covers the municipality. Use the incident area to calculate exposed people.</p>}
-      {hh.length ? <><p>{hh.reduce((n,h)=>n+h.sourceRecords,0).toLocaleString()} population source records; record count is not a person count.</p><p>Reported population sum: {hh.some(h=>h.populationSum===null)?'Incomplete':hh.reduce((n,h)=>n+(h.populationSum ?? 0),0).toLocaleString()}.</p><p>{hh.reduce((n,h)=>n+h.duplicateIdExcess,0).toLocaleString()} duplicate-ID excess records retained for review.</p></> : <p>No population file supplied for this municipality.</p>}
-      <p>Points require authorization, a municipality and zoom 14+. Barangay filtering uses source labels; Paracale has no labels. Talisay covers 11 of 15 barangays. Santa Elena and San Vicente files are missing.</p>
+      <strong>Population · {m || 'Province'}</strong>{b && <p>Municipality totals, not barangay exposure.</p>}
+      {hh.length ? <><p>{hh.reduce((n,h)=>n+h.sourceRecords,0).toLocaleString()} records (not people).</p><p>Reported population sum: {hh.some(h=>h.populationSum===null)?'Incomplete':hh.reduce((n,h)=>n+(h.populationSum ?? 0),0).toLocaleString()}.</p><p>{hh.reduce((n,h)=>n+h.duplicateIdExcess,0).toLocaleString()} duplicate-ID excess records retained for review.</p></> : <p>No population file supplied for this municipality.</p>}
+      <p>Population coverage is incomplete; data year unconfirmed.</p>
     </div>}
-    <p className="text-on-surface/60">Source: supplied Barangay_Data_ForUpload workbook. Workbook totals are separate from the supplied HH-prefixed population dataset.</p>
   </div>;
 }
 export function IncidentFilters() {
   const s = useStore();
   return <details className="border border-outline-variant/40 rounded-xl p-3">
-    <summary className="min-h-11 cursor-pointer font-semibold text-sm">Hazard Type · {s.activeFilters.length} selected</summary>
+    <summary className="min-h-11 cursor-pointer font-semibold text-sm">Incident types · {s.activeFilters.length} selected</summary>
     {HAZARD_TYPES.map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.activeFilters.includes(t.id)} onChange={()=>s.toggleFilter(t.id)}/><span aria-hidden="true" style={{color:t.color}}>{t.symbol}</span>{t.label}</label>)}
     {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
-    <p className="text-xs text-on-surface/60">No selected types shows no incidents. These filters also apply to analytics.</p>
+    <p className="text-xs text-on-surface/60">Filters also apply to analytics.</p>
   </details>;
 }
 export function ReferenceControls() {
@@ -68,20 +67,31 @@ export function ReferenceControls() {
       <LocationOverview/>
     </section>
     <label className="block font-bold">Basemap<select className="reference-select mt-2" value={s.baseMap} onChange={e=>s.setBaseMap(e.target.value as typeof s.baseMap)}><option value="street">Street · OpenStreetMap</option><option value="topo">Topographic · OpenTopoMap</option><option value="satellite">Satellite · Esri</option></select></label>
-    <section><h3 className="font-bold">Reference Hazards</h3><p className="text-xs mt-1 mb-2">Select layers to show susceptibility and inundation zones.</p>
-      <details className="border border-outline-variant/40 rounded-xl p-3"><summary className="min-h-11 cursor-pointer text-sm font-semibold">Hazard layers · {s.referenceLayers.length} selected</summary>
-      {REFERENCE_LAYERS.map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.referenceLayers.includes(t.id)} onChange={()=>s.toggleReferenceLayer(t.id)}/>{t.label}</label>)}</details>
-      {REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id)).map(t=><div key={t.id} className="mt-3"><h4 className="text-sm font-bold">{t.label}</h4><p className="text-xs mb-2">{t.id==='flood'?'Select classes; none selected shows all classes.':'Legend · source classes'}</p>{Object.entries(t.colors).map(([label,color])=><label key={label} className="flex items-center gap-2 min-h-8 text-xs">{t.id==='flood' && <input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>}<span className="w-5 h-4 border border-black/20 shrink-0" style={{background:label.startsWith('Debris')?'repeating-linear-gradient(135deg,transparent 0 3px,#000 3px 4px)':color}}/>{label}</label>)}</div>)}
-      <p className="text-xs text-on-surface/60 mt-2">Storm surge, erosion and groundshaking reference datasets were not supplied.</p>
+    <section>
+      <details className="border border-outline-variant/40 rounded-xl p-3"><summary className="min-h-11 cursor-pointer text-sm font-semibold">Hazards</summary>
+        <table className="w-full text-xs">
+          <caption className="sr-only">Hazard zones and reported incidents</caption>
+          <thead><tr><th scope="col" className="text-left font-semibold">Hazard</th><th scope="col" className="font-semibold">Zones</th><th scope="col" className="font-semibold">Incidents</th></tr></thead>
+          <tbody>{HAZARD_TYPES.map(type=>{
+            const layer=REFERENCE_LAYERS.find(layer=>layer.id===(type.id==='rain_induced_landslide'?'landslide':type.id));
+            return <tr key={type.id} className="border-t border-outline-variant/30">
+              <th scope="row" className="text-left font-medium pr-2">{type.label}</th>
+              <td className="text-center">{layer ? <label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5" type="checkbox" aria-label={`${type.label} zones`} checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/></label> : <span title="No zone layer loaded" aria-label="No zone layer loaded">—</span>}</td>
+              <td><label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5 disabled:opacity-40" type="checkbox" aria-label={`${type.label} incidents`} disabled={!s.incidentsVisible} checked={s.activeFilters.includes(type.id)} onChange={()=>s.toggleFilter(type.id)}/></label></td>
+            </tr>;
+          })}</tbody>
+        </table>
+        <label className="reference-check text-xs"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show reported incidents</label>
+        {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check text-xs"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
+      </details>
+      {REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id)).map(t=><div key={t.id} className="mt-3"><h4 className="text-sm font-bold">{t.label}</h4>{t.id==='flood' && <p className="text-xs mb-2">No selection shows all classes.</p>}{Object.entries(t.colors).map(([label,color])=><label key={label} className="flex items-center gap-2 min-h-8 text-xs">{t.id==='flood' && <input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>}<span className="w-5 h-4 border border-black/20 shrink-0" style={{background:label.startsWith('Debris')?'repeating-linear-gradient(135deg,transparent 0 3px,#000 3px 4px)':color}}/>{label}</label>)}</div>)}
     </section>
-    <section><label className="reference-check font-bold"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Incident overlays</label><IncidentFilters/></section>
     <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>!['roads','lifelines'].includes(t.id)).map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
-      <fieldset className="rounded-xl border border-outline-variant p-3 my-3"><legend className="font-semibold px-1">Lifeline Utilities</legend>
+      <fieldset className="rounded-xl border border-outline-variant p-3 my-3"><legend className="font-semibold px-1">Roads and transport</legend>
         {ELEMENT_LAYERS.filter(t=>['roads','lifelines'].includes(t.id)).map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}
-        <p className="text-xs">Transport facilities reuse the supplied CPF records; enabling both displays each point once. Roads and transport are reference locations, not live service or passability reports.</p>
-        <ul className="text-xs mt-2 list-disc pl-4"><li>Power network: data not supplied</li><li>Water network: data not supplied</li><li>Telecommunications network: data not supplied</li></ul>
+        <p className="text-xs">Reference locations only; road conditions are unverified.</p>
       </fieldset>
-      <p className="text-xs text-on-surface/60">Facilities use category symbols. Three facility coordinates and six population coordinates are withheld pending correction. Roads © OpenStreetMap contributors. Utility networks were not supplied.</p>
+      <p className="text-xs text-on-surface/60">Roads © OpenStreetMap contributors.</p>
     </section>
   </div>;
 }

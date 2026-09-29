@@ -44,11 +44,17 @@ Public derivatives are in public/reference/; source hashes, geometry repairs, si
 To regenerate using Python 3:
 
     python3 -m venv .private/gis-env
-    .private/gis-env/bin/pip install shapely==2.1.2 pyproj==3.8.0 openpyxl
+    .private/gis-env/bin/pip install shapely==2.1.2 pyproj==3.8.0 openpyxl pyshp==2.3.1
     .private/gis-env/bin/python scripts/prepare-map-data.py --source-dir /path/to/supplied/files
     .private/gis-env/bin/python scripts/prepare-population-exposure.py --source-dir /path/to/supplied/files
 
 The script reads the supplied filenames and the existing repository flood dataset; it checks the workbook crosswalk, expected totals, population record count, and display geometry validity. Source QMD files contain metadata rather than symbology. Referenced QGIS facility SVGs were not supplied, so equivalent Lucide symbols are used.
+
+**30 September 2026:** The supplied `CamarinesNorte (4).zip` contains `CamarinesNorte_StormSurge_SSA1.shp` in WGS84. Both preparation scripts now include it as `storm_surge`. The source's HAZ codes 1, 2 and 3 appear as numbered classes; no depth or severity meaning is inferred. Display polygons use the existing repair/simplification pipeline; population exposure uses repaired, unsimplified source polygons. Regenerate and upload the private aggregate before deploying storm-surge exposure. Older aggregates still support their existing layers and report storm-surge analysis as unavailable instead of zero.
+
+The other supplied CamarinesNorte ZIPs contain landslide hazards and 5-, 25-, and 100-year flood scenarios. These are not substituted for the existing susceptibility datasets. The sidebar now provides one hazard table with independent Zones and Incidents controls; these remain separate data types and retain independent saved-plan filters.
+
+The Incident Logs view and its sidebar link were removed at the user's request. The header Analytics button remains. Incident forms, map markers, filters, matrix, analytics and stored records are retained.
 
 For deployment, install the generated .private/population/*.geojson and .private/population-exposure.json on the application server **outside static hosting**, at the same project-relative paths. This directory is gitignored and deliberately absent from the Vite build. All population endpoints require the existing operations session and successful responses return Cache-Control: no-store; the service worker skips API requests. Vite explicitly denies direct access to .private. Never copy this directory into public or dist. Regenerate and deploy the aggregate whenever hazard sources or population derivatives change; the analysis screen shows its preparation time and input hashes, not a live source-data feed.
 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from shapely import covers, make_valid, points, prepare
 from shapely.geometry import MultiPolygon, Polygon, shape
+from storm_surge import STORM_SURGE_ARCHIVE, read_storm_surge
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_SAFE_INTEGER = 2**53 - 1
@@ -103,10 +104,10 @@ def main(source_dir):
                         "Source duplicate records are retained and flagged; missing population counts are not imputed.",
               "sources": [], "repairs": [], "municipalities": [], "classes": [], "buckets": []}
 
-    def read(path, name):
+    def read(path, name, data=None):
         raw = path.read_bytes()
         result["sources"].append({"file": name, "sha256": hashlib.sha256(raw).hexdigest()})
-        data = json.loads(raw)
+        if data is None: data = json.loads(raw)
         if data.get("type") != "FeatureCollection" or not isinstance(data.get("features"), list):
             raise ValueError(f"Invalid FeatureCollection in {name}")
         if not data["features"]:
@@ -119,11 +120,13 @@ def main(source_dir):
     hazards, class_definitions = [], {}
     for layer, path, field in [
         ("flood", ROOT / "CamarinesNorte_FloodPerMunicipality.geojson", "Suscep"),
+        ("storm_surge", source_dir / STORM_SURGE_ARCHIVE, "hazardClass"),
         ("landslide", source_dir / "CN_RIL.geojson", "lndslidesu"),
         ("liquefaction", source_dir / "CN_liquefaction.geojson", "Liq_Class"),
         ("tsunami", source_dir / "CN_tsunami.geojson", "Inun_desc"),
     ]:
-        for index, feature in enumerate(read(path, path.name), 1):
+        source = read_storm_surge(source_dir) if layer == "storm_surge" else None
+        for index, feature in enumerate(read(path, path.name, source), 1):
             properties = feature.get("properties", {})
             label = properties.get(field)
             if not isinstance(label, str) or not label.strip():

@@ -17,7 +17,6 @@ export default function Sidebar() {
         <ArrowRight size={18} aria-hidden="true" />
       </button>
       <ReferenceControls/>
-      <button className="nav-text-button w-full text-left" onClick={()=>s.setAnalyticsOpen(true)}>Incident Logs & Analytics</button>
     </div>
   </aside>;
 }

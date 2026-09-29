@@ -21,6 +21,7 @@ export const FLOOD_COLORS: Record<string,string> = {'Very High':'#12003c',High:'
 export const RIL_COLORS: Record<string,string> = {'Very High Susceptibility':'#902400','High Susceptibility':'#FF0000','Moderate Susceptibility':'#008000','Low Susceptibility':'#FFFF00','Debris Flow/Possible Accumulation Zone':'#000000'};
 export const REFERENCE_LAYERS = [
   {id:'flood',label:'Flood Susceptibility',field:'Suscep',colors:FLOOD_COLORS},
+  {id:'storm_surge',label:'Storm Surge (SSA1)',field:'hazardClass',colors:{'Class 1':'#bae6fd','Class 2':'#0284c7','Class 3':'#075985'} as Record<string,string>},
   {id:'landslide',label:'Rain-Induced Landslide Susceptibility',field:'lndslidesu',colors:RIL_COLORS},
   {id:'liquefaction',label:'Liquefaction Susceptibility',field:'Liq_Class',colors:{'Generally Susceptible':'#ffaa00'} as Record<string,string>},
   {id:'tsunami',label:'Tsunami Inundation',field:'Inun_desc',colors:{'General inundation':'#c7cf5d','Inundation depth':'#25cfde'} as Record<string,string>},

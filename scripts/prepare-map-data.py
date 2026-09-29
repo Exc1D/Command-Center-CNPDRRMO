@@ -1,4 +1,4 @@
-"""Build display-only map derivatives. pip install shapely pyproj openpyxl.
+"""Build display-only map derivatives. pip install shapely pyproj openpyxl pyshp==2.3.1.
 Run: python scripts/prepare-map-data.py --source-dir /path/to/supplied/files
 Raw inputs are never modified. Population output must NOT be served statically.
 """
@@ -9,6 +9,7 @@ from pyproj import Transformer
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
 from shapely import make_valid, get_num_coordinates
+from storm_surge import STORM_SURGE_ARCHIVE, read_storm_surge
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -35,9 +36,9 @@ to_m = Transformer.from_crs(4326, 32651, always_xy=True).transform
 to_ll = Transformer.from_crs(32651, 4326, always_xy=True).transform
 river_ll = Transformer.from_crs("ESRI:102457", 4326, always_xy=True, allow_ballpark=False)
 print("River transform:", river_ll.description, flush=True)
-def derivative(key, filename, tolerance=2, fields=None, project=False):
+def derivative(key, filename, tolerance=2, fields=None, project=False, data=None):
     raw = (args.source_dir / filename).read_bytes()
-    data = json.loads(raw)
+    if data is None: data = json.loads(raw)
     features, before, after, repairs = [], 0, 0, 0
     max_area_change = 0
     for i, f in enumerate(data["features"], 1):
@@ -67,6 +68,7 @@ def derivative(key, filename, tolerance=2, fields=None, project=False):
 
 derivative("boundaries", "Municipal Boundary NAMRIA.geojson", fields=["ADM3_EN", "ADM3_PCODE", "AREA_SQKM"])
 derivative("landslide", "CN_RIL.geojson", fields=["lndslidesu"])
+derivative("storm_surge", STORM_SURGE_ARCHIVE, data=read_storm_surge(args.source_dir))
 derivative("liquefaction", "CN_liquefaction.geojson", fields=["Liq_Class"])
 derivative("tsunami", "CN_tsunami.geojson", tolerance=5, fields=["Inun_desc", "Inun_depth"])
 derivative("roads", "OSMCN_roads.geojson", fields=["Road Class", "RoadName", "fclass", "Mun"])

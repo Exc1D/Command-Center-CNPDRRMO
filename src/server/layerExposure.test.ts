@@ -39,6 +39,9 @@ it('rejects damaged or incomplete private datasets instead of reporting zero exp
   try {
     read.mockResolvedValue(JSON.stringify(index));
     await expect(analyzeLayerExposure(selection)).resolves.toMatchObject({exposed:{populationSum:3}});
+    await expect(analyzeLayerExposure({...selection,layers:['storm_surge']})).rejects.toThrow(/missing from the exposure aggregate/);
+    read.mockResolvedValue(JSON.stringify({...index,classes:[...index.classes,{id:'ssa1',layer:'storm_surge',label:'Class 1'}],buckets:[{...bucket,classes:['flood','ssa1']}]}));
+    await expect(analyzeLayerExposure({...selection,layers:['storm_surge','flood']})).resolves.toMatchObject({exposed:{populationSum:3},multipleHazards:{populationSum:3}});
     for(const damaged of [{...index,classes:[]},{...index,buckets:[{...bucket,populationSum:'3'}]},{...index,buckets:[{...bucket,missingPopulationRecords:2}]}]) {
       read.mockResolvedValue(JSON.stringify(damaged));
       await expect(analyzeLayerExposure(selection)).rejects.toThrow();

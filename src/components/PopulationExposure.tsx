@@ -31,10 +31,10 @@ export function PopulationExposure() {
   const data=ready && result?.key===key?result.data:null;
   const available=!!data?.available.matchedRecords;
   return <section className="space-y-4 text-sm" aria-label="Hazard–population exposure">
-    <div><h3 className="font-bold text-lg">Population exposed to selected hazards</h3><p className="mt-1 text-on-surface/70">Potential exposure from the HH population values inside reference hazard zones. These are provisional source counts, not confirmed incident casualties or affected-person reports.</p></div>
-    <fieldset><legend className="font-semibold">Hazard layers shared with the map</legend><div className="grid sm:grid-cols-2 gap-x-4">{REFERENCE_LAYERS.map(layer=><label key={layer.id} className="reference-check"><input type="checkbox" checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/>{layer.label}</label>)}</div></fieldset>
-    {s.referenceLayers.includes('flood') && <fieldset><legend className="font-semibold">Flood susceptibility classes</legend><div className="flex flex-wrap gap-x-5">{Object.keys(FLOOD_COLORS).map(label=><label key={label} className="reference-check"><input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>{label}</label>)}</div><p className="text-xs">None selected includes all flood classes, matching the map.</p></fieldset>}
-    {!s.referenceLayers.length && <p role="status">Select at least one reference hazard layer to compare its zones with population data.</p>}
+    <div><h3 className="font-bold text-lg">Population exposed to selected hazards</h3><p className="mt-1 text-on-surface/70">Provisional estimates, not confirmed affected-person counts.</p></div>
+    <fieldset><legend className="font-semibold">Hazard layers</legend><div className="grid sm:grid-cols-2 gap-x-4">{REFERENCE_LAYERS.map(layer=><label key={layer.id} className="reference-check"><input type="checkbox" checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/>{layer.label}</label>)}</div></fieldset>
+    {s.referenceLayers.includes('flood') && <fieldset><legend className="font-semibold">Flood susceptibility classes</legend><div className="flex flex-wrap gap-x-5">{Object.keys(FLOOD_COLORS).map(label=><label key={label} className="reference-check"><input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>{label}</label>)}</div><p className="text-xs">No selection includes all classes.</p></fieldset>}
+    {!s.referenceLayers.length && <p role="status">Select a hazard layer to calculate exposure.</p>}
     {!s.isMapAuthorized && <div><p>Unlock operations to analyze the private population dataset.</p><button className="nav-text-button underline" onClick={()=>s.openPinModal('unlock')}>Unlock population analysis</button></div>}
     {ready && !data && !error && <p role="status">Calculating population exposure…</p>}
     {error && <div role="alert"><p>{error}</p><button className="nav-text-button underline" onClick={()=>setRetry(v=>v+1)}>Retry analysis</button></div>}
@@ -43,7 +43,7 @@ export function PopulationExposure() {
         <h4 className="font-bold">Combined exposure · {s.selectedBarangay || s.selectedMunicipality || 'Camarines Norte'}</h4>
         <p className="text-lg"><strong>{available?populationText(data.exposed):'No population data'}</strong>{available && ' source population within at least one selected hazard'}</p>
         <p>{data.exposed.matchedRecords.toLocaleString()} matching source records · {data.exposed.missingPopulationRecords.toLocaleString()} without population counts · {data.exposed.duplicateIdRecords.toLocaleString()} with duplicate IDs</p>
-        <p className="text-xs">Each source record is counted once in the combined result. Duplicate source records remain flagged for review.{available && <> Population in more than one selected hazard type: {populationText(data.multipleHazards)}.</>}</p>
+        <p className="text-xs">Duplicates remain unresolved.{available && <> Population in more than one selected hazard type: {populationText(data.multipleHazards)}.</>}</p>
       </div>
       <section aria-label="Exposure comparison" className="space-y-4">
         <h4 className="font-bold">Compare selected hazards</h4>
@@ -57,15 +57,12 @@ export function PopulationExposure() {
       <details className="border-b border-outline-variant pb-2"><summary className="min-h-11 cursor-pointer font-semibold">Municipality and barangay breakdown · {data.byLocation.length} locations</summary><div className="overflow-x-auto"><table className="w-full min-w-[520px] text-sm"><caption className="text-left font-bold mb-2">Combined exposure by location</caption><thead><tr>{['Municipality','Barangay','Source population','Matching records','Missing counts'].map(h=><th className="p-2 text-left" key={h}>{h}</th>)}</tr></thead><tbody>{data.byLocation.map(row=><tr key={JSON.stringify([row.municipality,row.barangay])} className="border-t border-outline-variant/40"><td className="p-2">{row.municipality}</td><th className="p-2 text-left font-medium">{row.barangay && canonicalLocation(row.municipality,row.barangay)?<button className="underline min-h-11" onClick={()=>s.setLocationFilter(row.municipality,row.barangay!)}>{row.barangay}</button>:row.barangay || 'Unassigned in source'}</th><td className="p-2">{populationText(row.exposed)}</td><td className="p-2">{row.exposed.matchedRecords.toLocaleString()}</td><td className="p-2">{row.exposed.missingPopulationRecords.toLocaleString()}</td></tr>)}</tbody></table></div></details>
       {!available && <p>No population records are available for this location. Exposure cannot be determined.</p>}
       {available && data.exposed.matchedRecords===0 && <p>No source points match these hazard zones. This does not establish zero risk or zero affected people.</p>}
-      <section className="space-y-2 text-xs"><h4 className="font-bold text-sm">Coverage and method</h4>
+      <section className="space-y-2 text-xs"><h4 className="font-bold text-sm">Coverage gaps</h4>
         {!!data.unavailableMunicipalities.length && <p>Population files missing: {data.unavailableMunicipalities.join(', ')}.</p>}
         {(!s.selectedMunicipality || s.selectedMunicipality==='Talisay') && <p>Talisay lacks Cahabaan, Del Carmen, San Isidro and San Jose population coverage.</p>}
         {(!s.selectedMunicipality || s.selectedMunicipality==='Paracale') && <p>Paracale records lack population values and barangay labels; person counts and barangay exposure are unknown.</p>}
         {!!data.unlocatedRecords && <p>{data.unlocatedRecords.toLocaleString()} records have no barangay label in this municipality scope.{s.selectedBarangay?' They are excluded from this barangay result.':' They appear as unassigned.'}</p>}
-        <p>Source duplicates and coordinate disagreements remain unresolved. Six outlying population coordinates were excluded. A record can represent several people; sums use hh_totmem, never one person per point. Data year is unconfirmed.</p>
-        <p>{data.method} Location filters use the source municipality file and barangay labels. Results cover available records only; the workbook population is not substituted for missing values.</p>
-        <p>Dataset prepared {new Date(data.generatedAt).toLocaleString()}. {data.repairs} source hazard geometries repaired without simplification.</p>
-        <details><summary className="min-h-11 cursor-pointer">Source files and fingerprints</summary><ul className="space-y-2">{data.sources.map(source=><li key={source.file} className="break-all">{source.file}<br/><code>{source.sha256}</code></li>)}</ul></details>
+        <p>Coverage is incomplete; data year unconfirmed.</p>
       </section>
     </>}
   </section>;

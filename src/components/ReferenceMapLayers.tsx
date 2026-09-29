@@ -111,9 +111,9 @@ function ReferenceLayer({id}:{id:string}) {
 }
 export function ReferenceMapLayers() {
   const {referenceLayers,elementLayers}=useStore();
-  const title=REFERENCE_LAYERS.filter(t=>referenceLayers.includes(t.id)).map(t=>t.label).join(' + ') || 'Camarines Norte Operational Map';
+  const title=REFERENCE_LAYERS.filter(t=>referenceLayers.includes(t.id)).map(t=>t.label).join(' + ');
   return <div className="absolute top-3 right-3 z-[450] space-y-2 pointer-events-auto" aria-label="Layer status">
-    <div className="bg-white/95 text-slate-800 rounded-xl p-3 shadow max-w-sm pointer-events-none"><h2 className="font-bold text-sm">{title}</h2><p className="text-xs mt-1">Use the sidebar to select hazards, incidents and elements.</p></div>
+    {title && <div className="bg-white/95 text-slate-800 rounded-xl p-3 shadow max-w-sm pointer-events-none"><h2 className="font-bold text-sm">{title}</h2></div>}
     {[...referenceLayers,...elementLayers].filter(id=>[...REFERENCE_LAYERS,...ELEMENT_LAYERS].some(t=>t.id===id) && !(id==='lifelines' && elementLayers.includes('facilities'))).map(id=><ReferenceLayer key={id} id={id}/>)}
   </div>;
 }

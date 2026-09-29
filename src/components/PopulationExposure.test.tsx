@@ -18,6 +18,9 @@ it('gates private analysis, respects map filters, and clears results when locked
   useStore.setState({isMapAuthorized:true});
   await waitFor(()=>expect(screen.getByText('Compare selected hazards')).toBeInTheDocument());
   expect(screen.getAllByText('Unknown').length).toBeGreaterThan(0);
+  expect(screen.getByText('Provisional estimates, not confirmed affected-person counts.')).toBeInTheDocument();
+  expect(screen.getByText(/Paracale records lack population values/)).toBeInTheDocument();
+  expect(screen.queryByText('Source files and fingerprints')).not.toBeInTheDocument();
   expect(screen.queryByText(/Unknown \(0\.0%\)/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByLabelText('High',{exact:true}));
   await waitFor(()=>expect(JSON.parse(fetcher.mock.calls.at(-1)![1].body as string).floodClasses).toEqual(['High']));

@@ -155,7 +155,7 @@ export function createApp(db: Database, correctPin: string, provinceBoundary?: P
   app.post('/api/reference/layer-exposure', async (request,response) => {
     response.setHeader('Cache-Control','no-store');
     const parsed=z.object({
-      layers:z.array(z.string().refine(id=>REFERENCE_LAYERS.some(l=>l.id===id))).min(1).max(4),
+      layers:z.array(z.string().refine(id=>REFERENCE_LAYERS.some(l=>l.id===id))).min(1).max(REFERENCE_LAYERS.length),
       floodClasses:z.array(z.string().refine(value=>Object.hasOwn(FLOOD_COLORS,value))).max(4).default([]),
       municipality:z.string().refine(value=>value==='' || municipalities.includes(value)).default(''),
       barangay:z.string().max(120).default(''),

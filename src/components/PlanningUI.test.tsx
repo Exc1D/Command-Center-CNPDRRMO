@@ -40,6 +40,7 @@ describe('Planning UI', () => {
     expect(usePlanningStore.getState().dirty).toBe(true);
 
     await user.click(screen.getByRole('tab', { name: '2 Map' }));
+    await user.click(screen.getByText('Symbols', { exact: true }));
     await user.selectOptions(screen.getByLabelText('Symbol category'), 'Command');
     expect(screen.getByRole('button', { name: 'Emergency Operations Center' }).querySelector('svg')).toBeInTheDocument();
   });
@@ -55,7 +56,7 @@ describe('Planning UI', () => {
   it('offers every symbol directly from the toolbar and preserves native selector keys', async () => {
     const user = userEvent.setup();
     render(<PlanningOverlay />);
-    await user.click(screen.getByRole('button', { name: 'Symbol People and resources' }));
+    await user.click(screen.getByRole('button', { name: 'Symbol', exact: true }));
 
     const chooser = screen.getByRole('combobox', { name: 'Planning symbol' });
     expect(chooser.querySelectorAll('option')).toHaveLength(PLANNING_SYMBOLS.length);
@@ -90,16 +91,35 @@ describe('Planning UI', () => {
     const user = userEvent.setup();
     render(<PlanningSidebar />);
 
-    expect(await screen.findByRole('heading', { name: 'Define the decision' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Plan name')).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: '2 Map' }));
-    expect(screen.getByRole('heading', { name: 'Map assignments and resources' })).toBeInTheDocument();
+    expect(screen.getByText('Symbols', { exact: true }).closest('details')).not.toHaveAttribute('open');
     await user.click(screen.getByText('Map reference and layers'));
     expect(screen.getByRole('checkbox', { name: 'Show drawings' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: '3 Review' }));
-    expect(screen.getByRole('heading', { name: 'Publication readiness' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ready to publish' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish plan' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /Objective.*missing/ }));
+    expect(screen.getByRole('tab', { name: '1 Brief' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Operational objective')).toBeInTheDocument();
+  });
+
+  it('reveals symbol controls from the map tool and keeps optional settings folded', async () => {
+    const user = userEvent.setup();
+    render(<><PlanningSidebar /><PlanningOverlay /></>);
+    await user.click(await screen.findByRole('tab', { name: '2 Map' }));
+    const symbols = screen.getByText('Symbols', { exact: true }).closest('details');
+    expect(symbols).not.toHaveAttribute('open');
+    await user.click(screen.getByRole('button', { name: 'Symbol', exact: true }));
+    expect(symbols).toHaveAttribute('open');
+    expect(screen.getByText('Size and templates').closest('details')).not.toHaveAttribute('open');
+    await user.selectOptions(screen.getByLabelText('Symbol category'), 'Transport');
+    await user.click(screen.getByRole('button', { name: 'Rescue Boat', exact: true }));
+    expect(usePlanningStore.getState()).toMatchObject({ tool: 'symbol', symbolKey: 'rescue-boat' });
+    await user.click(screen.getByRole('button', { name: 'Select', exact: true }));
+    expect(symbols).not.toHaveAttribute('open');
   });
 
   it('requires the latest draft to be saved before publication', async () => {
@@ -118,6 +138,6 @@ describe('Planning UI', () => {
 
     await user.click(await screen.findByRole('tab', { name: '3 Review' }));
     expect(screen.getByRole('button', { name: 'Publish plan' })).toBeDisabled();
-    expect(screen.getByText('Save the latest changes before publishing.')).toBeInTheDocument();
+    expect(screen.getByText('Save the latest changes before publishing')).toBeInTheDocument();
   });
 });

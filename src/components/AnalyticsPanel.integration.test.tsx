@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { AnalyticsPanel, summarizeBarangays, summarizeMunicipalities } from './AnalyticsPanel';
 import { useStore } from '../lib/store';
+import Sidebar from './Sidebar';
 import { h1, h2, h3 } from '../test/fixtures/hazards';
 
 const report=vi.hoisted(()=>({
@@ -33,14 +34,14 @@ it('shares dependent geographic filters with the map and preserves hazard filter
   expect(useStore.getState().selectedBarangay).toBe('');
   expect(useStore.getState().filteredHazards.map(h=>h.id)).toEqual(['h2']);
 });
-it('searches the incident log and opens an incident on the map',()=>{
-  render(<AnalyticsPanel/>);
-  fireEvent.click(screen.getByRole('button',{name:'Incident Logs'}));
+it('removes incident-log navigation while preserving searchable incident analytics',()=>{
+  render(<><Sidebar/><AnalyticsPanel/></>);
+  expect(screen.queryByRole('button',{name:/Incident Logs/})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
   fireEvent.change(screen.getByPlaceholderText('Search incidents...'),{target:{value:'Bagasbas'}});
   expect(screen.queryByText(h2.title!)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button',{name:/Brgy. Bagasbas Flooding/}));
-  expect(useStore.getState().selectedHazard?.id).toBe(h1.id);
-  expect(useStore.getState().isAnalyticsOpen).toBe(false);
+  expect(screen.getByText(h1.title!)).toBeInTheDocument();
+  expect(useStore.getState().hazards).toHaveLength(3);
 });
 it('keeps unknown counts separate from zero and labels population estimates',()=>{
   useStore.getState().setHazards([{...h1,affectedPopulation:0},{...h3,affectedPopulation:12,affectedPopulationBasis:'population_estimate'},h2]);
@@ -53,8 +54,8 @@ it('keeps unknown counts separate from zero and labels population estimates',()=
 it('renders untitled incidents, empty search results, and sourced history',()=>{
   useStore.getState().setHazards([{...h1,title:''}]);
   render(<AnalyticsPanel/>);
-  fireEvent.click(screen.getByRole('button',{name:'Incident Logs'}));
-  expect(screen.getByText('Untitled Incident')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
+  expect(screen.getByText('Untitled',{exact:true})).toBeInTheDocument();
   fireEvent.change(screen.getByPlaceholderText('Search incidents...'),{target:{value:'unmatched'}});
   expect(screen.getByText('No incidents match the selected filters.')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button',{name:'History'}));

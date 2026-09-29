@@ -126,7 +126,7 @@ Command-Center-CNPDRRMO/
 │   ├── main.tsx             # Entry point
 │   ├── index.css             # Global styles + Tailwind
 │   ├── components/
-│   │   ├── Sidebar.tsx       # Navigation, filters, incident logs, PDF export
+│   │   ├── Sidebar.tsx       # Map layers and operations access
 │   │   ├── Map.tsx           # Leaflet map with hazard layers
 │   │   ├── Modals.tsx        # DropTag, Pin, PopUp modals
 │   │   ├── EditHazardModal.tsx
