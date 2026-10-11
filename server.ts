@@ -11,6 +11,7 @@ import { createPlanningRouter } from "./src/server/planning";
 import { all, createDatabase, execute, one, type Database } from "./src/server/database";
 
 import { HAZARD_TYPES, LEGACY_TYPES, canonicalLocation, municipalities, REFERENCE_LAYERS, FLOOD_COLORS } from './src/lib/reference';
+import { PLANNING_SYMBOLS } from './src/lib/planning';
 
 export { createDatabase } from "./src/server/database";
 
@@ -32,10 +33,11 @@ const geometrySchema = z.discriminatedUnion('type', [
 
 const hazardSchema = z.object({
   id: z.string().uuid(),
-  type: z.string().refine(value => [...HAZARD_TYPES,...LEGACY_TYPES].some(t => t.id === value)),
+  type: z.string().refine(value => value === 'resource' || [...HAZARD_TYPES,...LEGACY_TYPES].some(t => t.id === value)),
+  symbolKey: z.string().refine(value => PLANNING_SYMBOLS.some(symbol => symbol.key === value)).nullable().optional(),
   affectedPopulationBasis: z.enum(['reported','population_estimate','household_estimate']).transform(value => value === 'household_estimate' ? 'population_estimate' : value).optional(),
   affectedPopulation: z.number().int().min(0).max(100_000_000).nullable().optional(),
-  severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical']),
+  severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical', 'Not applicable']),
   title: z.string().trim().max(120).optional(),
   municipality: z.string().trim().max(120).optional(),
   barangay: z.string().trim().max(500).optional(),
@@ -44,6 +46,13 @@ const hazardSchema = z.object({
   dateAdded: z.string().datetime(),
   version: z.number().int().nonnegative().optional(),
 });
+
+// Resource pins reuse operational storage and offline sync without becoming incidents.
+function validPinKind(record: { type: unknown; severity: unknown; symbolKey?: unknown; geometry?: { type?: string }; affectedPopulation?: unknown; affectedPopulationBasis?: unknown }) {
+  return record.type === 'resource'
+    ? record.geometry?.type === 'Point' && Boolean(record.symbolKey) && record.severity === 'Not applicable' && record.affectedPopulation == null && record.affectedPopulationBasis !== 'population_estimate'
+    : record.severity !== 'Not applicable';
+}
 
 const evacuationCenterSchema = z.object({
   id: z.string().uuid(),
@@ -200,16 +209,17 @@ app.post("/api/hazards", async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
-    const { id, type, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    const { id, type, symbolKey, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    if (!validPinKind(parsed.data)) return res.status(400).json({error:'Resource pins require a point and symbol, without incident severity or population'});
     const location = canonicalLocation(parsed.data.municipality,parsed.data.barangay);
     if (!location) return res.status(400).json({error:'Select a valid municipality and barangay'});
     const {municipality,barangay} = location;
     // Retain legacy types arriving from an existing offline queue with their original meaning.
 
     await execute(db, `
-      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported');
+      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis, symbolKey)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported', symbolKey ?? null);
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
@@ -233,9 +243,10 @@ app.put("/api/hazards/:id", async (req, res) => {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
 
-    let { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    let { type, symbolKey, severity, title, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
     const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
     if (!current) return res.status(404).json({error:'Hazard not found'});
+    if (!validPinKind({ ...current, ...parsed.data, type: type ?? current.type, severity: severity ?? current.severity, geometry: geometry ?? JSON.parse(String(current.geometry)) })) return res.status(400).json({error:'Invalid incident or resource pin fields'});
     if ((municipality !== undefined && municipality !== current.municipality) || (barangay !== undefined && barangay !== current.barangay)) {
       if (!canonicalLocation(municipality ?? String(current.municipality || ''), barangay ?? String(current.barangay || ''))) return res.status(400).json({error:'Select a valid municipality and barangay'});
     }
@@ -250,6 +261,7 @@ app.put("/api/hazards/:id", async (req, res) => {
       SET affectedPopulationBasis = COALESCE(?, affectedPopulationBasis),
           affectedPopulation = CASE WHEN ? THEN ? ELSE affectedPopulation END,
           type = COALESCE(?, type),
+          symbolKey = CASE WHEN ? THEN ? ELSE symbolKey END,
           severity = COALESCE(?, severity),
           title = COALESCE(?, title),
           municipality = COALESCE(?, municipality),
@@ -264,6 +276,8 @@ app.put("/api/hazards/:id", async (req, res) => {
       affectedPopulation !== undefined ? 1 : 0,
       affectedPopulation ?? null,
       type,
+      symbolKey !== undefined ? 1 : 0,
+      symbolKey ?? null,
       severity,
       title,
       municipality,

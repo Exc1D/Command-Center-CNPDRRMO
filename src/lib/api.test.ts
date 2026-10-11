@@ -125,6 +125,15 @@ describe('offline reconciliation', () => {
     expect(await db.hazards.get('conflict')).toMatchObject({ severity: 'Moderate', version: 3, syncStatus: 'synced' });
   });
 
+  it('preserves conflicts when only the pin symbol differs', async () => {
+    const local={...hazard('symbol-conflict'),symbolKey:'ambulance'};
+    api.put.mockRejectedValue(Object.assign(new Error('Conflict'),{isAxiosError:true,response:{status:409,data:{current:{...local,symbolKey:'eoc',version:2}}}}));
+    await HazardAPI.updateHazard(local);
+    const saved=await db.hazards.get(local.id);
+    expect(saved).toMatchObject({symbolKey:'eoc',syncStatus:'conflict'});
+    expect(JSON.parse(saved!.conflictData!)).toMatchObject({symbolKey:'ambulance'});
+  });
+
   it('handles a live conflict so callers can immediately refresh the resolution UI', async () => {
     const local = hazard('live-conflict', 'synced');
     await db.hazards.put(local);

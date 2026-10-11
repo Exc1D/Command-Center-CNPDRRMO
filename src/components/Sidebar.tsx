@@ -13,7 +13,7 @@ export default function Sidebar() {
         } else s.openPinModal('unlock');
       }}>
         {s.isMapAuthorized ? <LockOpen size={20} aria-hidden="true" /> : <LockKeyhole size={20} aria-hidden="true" />}
-        <span>{s.isMapAuthorized ? 'Lock map operations' : 'Unlock map operations'}</span>
+        <span>{s.isMapAuthorized ? 'Lock pin tools' : 'Unlock pin tools'}</span>
         <ArrowRight size={18} aria-hidden="true" />
       </button>
       <ReferenceControls/>

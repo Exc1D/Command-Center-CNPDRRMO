@@ -1,4 +1,5 @@
 import { ReferenceControls } from './ReferenceControls';
+import { SymbolOptions } from './SymbolOptions';
 import { useEffect, useRef, useState } from 'react';
 import {
   Archive,
@@ -84,12 +85,6 @@ const PRIMARY_TOOL_BUTTONS = [
 const DRAW_TOOLS = TOOL_BUTTONS.filter(item => ['freehand', 'line', 'polygon', 'rectangle', 'circle', 'eraser'].includes(item.tool));
 const DRAW_TOOL_SET = new Set<PlanningTool>(DRAW_TOOLS.map(item => item.tool));
 const SYMBOL_CATEGORIES = [...new Set(PLANNING_SYMBOLS.map(symbol => symbol.category))];
-
-function SymbolOptions() {
-  return SYMBOL_CATEGORIES.map(category => <optgroup key={category} label={category}>
-    {PLANNING_SYMBOLS.filter(symbol => symbol.category === category).map(symbol => <option key={symbol.key} value={symbol.key}>{symbol.label}</option>)}
-  </optgroup>);
-}
 
 function localDateTime(iso?: string) {
   if (!iso) return '';

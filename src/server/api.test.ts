@@ -46,6 +46,34 @@ describe('production API', () => {
     expect((await one<{ count: number }>(db, "SELECT COUNT(*) AS count FROM operations_audit WHERE path = '/api/hazards'"))?.count).toBe(1);
   });
 
+  it('persists, updates and clears pin symbols while rejecting unknown symbols', async () => {
+    await authorize();
+    expect((await client.post('/api/hazards').send({...hazard,symbolKey:'unknown'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,symbolKey:'ambulance'})).status).toBe(201);
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBe('ambulance');
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,symbolKey:'eoc'})).status).toBe(200);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:2,title:'Updated title'})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBe('eoc');
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:3,symbolKey:'<script>'})).status).toBe(400);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:3,symbolKey:null})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBeNull();
+  });
+
+  it('validates standalone resource pins on creation and partial updates', async () => {
+    await authorize();
+    const resource={...hazard,type:'resource',severity:'Not applicable',symbolKey:'ambulance',affectedPopulation:null};
+    expect((await client.post('/api/hazards').send({...resource,symbolKey:null})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...resource,affectedPopulation:10})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...resource,severity:'Moderate'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,severity:'Not applicable'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send(resource)).status).toBe(201);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,symbolKey:null})).status).toBe(400);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,geometry:{type:'LineString',coordinates:[[123,14],[123.1,14.1]]}})).status).toBe(400);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,affectedPopulation:10})).status).toBe(400);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,symbolKey:'eoc',title:'Command post'})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0]).toMatchObject({type:'resource',symbolKey:'eoc',title:'Command post',affectedPopulation:null});
+  });
+
   it('rejects missing dates and malformed geometry at the trust boundary', async () => {
     await authorize();
     const { dateAdded: _, ...missingDate } = hazard;

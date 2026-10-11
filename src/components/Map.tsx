@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, GeoJSON, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
 import '@geoman-io/leaflet-geoman-free';
-import { useStore, DISASTER_TYPES, SUSCEPTIBILITY_LEVELS } from '../lib/store';
-import { HazardAPI, EvacuationCenterAPI } from '../lib/api';
-import { v4 as uuidv4 } from 'uuid';
+import { useStore } from '../lib/store';
+import { EvacuationCenterAPI } from '../lib/api';
 import { MAP_CONFIG } from '../lib/constants';
 import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
 import { ReferenceMapLayers, incidentIcon } from './ReferenceMapLayers';
-import { hazardDefinition } from '../lib/reference';
+import { hazardDefinition, filterMapRecords } from '../lib/reference';
 import { getCentroid } from '../lib/utils';
 
 // Fix Leaflet icon issue
@@ -34,47 +33,14 @@ export const CENTER_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
-export const GEOMAN_TRANSLATIONS = {
-  tooltips: {
-    placeMarker: 'Click the map to add an incident',
-    firstVertex: 'Click the map to place the first point',
-    continueLine: 'Click to add another point',
-    finishLine: 'Click the first point or Save drawing to finish',
-    finishPoly: 'Click the first point or Save drawing to finish',
-    finishRect: 'Release to finish the rectangle',
-    placeText: 'Click the map to add a note',
-  },
-  actions: {
-    finish: 'Save drawing',
-    removeLastVertex: 'Undo last point',
-    cancel: 'Stop tool',
-  },
+const GEOMAN_TRANSLATIONS = {
+  tooltips: { placeMarker: 'Click the map to add an incident or resource pin' },
+  actions: { cancel: 'Stop tool' },
   buttonTitles: {
-    drawMarkerButton: 'Add incident',
-    drawCircleMarkerButton: 'Add evacuation center',
-    drawPolyButton: 'Draw hazard area',
-    drawLineButton: 'Draw hazard line',
-    drawRectButton: 'Draw rectangular hazard area',
-    drawTextButton: 'Add map note',
-    editButton: 'Edit a mapped hazard',
-    dragButton: 'Move a mapped hazard',
-    deleteButton: 'Delete a mapped hazard',
-    rotateButton: 'Rotate a mapped hazard',
+    drawMarkerButton: 'Add incident or resource pin',
+    drawCircleMarkerButton: 'Add evacuation center pin',
   },
 };
-
-export async function removeHazard(hazardId: string) {
-  await HazardAPI.deleteHazard(hazardId);
-  useStore.getState().setHazards(await HazardAPI.getAllHazards());
-}
-
-export async function updateHazardGeometry(hazard: any, geometry: any) {
-  await HazardAPI.updateHazard({ ...hazard, geometry, ...(hazard.affectedPopulationBasis === 'population_estimate' ? {
-    affectedPopulation: null, affectedPopulationBasis: 'reported',
-    notes: (hazard.notes || '') + '\nIncident geometry changed; previous population estimate requires recalculation.',
-  } : {}) });
-  useStore.getState().setHazards(await HazardAPI.getAllHazards());
-}
 
 export async function loadEvacuationCenters() {
   const centers = await EvacuationCenterAPI.getAllCenters();
@@ -105,7 +71,7 @@ const evacuationCenterIcon = L.divIcon({
   popupAnchor: [0, -32],
 });
 
-function GeomanSetup() {
+export function MonitoringPins() {
   const map = useMap();
   const openDropTagModal = useStore(state => state.openDropTagModal);
   const openEvacuationCenterModal = useStore(state => state.openEvacuationCenterModal);
@@ -126,17 +92,18 @@ function GeomanSetup() {
     map.pm.setLang('en', GEOMAN_TRANSLATIONS, 'en');
     map.pm.addControls({
       position: 'topleft',
-      drawMarker: true,  // Enable marker drawing for evacuation centers
+      drawMarker: true,
       drawCircleMarker: true,
-      drawPolyline: true,
-      drawRectangle: true,
-      drawPolygon: true,
+      drawPolyline: false,
+      drawRectangle: false,
+      drawPolygon: false,
       drawCircle: false,
       drawText: false,
-      editMode: true,
-      dragMode: true,
+      editMode: false,
+      dragMode: false,
       cutPolygon: false,
-      removalMode: true, // Enabled for shape deletion feature
+      removalMode: false,
+      rotateMode: false,
     });
 
     map.getContainer().querySelectorAll('.leaflet-pm-toolbar a[role="button"]').forEach(button => {
@@ -148,42 +115,21 @@ function GeomanSetup() {
     map.on('pm:drawstart',beginDrawing);
     map.on('pm:drawend',endDrawing);
 
-    // Styles for drawn paths based on Editorial Resilience
-    map.pm.setPathOptions({
-      color: 'var(--color-primary)',
-      fillColor: 'var(--color-surface-container)',
-      fillOpacity: 0.4,
-    });
-
     // Handle creation
     map.on('pm:create', (e) => {
       const layer = e.layer;
       const geojson = (layer as any).toGeoJSON();
       map.pm.disableDraw();
+      map.removeLayer(layer);
 
-      // FIXED: Use instanceof check for more reliable marker detection
-      // Geoman's pmType may not be set yet at this point, so check the layer class directly
+      // Monitoring creates points only; existing areas and lines remain viewable.
       if (e.shape === 'CircleMarker') {
         // Evacuation center marker
-        map.removeLayer(layer);
         const coords: [number, number] = [geojson.geometry.coordinates[0], geojson.geometry.coordinates[1]];
         openEvacuationCenterModal(coords);
-      } else {
-        // Hazard polygon/polyline/rectangle
-        map.removeLayer(layer);
+      } else if (e.shape === 'Marker' && geojson.geometry.type === 'Point') {
+        // Incident pin
         openDropTagModal(geojson.geometry);
-      }
-    });
-
-    // Enable delete shape feature wired natively to our database
-    map.on('pm:remove', async (e) => {
-      const hazardId = (e.layer as any).hazardId;
-      if (hazardId) {
-        try {
-          await removeHazard(hazardId);
-        } catch (error) {
-          console.error('Failed to delete hazard:', error);
-        }
       }
     });
 
@@ -199,7 +145,6 @@ function GeomanSetup() {
       map.off('pm:drawend',endDrawing);
       endDrawing();
       map.off('pm:create');
-      map.off('pm:remove');
     };
   }, [map, openDropTagModal, openEvacuationCenterModal, isMapAuthorized]);
 
@@ -271,8 +216,11 @@ function EvacuationCenterMarkersHandler() {
 export default function DangerMap() {
   const baseMap = useStore(state => state.baseMap);
   const filteredHazards = useStore(state => state.filteredHazards);
+  const hazards = useStore(state => state.hazards);
+  const municipality = useStore(state => state.selectedMunicipality);
+  const barangay = useStore(state => state.selectedBarangay);
+  const resourcePins = filterMapRecords(hazards, ['resource'], municipality, barangay);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
-  const isMapAuthorized = useStore(state => state.isMapAuthorized);
   const incidentsVisible = useStore(state => state.incidentsVisible);
   const isPlanningMode = usePlanningStore(state => state.isPlanningMode);
   const mapUrls = {
@@ -317,9 +265,6 @@ export default function DangerMap() {
   };
 
   const onEachFeature = (feature: any, layer: L.Layer) => {
-    // Attach ID so pm:remove can catch it
-    (layer as any).hazardId = feature.properties.fullData.id;
-
     layer.on({
       mouseover: (e) => {
         const target = e.target;
@@ -340,18 +285,6 @@ export default function DangerMap() {
         setSelectedHazard(properties.fullData);
       }
     });
-
-    layer.on('pm:edit', async (e) => {
-      const activeLayer = e.layer;
-      const newGeom = (activeLayer as any).toGeoJSON().geometry;
-      const hazardData = feature.properties.fullData;
-      
-      try {
-        await updateHazardGeometry(hazardData, newGeom);
-      } catch (error) {
-        console.error('Failed to update hazard:', error);
-      }
-    });
   };
 
   return (
@@ -367,7 +300,7 @@ export default function DangerMap() {
           url={mapUrls[baseMap]}
           attribution={baseMap === "satellite" ? "Tiles © Esri and contributors" : baseMap === "topo" ? "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)" : "© OpenStreetMap contributors"}
         />
-        {!isPlanningMode && <GeomanSetup />}
+        {!isPlanningMode && <MonitoringPins />}
         {isPlanningMode && <PlanningMapLayer />}
         {isPlanningMode && <PublishedPlanningLayers />}
         <MapScaleControl /><MapResizeHandler />
@@ -377,7 +310,7 @@ export default function DangerMap() {
         <ReferenceMapLayers />
 
         <FeatureGroup>
-          {incidentsVisible && filteredHazards.filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
+          {incidentsVisible && [...filteredHazards, ...resourcePins].filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
             const geojson = {
               type: "Feature",
               properties: { fullData: hazard },
@@ -385,9 +318,9 @@ export default function DangerMap() {
             };
             return (
               <GeoJSON
-                key={JSON.stringify(hazard)+isMapAuthorized+isPlanningMode}
-                pmIgnore={!isMapAuthorized || isPlanningMode}
-                pointToLayer={(_feature,latlng)=>L.marker(latlng,{title:hazard.title || hazardDefinition(hazard.type)?.label || 'Incident',alt:hazard.title || 'Incident',icon:incidentIcon(hazard.type),pmIgnore:!isMapAuthorized || isPlanningMode})}
+                key={JSON.stringify(hazard)}
+                pmIgnore={true}
+                pointToLayer={(_feature,latlng)=>L.marker(latlng,{title:hazard.title || hazardDefinition(hazard.type)?.label || 'Resource pin',alt:hazard.title || (hazard.type==='resource'?'Resource pin':'Incident'),icon:incidentIcon(hazard.type,hazard.symbolKey),pmIgnore:true})}
                 data={geojson as any}
                 style={() => getStyle(hazard)}
                 onEachFeature={onEachFeature}

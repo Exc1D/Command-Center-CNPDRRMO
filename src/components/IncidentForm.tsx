@@ -3,12 +3,16 @@ import { X } from 'lucide-react';
 import type { Hazard } from '../lib/db';
 import { HAZARD_TYPES, hazardDefinition, canonicalLocation } from '../lib/reference';
 import { LocationFields } from './ReferenceControls';
+import { SymbolOptions } from './SymbolOptions';
+import { PLANNING_SYMBOLS } from '../lib/planning';
 import { HazardAPI } from '../lib/api';
 import { useStore } from '../lib/store';
 import { detectLocationFromGeometry } from '../lib/utils';
 
 export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:any;onClose:()=>void}) {
   const [type,setType]=useState(record?.type ?? 'flood');
+  const [symbolKey,setSymbolKey]=useState(record?.symbolKey ?? '');
+  const [isResource,setIsResource]=useState(record?.type === 'resource');
   const [severity,setSeverity]=useState(record?.severity ?? 'Moderate');
   const [title,setTitle]=useState(record?.title ?? '');
   const [municipality,setMunicipality]=useState(record?.municipality?.trim() ?? '');
@@ -27,10 +31,11 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
   async function save(event:React.FormEvent) {
     event.preventDefault();
     if(!canonicalLocation(municipality,barangay) && !unchangedLocation) {setError('Select a valid municipality and barangay.');return;}
-    const affectedPopulation=affected===''?null:Number(affected);
+    const affectedPopulation=isResource || affected===''?null:Number(affected);
+    if(isResource && !symbolKey) {setError('Choose a resource symbol.');return;}
     if(affectedPopulation!==null && (!Number.isSafeInteger(affectedPopulation) || affectedPopulation<0 || affectedPopulation>100_000_000)) {setError('Affected population must be a whole number from 0 to 100,000,000.');return;}
     setBusy(true);setError('');
-    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type,severity,title:title.trim() || 'Untitled Incident',municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
+    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type:isResource?'resource':type,symbolKey:symbolKey || null,severity:isResource?'Not applicable':severity,title:title.trim() || (isResource?PLANNING_SYMBOLS.find(symbol=>symbol.key===symbolKey)?.label:'Untitled Incident'),municipality,barangay,notes,affectedPopulation:isResource?null:affectedPopulation,affectedPopulationBasis:isResource?'reported':basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
     try {
       if(record) await HazardAPI.updateHazard(hazard); else await HazardAPI.addHazard(hazard);
       setHazards(await HazardAPI.getAllHazards());
@@ -40,8 +45,9 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
   }
   return <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
     <form onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="incident-heading" className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
-      <div className="flex justify-between gap-3"><h2 id="incident-heading" className="text-xl font-bold">{record?'Edit Incident Details':'Incident Details'}</h2><button type="button" aria-label="Close incident details" className="min-w-11 min-h-11 grid place-items-center" onClick={onClose} disabled={busy}><X/></button></div>
-      <label className="block text-sm font-semibold">Incident Title<input autoFocus className="reference-select mt-1" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Flooding at Bagasbas"/></label>
+      <div className="flex justify-between gap-3"><h2 id="incident-heading" className="text-xl font-bold">{isResource?(record?'Edit Resource Pin':'Resource Pin Details'):(record?'Edit Incident Details':'Incident Details')}</h2><button type="button" aria-label="Close incident details" className="min-w-11 min-h-11 grid place-items-center" onClick={onClose} disabled={busy}><X/></button></div>
+      {!record && geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin type<select className="reference-select mt-1" value={isResource?'resource':'incident'} onChange={e=>setIsResource(e.target.value==='resource')}><option value="incident">Incident</option><option value="resource">Resource</option></select></label>}
+      <label className="block text-sm font-semibold">{isResource?'Resource title':'Incident Title'}<input autoFocus className="reference-select mt-1" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder={isResource?'e.g. Ambulance Team Alpha':'e.g. Flooding at Bagasbas'}/></label>
       <LocationFields required municipality={municipality} barangay={barangay} onChange={(m,b)=>{setMunicipality(m);setBarangay(b);setSuggestion('');}}/>
       {!record && <button type="button" className="text-sm underline min-h-11" onClick={async()=>{
         setSuggestion('Looking for a nearby barangay…');
@@ -51,11 +57,15 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
         }catch {setSuggestion('Location suggestion unavailable. Select the location manually.');}
       }}>Suggest nearby location</button>}
       {suggestion && <p role="status" className="text-xs">{suggestion}</p>}
-      <label className="block text-sm font-semibold">Hazard Type<select className="reference-select mt-1" value={type} onChange={e=>setType(e.target.value)}>
+      {!isResource && <label className="block text-sm font-semibold">Hazard Type<select className="reference-select mt-1" value={type} onChange={e=>setType(e.target.value)}>
         {!HAZARD_TYPES.some(t=>t.id===type) && <option value={type}>{hazardDefinition(type)?.label || type}</option>}
         {HAZARD_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
-      </select></label>
-      <label className="block text-sm font-semibold">Severity Level<select className="reference-select mt-1" value={severity} onChange={e=>setSeverity(e.target.value)}>{['Minor','Moderate','Severe','Critical'].map(s=><option key={s}>{s}</option>)}</select></label>
+      </select></label>}
+      {geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin symbol<select className="reference-select mt-1" value={symbolKey} onChange={e=>setSymbolKey(e.target.value)}>
+        <option value="">{isResource?'Choose a resource symbol':'Use hazard icon'}</option>
+        <SymbolOptions />
+      </select><span className="block text-xs font-normal mt-1">{isResource?'Uses the same symbols as Planning.':'Uses the same symbols as Planning. Hazard type and severity stay with the incident.'}</span></label>}
+      {!isResource && <><label className="block text-sm font-semibold">Severity Level<select className="reference-select mt-1" value={severity} onChange={e=>setSeverity(e.target.value)}>{['Minor','Moderate','Severe','Critical'].map(s=><option key={s}>{s}</option>)}</select></label>
       <label className="block text-sm font-semibold">Affected Population<input type="number" min={0} max={100000000} step={1} className="reference-select mt-1" value={affected} onChange={e=>{setAffected(e.target.value);setBasis('reported');}} placeholder="Unknown"/></label>
       <p className="text-xs text-on-surface/60">Leave blank if unknown. Enter 0 only when zero affected people is confirmed.</p>
       <section className="rounded-xl border border-outline-variant p-3 space-y-2">
@@ -72,7 +82,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
           }catch(e){setError(e instanceof Error?e.message:'Population estimate unavailable. Existing entries are preserved.');}
           finally{setEstimating(false);}
         }}>{estimating?'Calculating population exposure…':'Calculate population exposure'}</button>
-        {geometry?.type==='LineString' && <p className="text-xs">Draw an incident polygon or use a point with a radius for population analysis.</p>}
+        {geometry?.type==='LineString' && <p className="text-xs">Population analysis is unavailable for saved lines. Use an incident pin with a radius.</p>}
         {estimate && <div role="status" className="text-xs space-y-2">
           <p><strong>Source population sum: {estimate.populationSum.toLocaleString()}</strong> across {estimate.matchedRecords.toLocaleString()} matching records.</p>
           <p>Missing population counts: {estimate.missingPopulationRecords}; records with duplicate IDs: {estimate.duplicateIdRecords}.</p>
@@ -85,10 +95,10 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
           }}>Use as provisional estimate</button>
         </div>}
         <p className="text-xs font-semibold">Population basis: {basis==='population_estimate'?'Provisional population estimate':'Field report / manual entry'}</p>
-      </section>
+      </section></>}
       <label className="block text-sm font-semibold">Field Notes<textarea className="reference-select mt-1" rows={3} maxLength={4000} value={notes} onChange={e=>setNotes(e.target.value)}/></label>
       {error && <p role="alert" className="text-primary">{error}</p>}
-      <button disabled={busy} className="btn-primary w-full min-h-12 disabled:opacity-50">{busy?'Saving…':record?'Save Changes':'Save Incident'}</button>
+      <button disabled={busy} className="btn-primary w-full min-h-12 disabled:opacity-50">{busy?'Saving…':record?'Save Changes':isResource?'Save Resource Pin':'Save Incident'}</button>
     </form>
   </div>;
 }

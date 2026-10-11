@@ -29,9 +29,7 @@ export const REFERENCE_LAYERS = [
 export const ELEMENT_LAYERS = [
   {id:'facilities',label:'Critical Point Facilities'}, {id:'population',label:'Population'},
   {id:'roads',label:'Roads'}, {id:'rivers',label:'Rivers'}, {id:'boundaries',label:'Municipal Boundaries (NAMRIA)'},
-  {id:'lifelines',label:'Transport facilities (ports, airport, terminals)'},
 ];
-export const isTransportFacility = (properties:Record<string,unknown>) => typeof properties.SubCategor==='string' && properties.SubCategor.startsWith('Transportation:');
 export const municipalities = Object.keys(locations);
 export const barangaysFor = (m: string) => (locations as Record<string,{barangays:{name:string;lat:number;lng:number}[]}>)[m]?.barangays.map(b => ({...b,name:b.name.trim()})) ?? [];
 const normalize = (s: string) => s.trim().toLocaleLowerCase();
@@ -40,8 +38,11 @@ export function canonicalLocation(m: string = '', b: string = '') {
   const barangay = municipality && barangaysFor(municipality).find(v => normalize(v.name) === normalize(b))?.name;
   return municipality && barangay ? {municipality,barangay} : null;
 }
-export function filterIncidents(hazards: Hazard[], types: string[], municipality = '', barangay = '') {
+export function filterMapRecords(hazards: Hazard[], types: string[], municipality = '', barangay = '') {
   return hazards.filter(h => h.syncStatus !== 'pending_delete' && types.includes(h.type) &&
     (!municipality || normalize(h.municipality || '') === normalize(municipality)) &&
     (!barangay || normalize(h.barangay || '') === normalize(barangay)));
+}
+export function filterIncidents(hazards: Hazard[], types: string[], municipality = '', barangay = '') {
+  return filterMapRecords(hazards, types.filter(type => type !== 'resource'), municipality, barangay);
 }

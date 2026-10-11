@@ -4,6 +4,7 @@ import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './pla
 export interface Hazard {
   id: string;
   type: string;
+  symbolKey?: string | null;
   severity: string;
   title?: string;
   susceptibility?: string;

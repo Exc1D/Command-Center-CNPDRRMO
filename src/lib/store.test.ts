@@ -174,3 +174,17 @@ it('keeps reference layers and incident overlays independent of incident type an
   useStore.getState().toggleFilter('flood');
   expect(useStore.getState().referenceLayers).toEqual(['landslide']);
 });
+
+it('restores old transport selections as one combined facilities layer', () => {
+  const state=useStore.getState();
+  state.applyPlanningMapState({center:[14,123],zoom:10,baseMap:'street',activeFilters:['flood'],susceptibilityFilters:[],evacuationCentersVisible:false,elementLayers:['lifelines','facilities']});
+  expect(useStore.getState().elementLayers).toEqual(['facilities']);
+});
+
+it('keeps resource pins out of incident results even with an imported resource filter', () => {
+  const resource={id:'resource',type:'resource',symbolKey:'ambulance',severity:'Not applicable',notes:'',geometry:{type:'Point',coordinates:[123,14]},dateAdded:'2026-10-11T00:00:00Z'};
+  useStore.setState({activeFilters:['flood','resource']});
+  useStore.getState().setHazards([resource]);
+  expect(useStore.getState().hazards).toEqual([resource]);
+  expect(useStore.getState().filteredHazards).toEqual([]);
+});

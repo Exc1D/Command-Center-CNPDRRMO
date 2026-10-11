@@ -2,7 +2,6 @@ import { expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ReferenceControls } from './ReferenceControls';
 import { useStore } from '../lib/store';
-import { isTransportFacility } from '../lib/reference';
 
 it('controls GIS zones and reported incidents independently in one hazard list',()=>{
   useStore.setState({...useStore.getInitialState()});
@@ -19,24 +18,22 @@ it('controls GIS zones and reported incidents independently in one hazard list',
   fireEvent.click(within(hazards).getByRole('checkbox',{name:'Rain-Induced Landslide zones'}));
   expect(useStore.getState().referenceLayers).toEqual(['flood','storm_surge','landslide']);
   expect(within(hazards).queryByRole('checkbox',{name:'Erosion zones'})).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents and resource pins'}));
   expect(within(hazards).getByRole('checkbox',{name:'Storm Surge incidents'})).toBeDisabled();
   expect(within(hazards).getByRole('checkbox',{name:'Storm Surge zones'})).toBeEnabled();
-  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents and resource pins'}));
   expect(within(hazards).getByRole('checkbox',{name:'Storm Surge incidents'})).toBeChecked();
   expect(within(hazards).getByRole('checkbox',{name:'Flood incidents'})).not.toBeChecked();
 });
 
-it('provides independent transport layers with a concise road-condition notice',()=>{
-  useStore.setState({...useStore.getInitialState()});
+it('groups transport with Critical Point Facilities while keeping roads separate',()=>{
+  useStore.setState(useStore.getInitialState());
   render(<ReferenceControls/>);
-  const lifelines=screen.getByRole('group',{name:'Roads and transport'});
-  fireEvent.click(within(lifelines).getByRole('checkbox',{name:/Transport facilities/}));
-  fireEvent.click(within(lifelines).getByRole('checkbox',{name:'Roads'}));
-  expect(useStore.getState().elementLayers).toEqual(['lifelines','roads']);
-  expect(within(lifelines).getByText('Reference locations only; road conditions are unverified.')).toBeInTheDocument();
-  expect(screen.getByRole('checkbox',{name:'Critical Point Facilities'})).not.toBeChecked();
-  expect(isTransportFacility({SubCategor:'Transportation: Port, Airport'})).toBe(true);
-  expect(isTransportFacility({SubCategor:'School'})).toBe(false);
-  expect(isTransportFacility({Category:'Infrastructure, Utilities, Transportation and Services (INF)'})).toBe(false);
+  const roads=screen.getByRole('group',{name:'Roads'});
+  fireEvent.click(screen.getByRole('checkbox',{name:'Critical Point Facilities'}));
+  fireEvent.click(within(roads).getByRole('checkbox',{name:'Roads'}));
+  expect(useStore.getState().elementLayers).toEqual(['facilities','roads']);
+  expect(screen.queryByRole('checkbox',{name:/Transport facilities/})).not.toBeInTheDocument();
+  expect(screen.getByText(/Critical Point Facilities include transport facilities/)).toBeInTheDocument();
+  expect(within(roads).getByText('Reference locations only; road conditions are unverified.')).toBeInTheDocument();
 });

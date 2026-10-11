@@ -174,7 +174,7 @@ export const useStore = create<AppState>((set) => ({
     activeSusceptibilityFilters: mapState.susceptibilityFilters,
     evacuationCentersVisible: mapState.evacuationCentersVisible,
     referenceLayers: mapState.referenceLayers ?? [],
-    elementLayers: (mapState.elementLayers ?? []).map(id=>id==='households'?'population':id),
+    elementLayers: [...new Set((mapState.elementLayers ?? []).map(id=>id==='households'?'population':id==='lifelines'?'facilities':id))],
     incidentsVisible: mapState.incidentsVisible ?? true,
     selectedMunicipality: mapState.selectedMunicipality ?? '',
     selectedBarangay: mapState.selectedBarangay ?? '',
