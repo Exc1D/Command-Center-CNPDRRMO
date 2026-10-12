@@ -6,6 +6,7 @@ export interface Hazard {
   type: string;
   severity: string;
   title?: string;
+  symbolKey?: string | null;
   susceptibility?: string;
   affectedPopulation?: number | null;
   affectedPopulationBasis?: 'reported' | 'population_estimate';

@@ -27,15 +27,14 @@ it('controls GIS zones and reported incidents independently in one hazard list',
   expect(within(hazards).getByRole('checkbox',{name:'Flood incidents'})).not.toBeChecked();
 });
 
-it('provides independent transport layers with a concise road-condition notice',()=>{
+it('includes transport in critical facilities and keeps roads separate',()=>{
   useStore.setState({...useStore.getInitialState()});
   render(<ReferenceControls/>);
-  const lifelines=screen.getByRole('group',{name:'Roads and transport'});
-  fireEvent.click(within(lifelines).getByRole('checkbox',{name:/Transport facilities/}));
-  fireEvent.click(within(lifelines).getByRole('checkbox',{name:'Roads'}));
-  expect(useStore.getState().elementLayers).toEqual(['lifelines','roads']);
-  expect(within(lifelines).getByText('Reference locations only; road conditions are unverified.')).toBeInTheDocument();
-  expect(screen.getByRole('checkbox',{name:'Critical Point Facilities'})).not.toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox',{name:'Critical Point Facilities'}));
+  fireEvent.click(screen.getByRole('checkbox',{name:'Roads'}));
+  expect(useStore.getState().elementLayers).toEqual(['facilities','roads']);
+  expect(screen.getByText('Includes transport facilities: ports, airport, and terminals.')).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox',{name:/Transport facilities/})).not.toBeInTheDocument();
   expect(isTransportFacility({SubCategor:'Transportation: Port, Airport'})).toBe(true);
   expect(isTransportFacility({SubCategor:'School'})).toBe(false);
   expect(isTransportFacility({Category:'Infrastructure, Utilities, Transportation and Services (INF)'})).toBe(false);

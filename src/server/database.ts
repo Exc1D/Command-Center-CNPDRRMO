@@ -57,6 +57,7 @@ export async function createDatabase(url?: string): Promise<Database> {
   await db.batch(schema.map(sql => ({ sql, args: [] })), 'write');
 
   const migrations = [
+    ['hazards', 'symbolKey', 'TEXT'],
     ['hazards', 'affectedPopulationBasis', "TEXT NOT NULL DEFAULT 'reported'"],
     ['hazards', 'affectedPopulation', 'INTEGER CHECK (affectedPopulation >= 0)'],
     ['hazards', 'title', 'TEXT'], ['hazards', 'municipality', 'TEXT'], ['hazards', 'barangay', 'TEXT'],

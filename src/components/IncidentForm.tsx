@@ -6,9 +6,11 @@ import { LocationFields } from './ReferenceControls';
 import { HazardAPI } from '../lib/api';
 import { useStore } from '../lib/store';
 import { detectLocationFromGeometry } from '../lib/utils';
+import { SymbolOptions } from './SymbolOptions';
 
 export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:any;onClose:()=>void}) {
   const [type,setType]=useState(record?.type ?? 'flood');
+  const [symbolKey,setSymbolKey]=useState(record?.symbolKey ?? '');
   const [severity,setSeverity]=useState(record?.severity ?? 'Moderate');
   const [title,setTitle]=useState(record?.title ?? '');
   const [municipality,setMunicipality]=useState(record?.municipality?.trim() ?? '');
@@ -30,7 +32,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     const affectedPopulation=affected===''?null:Number(affected);
     if(affectedPopulation!==null && (!Number.isSafeInteger(affectedPopulation) || affectedPopulation<0 || affectedPopulation>100_000_000)) {setError('Affected population must be a whole number from 0 to 100,000,000.');return;}
     setBusy(true);setError('');
-    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type,severity,title:title.trim() || 'Untitled Incident',municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
+    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type,symbolKey:symbolKey || null,severity,title:title.trim() || 'Untitled Incident',municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
     try {
       if(record) await HazardAPI.updateHazard(hazard); else await HazardAPI.addHazard(hazard);
       setHazards(await HazardAPI.getAllHazards());
@@ -55,6 +57,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
         {!HAZARD_TYPES.some(t=>t.id===type) && <option value={type}>{hazardDefinition(type)?.label || type}</option>}
         {HAZARD_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
       </select></label>
+      {geometry?.type === 'Point' && <label className="block text-sm font-semibold">Pin symbol<select className="reference-select mt-1" value={symbolKey} onChange={event=>setSymbolKey(event.target.value)}><option value="">Default hazard icon</option><SymbolOptions /></select></label>}
       <label className="block text-sm font-semibold">Severity Level<select className="reference-select mt-1" value={severity} onChange={e=>setSeverity(e.target.value)}>{['Minor','Moderate','Severe','Critical'].map(s=><option key={s}>{s}</option>)}</select></label>
       <label className="block text-sm font-semibold">Affected Population<input type="number" min={0} max={100000000} step={1} className="reference-select mt-1" value={affected} onChange={e=>{setAffected(e.target.value);setBasis('reported');}} placeholder="Unknown"/></label>
       <p className="text-xs text-on-surface/60">Leave blank if unknown. Enter 0 only when zero affected people is confirmed.</p>

@@ -53,6 +53,11 @@ export function IncidentFilters() {
     <p className="text-xs text-on-surface/60">Filters also apply to analytics.</p>
   </details>;
 }
+export function HazardLegend() {
+  const s=useStore();
+  return <>{REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id)).map(t=><div key={t.id} className="mt-3"><h4 className="text-sm font-bold">{t.label}</h4>{t.id==='flood' && <p className="text-xs mb-2">No selection shows all classes.</p>}{Object.entries(t.colors).map(([label,color])=><label key={label} className="flex items-center gap-2 min-h-8 text-xs">{t.id==='flood' && <input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>}<span className="w-5 h-4 border border-black/20 shrink-0" style={{background:label.startsWith('Debris')?'repeating-linear-gradient(135deg,transparent 0 3px,#000 3px 4px)':color}}/>{label}</label>)}</div>)}</>;
+}
+
 export function ReferenceControls() {
   const s=useStore();
   return <div className="space-y-5">
@@ -84,11 +89,11 @@ export function ReferenceControls() {
         <label className="reference-check text-xs"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show reported incidents</label>
         {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check text-xs"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
       </details>
-      {REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id)).map(t=><div key={t.id} className="mt-3"><h4 className="text-sm font-bold">{t.label}</h4>{t.id==='flood' && <p className="text-xs mb-2">No selection shows all classes.</p>}{Object.entries(t.colors).map(([label,color])=><label key={label} className="flex items-center gap-2 min-h-8 text-xs">{t.id==='flood' && <input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>}<span className="w-5 h-4 border border-black/20 shrink-0" style={{background:label.startsWith('Debris')?'repeating-linear-gradient(135deg,transparent 0 3px,#000 3px 4px)':color}}/>{label}</label>)}</div>)}
+      <HazardLegend />
     </section>
-    <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>!['roads','lifelines'].includes(t.id)).map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
-      <fieldset className="rounded-xl border border-outline-variant p-3 my-3"><legend className="font-semibold px-1">Roads and transport</legend>
-        {ELEMENT_LAYERS.filter(t=>['roads','lifelines'].includes(t.id)).map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}
+    <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>!['roads','lifelines'].includes(t.id)).map(t=><div key={t.id}><label className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>{t.id==='facilities' && <p className="text-xs text-on-surface/60 ml-6">Includes transport facilities: ports, airport, and terminals.</p>}</div>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
+      <fieldset className="rounded-xl border border-outline-variant p-3 my-3"><legend className="font-semibold px-1">Road network</legend>
+        {ELEMENT_LAYERS.filter(t=>t.id==='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}
         <p className="text-xs">Reference locations only; road conditions are unverified.</p>
       </fieldset>
       <p className="text-xs text-on-surface/60">Roads © OpenStreetMap contributors.</p>

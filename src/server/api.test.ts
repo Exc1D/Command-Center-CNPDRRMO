@@ -46,6 +46,20 @@ describe('production API', () => {
     expect((await one<{ count: number }>(db, "SELECT COUNT(*) AS count FROM operations_audit WHERE path = '/api/hazards'"))?.count).toBe(1);
   });
 
+  it('validates and persists planning symbols on monitoring pins, including clearing them', async () => {
+    await authorize();
+    expect((await client.post('/api/hazards').send({ ...hazard, symbolKey: 'unknown' })).status).toBe(400);
+    expect((await client.post('/api/hazards').send({ ...hazard, symbolKey: 'rescue-boat' })).status).toBe(201);
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBe('rescue-boat');
+    expect((await client.put(`/api/hazards/${hazard.id}`).send({ version: 1, symbolKey: 'unknown' })).status).toBe(400);
+    expect((await client.put(`/api/hazards/${hazard.id}`).send({ version: 1, symbolKey: 'ambulance' })).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBe('ambulance');
+    await client.put(`/api/hazards/${hazard.id}`).send({ version: 2, notes: 'Keep symbol' });
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBe('ambulance');
+    await client.put(`/api/hazards/${hazard.id}`).send({ version: 3, symbolKey: null });
+    expect((await client.get('/api/hazards')).body[0].symbolKey).toBeNull();
+  });
+
   it('rejects missing dates and malformed geometry at the trust boundary', async () => {
     await authorize();
     const { dateAdded: _, ...missingDate } = hazard;

@@ -11,6 +11,7 @@ import { createPlanningRouter } from "./src/server/planning";
 import { all, createDatabase, execute, one, type Database } from "./src/server/database";
 
 import { HAZARD_TYPES, LEGACY_TYPES, canonicalLocation, municipalities, REFERENCE_LAYERS, FLOOD_COLORS } from './src/lib/reference';
+import { PLANNING_SYMBOLS } from './src/lib/planning';
 
 export { createDatabase } from "./src/server/database";
 
@@ -37,6 +38,7 @@ const hazardSchema = z.object({
   affectedPopulation: z.number().int().min(0).max(100_000_000).nullable().optional(),
   severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical']),
   title: z.string().trim().max(120).optional(),
+  symbolKey: z.string().max(64).refine(value => PLANNING_SYMBOLS.some(symbol => symbol.key === value), 'Unknown pin symbol').nullable().optional(),
   municipality: z.string().trim().max(120).optional(),
   barangay: z.string().trim().max(500).optional(),
   notes: z.string().max(4_000).default(''),
@@ -200,16 +202,16 @@ app.post("/api/hazards", async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
-    const { id, type, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    const { id, type, severity, title, symbolKey, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
     const location = canonicalLocation(parsed.data.municipality,parsed.data.barangay);
     if (!location) return res.status(400).json({error:'Select a valid municipality and barangay'});
     const {municipality,barangay} = location;
     // Retain legacy types arriving from an existing offline queue with their original meaning.
 
     await execute(db, `
-      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported');
+      INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis, symbolKey)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported', symbolKey ?? null);
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
@@ -233,7 +235,7 @@ app.put("/api/hazards/:id", async (req, res) => {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
 
-    let { type, severity, title, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
+    let { type, severity, title, symbolKey, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
     const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
     if (!current) return res.status(404).json({error:'Hazard not found'});
     if ((municipality !== undefined && municipality !== current.municipality) || (barangay !== undefined && barangay !== current.barangay)) {
@@ -252,6 +254,7 @@ app.put("/api/hazards/:id", async (req, res) => {
           type = COALESCE(?, type),
           severity = COALESCE(?, severity),
           title = COALESCE(?, title),
+          symbolKey = CASE WHEN ? THEN ? ELSE symbolKey END,
           municipality = COALESCE(?, municipality),
           barangay = COALESCE(?, barangay),
           notes = COALESCE(?, notes),
@@ -266,6 +269,8 @@ app.put("/api/hazards/:id", async (req, res) => {
       type,
       severity,
       title,
+      symbolKey !== undefined ? 1 : 0,
+      symbolKey ?? null,
       municipality,
       barangay,
       notes,

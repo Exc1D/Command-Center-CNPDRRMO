@@ -93,6 +93,15 @@ describe('DropTagModal', () => {
     await waitFor(() => expect(screen.getByLabelText('Municipality')).toHaveValue('Daet'));
   });
 
+  it('saves a monitoring pin with a planning symbol', async () => {
+    useStore.setState({ dropTagTempGeometry: { type: 'Point', coordinates: [122.98, 14.13] } });
+    render(<DropTagModal />);
+    await userEvent.click(screen.getByText('Suggest nearby location'));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Pin symbol' }), 'rescue-boat');
+    await userEvent.click(screen.getByRole('button', { name: 'Save Incident' }));
+    await waitFor(() => expect(mockAddHazard).toHaveBeenCalledWith(expect.objectContaining({ symbolKey: 'rescue-boat', geometry: { type: 'Point', coordinates: [122.98, 14.13] } })));
+  });
+
   it('does not render when isDropTagModalOpen is false', () => {
     useStore.setState({ isDropTagModalOpen: false, dropTagTempGeometry: null });
 

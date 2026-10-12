@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore, DISASTER_TYPES } from './store';
 import { h1, h2, h3, h4 } from '../test/fixtures/hazards';
 import { ec1, ec2, ec3 } from '../test/fixtures/evacuationCenters';
+import { createPlanningScenario } from './planning';
+
+it('restores older transport layers under the critical facilities control', () => {
+  const scenario = createPlanningScenario('Legacy map');
+  useStore.getState().applyPlanningMapState({ ...scenario.mapState, elementLayers: ['lifelines', 'facilities', 'roads', 'households'] });
+  expect(useStore.getState().elementLayers).toEqual(['facilities', 'roads', 'population']);
+});
 
 describe('useStore', () => {
   beforeEach(() => {

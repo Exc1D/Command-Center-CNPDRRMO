@@ -30,6 +30,22 @@ beforeEach(async () => {
 });
 
 describe('offline reconciliation', () => {
+  it('syncs offline pin symbols and preserves conflicts that differ only by symbol', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false });
+    const local = { ...hazard('pin'), symbolKey: 'rescue-boat' };
+    await HazardAPI.addHazard(local);
+    expect(await db.hazards.get(local.id)).toMatchObject({ symbolKey: 'rescue-boat', syncStatus: 'pending_add' });
+    Object.defineProperty(navigator, 'onLine', { value: true });
+    api.post.mockResolvedValueOnce({ data: { version: 1 } });
+    await HazardAPI.syncPending();
+    expect(api.post).toHaveBeenCalledWith('/api/hazards', expect.objectContaining({ symbolKey: 'rescue-boat' }));
+    api.put.mockRejectedValueOnce(Object.assign(new Error('Conflict'), { isAxiosError: true, response: { status: 409, data: { current: { ...local, symbolKey: 'ambulance', version: 2 } } } }));
+    await HazardAPI.updateHazard(local);
+    const saved = await db.hazards.get(local.id);
+    expect(saved).toMatchObject({ symbolKey: 'ambulance', syncStatus: 'conflict' });
+    expect(JSON.parse(saved!.conflictData!)).toMatchObject({ symbolKey: 'rescue-boat' });
+  });
+
   it('preserves pending work, removes stale cache entries, and hides pending deletes', async () => {
     await db.hazards.bulkPut([
       hazard('pending-update', 'pending_update'),
