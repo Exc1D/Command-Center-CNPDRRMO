@@ -131,7 +131,7 @@ describe('EditHazardModal', () => {
   it('loads a saved pin symbol and allows returning to the default hazard icon', async () => {
     useStore.setState({ editModalHazard: { ...mockHazard, symbolKey: 'rescue-boat', geometry: { type: 'Point', coordinates: [123,14] } } });
     render(<EditHazardModal />);
-    const chooser = screen.getByRole('combobox', { name: 'Pin symbol' });
+    const chooser = screen.getByRole('combobox', { name: /^Pin symbol/ });
     expect(chooser).toHaveValue('rescue-boat');
     await userEvent.selectOptions(chooser, '');
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));

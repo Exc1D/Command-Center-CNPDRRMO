@@ -45,18 +45,6 @@ it('only offers pin placement and ignores shape creation in monitoring', async (
   unmount();
 });
 
-it('shows selected hazard legends directly on the planning map', () => {
-  usePlanningStore.setState({ isPlanningMode: true });
-  useStore.setState({ referenceLayers: ['flood', 'landslide'] });
-  render(<DangerMap />);
-  expect(screen.getByRole('region', { name: 'Hazard legend' })).toBeInTheDocument();
-  expect(screen.getByText('Flood Susceptibility')).toBeVisible();
-  expect(screen.getByText('Debris Flow/Possible Accumulation Zone')).toBeVisible();
-  act(() => useStore.setState({ referenceLayers: ['tsunami'] }));
-  expect(screen.queryByText('Flood Susceptibility')).not.toBeInTheDocument();
-  expect(screen.getByText('Tsunami Inundation')).toBeVisible();
-});
-
 it('renders a saved planning symbol on a monitoring pin and retains the default hazard icon', () => {
   useStore.setState({ filteredHazards: [
     { id: 'boat', type: 'flood', severity: 'Moderate', notes: '', dateAdded: new Date().toISOString(), symbolKey: 'rescue-boat', geometry: { type: 'Point', coordinates: [123,14] } },
