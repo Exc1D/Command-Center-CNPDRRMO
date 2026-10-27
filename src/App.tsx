@@ -57,10 +57,10 @@ export default function App() {
   }, [isMapAuthorized, setEvacuationCenters, setHazards]);
 
   return (
-    <div className="app-shell w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
+    <div data-mode={planning.isPlanningMode ? "planning" : "monitor"} className="app-shell w-full h-screen bg-surface text-on-surface font-sans overflow-hidden flex flex-col relative">
       {/* Sync Error Banner */}
       {syncState.lastSyncError && (
-        <div role="alert" className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] bg-error-container text-on-error-container px-6 py-3 rounded-lg shadow-lg flex items-center gap-4 min-w-[300px]">
+        <div role="alert" className="absolute top-20 left-1/2 -translate-x-1/2 z-[1000] bg-white/90 backdrop-blur-xl text-on-error-container px-5 py-3 rounded-2xl shadow-panel flex items-center gap-4 min-w-[300px]">
           <span className="flex-1 text-sm font-medium">
             {syncState.lastSyncError}
           </span>
@@ -74,13 +74,13 @@ export default function App() {
         </div>
       )}
 
-      <header className="app-header h-[76px] shrink-0 bg-surface-container-lowest border-b border-outline-variant/35 flex items-center justify-between px-6 z-[60] relative">
+      <header className="app-header h-[64px] shrink-0 flex items-center justify-between px-6 z-[60] relative">
         <div className="flex items-center gap-4 min-w-0">
-          <div className="relative w-12 h-12 shrink-0 flex items-center justify-center bg-surface-container rounded-xl overflow-hidden ring-1 ring-outline-variant/40">
+          <div className="relative w-10 h-10 shrink-0 flex items-center justify-center bg-white rounded-[10px] overflow-hidden ring-[0.5px] ring-black/10">
             <img
               src="/PDRRMO.jpg"
               alt="PDRRMO Logo"
-              className="w-12 h-12 object-contain bg-surface-container-lowest"
+              className="w-10 h-10 object-contain bg-surface-container-lowest"
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -94,10 +94,10 @@ export default function App() {
             </span>
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-display font-extrabold tracking-tight text-on-surface leading-tight">
-              COMMAND CENTER
+            <h1 className="text-[17px] font-display font-semibold tracking-tight text-on-surface leading-tight">
+              Command Center
             </h1>
-            <p className="text-xs text-on-surface/60 font-medium truncate">
+            <p className="text-xs text-on-surface/55 truncate">
               Camarines Norte Provincial DRRMO
             </p>
           </div>

@@ -89,10 +89,10 @@ export function ReferenceControls() {
     </section>
     <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>t.id!=='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
       <p className="text-xs mt-2">Critical Point Facilities include transport facilities: ports, airport and terminals.</p>
-      <fieldset className="rounded-xl border border-outline-variant p-3 my-3"><legend className="font-semibold px-1">Roads</legend>
+      <div role="group" aria-label="Roads" className="roads-group rounded-xl border border-outline-variant p-3 my-3">
         {ELEMENT_LAYERS.filter(t=>t.id==='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}
         <p className="text-xs">Reference locations only; road conditions are unverified.</p>
-      </fieldset>
+      </div>
       <p className="text-xs text-on-surface/60">Roads © OpenStreetMap contributors.</p>
     </section>
   </div>;
