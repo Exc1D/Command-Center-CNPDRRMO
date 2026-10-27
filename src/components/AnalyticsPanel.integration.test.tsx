@@ -1,9 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
-import { AnalyticsPanel, summarizeBarangays, summarizeMunicipalities } from './AnalyticsPanel';
+import { AnalyticsPanel, summarizePlaces, rankPlaces, shelterStatus } from './AnalyticsPanel';
 import { useStore } from '../lib/store';
 import Sidebar from './Sidebar';
 import { h1, h2, h3 } from '../test/fixtures/hazards';
+import { ec1, ec2 } from '../test/fixtures/evacuationCenters';
 
 const report=vi.hoisted(()=>({
   setFontSize:vi.fn(),text:vi.fn(),setFont:vi.fn(),addPage:vi.fn(),setFillColor:vi.fn(),rect:vi.fn(),
@@ -17,13 +18,48 @@ beforeEach(()=>{
   useStore.setState({...useStore.getInitialState(),isAnalyticsOpen:true,activeFilters:['flood','landslide','vehicular_accident']});
   useStore.getState().setHazards([h1,h2,h3]);
 });
-it('shows per-municipality severity counts and the requested matrix columns',()=>{
+const tile=(label:string)=>within(screen.getByRole('region',{name:'Headline figures'})).getByText(label).parentElement!;
+it('shows headline figures and keeps unknown affected counts apart from zero',()=>{
+  useStore.getState().setHazards([{...h1,affectedPopulation:0},{...h3,affectedPopulation:12},{...h2,affectedPopulation:null}]);
+  useStore.getState().setEvacuationCenters([ec1,ec2,{...ec2,id:'gone',syncStatus:'pending_delete'}]);
   render(<AnalyticsPanel/>);
-  const daet=screen.getByRole('row',{name:/Daet/});
-  expect(within(daet).getAllByRole('cell').map(c=>c.textContent)).toEqual(['1','1','0','0','2']);
-  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
-  for(const name of ['Municipality','Barangay','Hazard','Incident','Severity','Affected']) expect(screen.getByRole('columnheader',{name,exact:true})).toBeInTheDocument();
-  expect(screen.getByText(h1.title!)).toBeInTheDocument();
+  expect(tile('Active incidents')).toHaveTextContent('31 severe');
+  expect(tile('Barangays affected')).toHaveTextContent('3');
+  expect(tile('People reported affected')).toHaveTextContent('121 incident without a count');
+  expect(tile('Evacuation spaces')).toHaveTextContent('2302 centers');
+});
+it('ranks places by severity and drills down from municipality to barangay',()=>{
+  render(<AnalyticsPanel/>);
+  const focus=screen.getByRole('region',{name:'Where to focus'});
+  expect(within(focus).getAllByRole('listitem').map(li=>li.querySelector('strong')!.textContent)).toEqual(['Mercedes','Daet']);
+  fireEvent.click(within(focus).getByRole('button',{name:/Daet/}));
+  expect(useStore.getState().selectedMunicipality).toBe('Daet');
+  fireEvent.click(within(screen.getByRole('region',{name:'Where to focus'})).getByRole('button',{name:/Bagasbas/}));
+  expect(useStore.getState().selectedBarangay).toBe('Bagasbas');
+  expect(useStore.getState().filteredHazards.map(h=>h.id)).toEqual(['h1']);
+});
+it('flags shelter shortfalls, missing centers and enough space',()=>{
+  useStore.getState().setHazards([{...h1,affectedPopulation:200},{...h2,affectedPopulation:10},{...h3,municipality:'Basud',barangay:'Poblacion 1',affectedPopulation:5}]);
+  useStore.getState().setEvacuationCenters([ec1,ec2]);
+  render(<AnalyticsPanel/>);
+  const items=within(screen.getByRole('region',{name:'Shelter readiness'})).getAllByRole('listitem').map(li=>li.textContent);
+  expect(items[0]).toMatch(/Basud.*No evacuation center recorded/);
+  expect(items[1]).toMatch(/Daet.*Short by 50 spaces/);
+  expect(items[2]).toMatch(/Mercedes.*Enough space/);
+});
+it('lists latest reports newest first and shows the selected one on the map',()=>{
+  render(<AnalyticsPanel/>);
+  const latest=within(screen.getByRole('region',{name:'Latest reports'})).getAllByRole('button');
+  expect(latest.map(b=>b.querySelector('strong')!.textContent)).toEqual([h3.title,h2.title,h1.title]);
+  fireEvent.click(latest[0]);
+  expect(useStore.getState().selectedHazard?.id).toBe('h3');
+  expect(useStore.getState().mapCenter).toEqual([14.1167055,122.9508094]);
+});
+it('shows an empty state that does not imply zero risk',()=>{
+  useStore.getState().setHazards([]);
+  render(<AnalyticsPanel/>);
+  expect(screen.getByText(/No reports does not mean no risk/,{selector:'p.rounded-2xl'})).toBeInTheDocument();
+  expect(screen.queryByRole('region',{name:'Where to focus'})).not.toBeInTheDocument();
 });
 it('shares dependent geographic filters with the map and preserves hazard filters',()=>{
   render(<AnalyticsPanel/>);
@@ -34,34 +70,11 @@ it('shares dependent geographic filters with the map and preserves hazard filter
   expect(useStore.getState().selectedBarangay).toBe('');
   expect(useStore.getState().filteredHazards.map(h=>h.id)).toEqual(['h2']);
 });
-it('removes incident-log navigation while preserving searchable incident analytics',()=>{
+it('keeps incident-log navigation removed',()=>{
   render(<><Sidebar/><AnalyticsPanel/></>);
   expect(screen.queryByRole('button',{name:/Incident Logs/})).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
-  fireEvent.change(screen.getByPlaceholderText('Search incidents...'),{target:{value:'Bagasbas'}});
-  expect(screen.queryByText(h2.title!)).not.toBeInTheDocument();
-  expect(screen.getByText(h1.title!)).toBeInTheDocument();
-  expect(useStore.getState().hazards).toHaveLength(3);
 });
-it('keeps unknown counts separate from zero and labels population estimates',()=>{
-  useStore.getState().setHazards([{...h1,affectedPopulation:0},{...h3,affectedPopulation:12,affectedPopulationBasis:'population_estimate'},h2]);
-  render(<AnalyticsPanel/>);
-  expect(screen.getByText(/1 unknown/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
-  expect(screen.getByText('12 (est.)')).toBeInTheDocument();
-  expect(screen.getByText('Unknown',{exact:true})).toBeInTheDocument();
-});
-it('renders untitled incidents, empty search results, and sourced history',()=>{
-  useStore.getState().setHazards([{...h1,title:''}]);
-  render(<AnalyticsPanel/>);
-  fireEvent.click(screen.getByRole('button',{name:'Matrix'}));
-  expect(screen.getByText('Untitled',{exact:true})).toBeInTheDocument();
-  fireEvent.change(screen.getByPlaceholderText('Search incidents...'),{target:{value:'unmatched'}});
-  expect(screen.getByText('No incidents match the selected filters.')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button',{name:'History'}));
-  expect(screen.getByRole('link',{name:'PAGASA preliminary report'})).toHaveAttribute('href',expect.stringContaining('KRISTINE.pdf'));
-});
-it('exports the matrix and map without stretching a narrow viewport',async()=>{
+it('exports a situation report and the map without stretching a narrow viewport',async()=>{
   render(<><div className="leaflet-container"/><AnalyticsPanel/></>);
   fireEvent.click(screen.getByRole('button',{name:'Export Report'}));
   await waitFor(()=>expect(report.save).toHaveBeenCalled());
@@ -69,34 +82,19 @@ it('exports the matrix and map without stretching a narrow viewport',async()=>{
   expect(image[4]/image[5]).toBeCloseTo(274/761);
   expect(image[5]).toBe(155);
   expect(report.text).toHaveBeenCalledWith('Map context - current visible layers',12,15);
-  expect(report.text).toHaveBeenCalledWith('Barangay incident summary',12,15);
+  expect(report.text).toHaveBeenCalledWith(['Camarines Norte - Situation Report · Camarines Norte'],12,15);
+  expect(report.text).toHaveBeenCalledWith(['Mercedes: 1 severe · 1 total'],12,expect.any(Number));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
-it('groups barangays within municipalities and preserves zero, unknown and estimated counts',()=>{
-  expect(summarizeMunicipalities([{...h1,municipality:' daet '}]).find(g=>g.municipality==='Daet')?.counts).toEqual([0,1,0,0]);
-  const groups=summarizeBarangays([
-    {...h1,affectedPopulation:0},
-    {...h1,id:'second',municipality:'daet',barangay:' bagasbas ',affectedPopulation:12,affectedPopulationBasis:'population_estimate'},
-    {...h1,id:'third',municipality:'Basud'},
-    {...h1,id:'unknown',municipality:undefined,barangay:undefined},
-  ]);
-  expect(groups).toHaveLength(3);
-  expect(groups.find(g=>g.municipality==='Daet')).toMatchObject({barangay:'Bagasbas',counts:[0,2,0,0],total:2,affected:12,unknown:0,estimated:1});
-  expect(groups.find(g=>g.municipality==='Basud')).toMatchObject({total:1,unknown:1});
-  expect(groups.find(g=>g.municipality==='Unknown municipality')).toMatchObject({barangay:'Unknown barangay',total:1,unknown:1});
-});
-it('drills down from barangay aggregation and applies the same filters to the hazard breakdown',()=>{
-  render(<AnalyticsPanel/>);
-  fireEvent.click(screen.getByRole('button',{name:'Barangay',exact:true}));
-  const table=screen.getByRole('table',{name:'Barangay severity and affected population'});
-  expect(within(table).getAllByRole('row')).toHaveLength(4);
-  fireEvent.click(within(table).getByRole('button',{name:'Bagasbas'}));
-  expect(useStore.getState().selectedMunicipality).toBe('Daet');
-  expect(useStore.getState().selectedBarangay).toBe('Bagasbas');
-  expect(within(table).getAllByRole('row')).toHaveLength(2);
-  const breakdown=screen.getByRole('table',{name:/Hazard and severity breakdown/});
-  expect(within(breakdown).getByRole('row',{name:'Flood 0 1 0 0 1'})).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Search incidents'),{target:{value:'No match'}});
-  expect(within(table).getAllByRole('row')).toHaveLength(1);
-  expect(screen.getByText('No incidents match the selected filters.')).toBeInTheDocument();
+it('groups places case-insensitively and ranks critical before severe before volume',()=>{
+  const places=summarizePlaces([
+    {...h1,municipality:' daet ',barangay:' bagasbas ',affectedPopulation:12},
+    {...h1,id:'b',affectedPopulation:null},
+    {...h2,id:'c',severity:'Critical'},
+    {...h3,id:'d',municipality:undefined,barangay:undefined},
+  ],[ec1],true);
+  expect(places.find(p=>p.name==='Bagasbas')).toMatchObject({municipality:'Daet',total:2,affected:12,unknown:1,centers:1,capacity:150});
+  expect(places.find(p=>p.name==='Unknown barangay')).toMatchObject({municipality:'',total:1});
+  expect(rankPlaces(places).map(p=>p.name)).toEqual(['Mercedes','Bagasbas','Unknown barangay']);
+  expect(shelterStatus({...places[0],centers:1,capacity:5,affected:0,unknown:2,total:2}).label).toBe('Affected count not reported');
 });
