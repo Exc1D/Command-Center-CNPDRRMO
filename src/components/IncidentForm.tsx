@@ -43,8 +43,8 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     } catch(e) {setError(e instanceof Error?e.message:'Could not save. Your entries are still here.');}
     finally {setBusy(false);}
   }
-  return <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
-    <form onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="incident-heading" className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
+  return <div className="backdrop-in fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
+    <form onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="incident-heading" className="sheet-in w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
       <div className="flex justify-between gap-3"><h2 id="incident-heading" className="text-xl font-bold">{isResource?(record?'Edit Resource Pin':'Resource Pin Details'):(record?'Edit Incident Details':'Incident Details')}</h2><button type="button" aria-label="Close incident details" className="min-w-11 min-h-11 grid place-items-center" onClick={onClose} disabled={busy}><X/></button></div>
       {!record && geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin type<select className="reference-select mt-1" value={isResource?'resource':'incident'} onChange={e=>setIsResource(e.target.value==='resource')}><option value="incident">Incident</option><option value="resource">Resource</option></select></label>}
       <label className="block text-sm font-semibold">{isResource?'Resource title':'Incident Title'}<input autoFocus className="reference-select mt-1" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder={isResource?'e.g. Ambulance Team Alpha':'e.g. Flooding at Bagasbas'}/></label>

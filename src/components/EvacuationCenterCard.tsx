@@ -19,9 +19,11 @@ export function EvacuationCenterCard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
+      key={selectedEvacuationCenter.id}
+      initial={{ opacity: 0, y: 24, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 24, scale: 0.94 }}
+      style={{ transformOrigin: 'bottom right' }}
       className="absolute bottom-6 right-6 z-[400] w-80 bg-surface-container-lowest shadow-ambient overflow-hidden rounded-xl border border-white/50"
     >
       <div className="h-1.5 w-full bg-[#059669]" />

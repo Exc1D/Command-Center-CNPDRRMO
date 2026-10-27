@@ -25,9 +25,11 @@ export function PopUpCard() {
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
+      key={selectedHazard.id}
+      initial={{ opacity: 0, y: 24, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 24, scale: 0.94 }}
+      style={{ transformOrigin: 'bottom right' }}
       className="absolute bottom-6 right-6 z-[400] w-80 bg-surface-container-lowest shadow-ambient overflow-hidden rounded-xl border border-white/50"
     >
       <div 
@@ -221,10 +223,11 @@ export function PinModal() {
   if (!isPinModalOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm">
+    <div className="backdrop-in fixed inset-0 z-[2000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm">
       <motion.div 
-        animate={error || operationError ? { x: [-10, 10, -10, 10, 0] } : {}}
-        transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={error || operationError ? { opacity: 1, scale: 1, x: [-10, 10, -10, 10, 0] } : { opacity: 1, scale: 1, x: 0 }}
+        transition={{ type: 'spring', duration: 0.45, bounce: 0.3, x: { duration: 0.3 } }}
         className="w-80 bg-surface-container-lowest shadow-ambient rounded-xl p-8 relative border border-white/50"
       >
         <button aria-label="Close PIN verification" onClick={closePinModal} className="absolute top-4 right-4 text-on-surface/40 hover:text-on-surface">

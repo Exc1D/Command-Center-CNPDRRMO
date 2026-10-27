@@ -3,6 +3,35 @@
 @import "leaflet/dist/leaflet.css";
 @import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
+/* iOS-style springs sampled into linear(): --ease-spring settles softly (slides, sheets),
+   --ease-bounce overshoots a touch (presses, pop-ins, toggles). */
+:root {
+  --ease-spring: linear(0, 0.029, 0.102, 0.197, 0.302, 0.407, 0.506, 0.597, 0.677, 0.745, 0.803, 0.851, 0.889, 0.92, 0.944, 0.962, 0.976, 0.986, 0.993, 0.998, 1.001, 1.002, 1.002, 1.001, 1);
+  --ease-bounce: linear(0, 0.045, 0.154, 0.293, 0.441, 0.582, 0.707, 0.81, 0.892, 0.953, 0.995, 1.023, 1.038, 1.045, 1.046, 1.042, 1.036, 1.03, 1.023, 1.017, 1.011, 1.007, 1.004, 1.001, 1);
+}
+
+/* Press-down feedback: shrink instantly-ish, spring back on release. Uses `scale`, not `transform`,
+   so it composes with Leaflet's positioning transforms and any existing transform. */
+button:not(:disabled),
+summary,
+.leaflet-bar a {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform, scale;
+  transition-duration: 180ms, 180ms, 180ms, 180ms, 180ms, 450ms, 500ms;
+  transition-timing-function: ease-out, ease-out, ease-out, ease-out, ease-out, var(--ease-spring), var(--ease-bounce);
+}
+button:not(:disabled):active,
+summary:active,
+.leaflet-bar a:active { scale: 0.96; transition-duration: 180ms, 180ms, 180ms, 180ms, 180ms, 450ms, 90ms; }
+.operations-button:active { scale: 0.985; }
+
+/* Map things arrive instead of appearing. */
+.leaflet-marker-icon:not(.leaflet-pm-draggable) { animation: pop-in 500ms var(--ease-bounce) backwards; }
+.leaflet-popup, .leaflet-tooltip:not(.planning-measurement) { animation: pop-in 420ms var(--ease-bounce); }
+.leaflet-popup { transform-origin: bottom center; }
+@keyframes pop-in { from { opacity: 0; scale: 0.8; } }
+@keyframes sheet-in { from { opacity: 0; scale: 0.92; translate: 0 16px; } }
+.backdrop-in { animation: panel-reveal 240ms ease-out; }
+
 .nav-text-button {
   min-height: 44px;
   padding: 0.5rem 0.75rem;
@@ -43,14 +72,14 @@
 .mode-switch[aria-checked="false"] .mode-label-monitor { opacity: 1; color: var(--color-tertiary); }
 .mode-switch[aria-checked="true"] .mode-label-planning { opacity: 1; color: var(--color-on-planning-container); }
 .mode-switch-track { width: 44px; height: 24px; padding: 3px; flex-shrink: 0; border-radius: 20px; background: var(--color-tertiary); transition: background-color 200ms ease-out; }
-.mode-switch-track > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface-container-lowest); transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.mode-switch-track > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--color-surface-container-lowest); transition: transform 500ms var(--ease-bounce); }
 .mode-switch[aria-checked="true"] .mode-switch-track { background: var(--color-planning); }
 .mode-switch[aria-checked="true"] .mode-switch-track > span { transform: translateX(20px); }
 .mode-switch:hover .mode-label { opacity: 1; }
-.sidebar-rail { --sidebar-width: min(360px, calc(100vw - 64px)); position: relative; z-index: 500; width: var(--sidebar-width); flex-shrink: 0; }
+.sidebar-rail { --sidebar-width: min(360px, calc(100vw - 64px)); position: relative; z-index: 500; width: var(--sidebar-width); flex-shrink: 0; transition: width 520ms var(--ease-spring); }
 .sidebar-rail[data-planning="true"] { --sidebar-width: min(420px, calc(100vw - 64px)); }
 .sidebar-rail[data-open="false"] { width: 0; }
-.sidebar-panel { width: var(--sidebar-width); height: 100%; transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease-out, visibility 220ms; }
+.sidebar-panel { width: var(--sidebar-width); height: 100%; transition: transform 520ms var(--ease-spring), opacity 200ms ease-out, visibility 520ms; }
 .sidebar-panel[aria-hidden="true"] { transform: translateX(-100%); opacity: 0; visibility: hidden; pointer-events: none; }
 .sidebar-panel > aside { width: 100%; max-width: none; animation: panel-reveal 200ms ease-out; }
 .sidebar-toggle {
@@ -70,7 +99,7 @@
 }
 .sidebar-toggle[aria-expanded="false"] { right: auto; left: 12px; box-shadow: 0 2px 10px oklch(0.23 0.035 248 / 0.08); }
 .sidebar-toggle:hover { background: var(--color-surface-container); }
-.sidebar-toggle svg { transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+.sidebar-toggle svg { transition: transform 450ms var(--ease-bounce); }
 .sidebar-toggle:hover svg { transform: translateX(-2px); }
 .sidebar-toggle[aria-expanded="false"]:hover svg { transform: translateX(2px); }
 .sidebar-rail[data-open="false"] + section .leaflet-top.leaflet-left { top: 56px; }
@@ -88,18 +117,17 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 180ms ease-out, transform 150ms ease-out;
+  
 }
 .operations-button span { flex: 1; text-align: left; }
 .operations-button svg { flex-shrink: 0; }
 .operations-button:hover { background: oklch(0.36 0.1 242); }
-.operations-button:active { transform: scale(0.98); }
-.analytics-panel { animation: panel-arrive 220ms cubic-bezier(0.22, 1, 0.36, 1); }
-.planning-tool-dock { animation: panel-reveal 200ms ease-out; }
-.planning-sidebar details > summary > svg { transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.analytics-panel { animation: panel-arrive 520ms var(--ease-spring); }
+.planning-tool-dock { animation: panel-arrive 480ms var(--ease-spring); }
+.planning-sidebar details > summary > svg { transition: transform 450ms var(--ease-bounce); }
 .planning-sidebar details[open] > summary > svg { transform: rotate(90deg); }
 @keyframes panel-reveal { from { opacity: 0; } to { opacity: 1; } }
-@keyframes panel-arrive { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes panel-arrive { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 680px) {
   .app-header { height: auto; min-height: 76px; padding: 12px 16px 8px; flex-wrap: wrap; gap: 8px; }
   .app-header h1 { font-size: 18px; }
@@ -363,7 +391,7 @@ textarea:disabled {
   background: var(--color-primary);
   color: var(--color-on-primary);
   border-radius: 0.75rem;
-  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 180ms ease-out;
   border: none;
 }
 
@@ -376,7 +404,7 @@ textarea:disabled {
   border: none;
   border-radius: 0.75rem;
   color: var(--color-on-planning);
-  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 180ms ease-out;
 }
 
 .btn-planning:hover {
@@ -402,7 +430,6 @@ textarea:disabled {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms cubic-bezier(0.22, 1, 0.36, 1) !important;
   box-shadow: 0 4px 12px oklch(0.23 0.035 248 / 0.08) !important;
 }
 .leaflet-bar a:not(.leaflet-pm-action):hover {
@@ -454,3 +481,4 @@ textarea:disabled {
 /* Map overlays must not intercept incident or planning marker placement. */
 .incident-drawing .leaflet-overlay-pane *, .incident-drawing .leaflet-marker-pane *,
 .planning-placing .leaflet-overlay-pane *, .planning-placing .leaflet-marker-pane * { pointer-events: none !important; }
+.sheet-in { animation: sheet-in 520ms var(--ease-bounce); }
