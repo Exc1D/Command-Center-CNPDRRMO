@@ -13,7 +13,7 @@ describe('planning server', () => {
     database = await createDatabase(':memory:');
     app = express();
     app.use(express.json({ limit: '6mb' }));
-    app.use('/api/planning', createPlanningRouter(database, req => req.headers.authorization === 'Bearer valid', {
+    app.use('/api/planning', createPlanningRouter(database, async req => req.headers.authorization === 'Bearer valid', {
       features: [{ geometry: { type: 'Polygon', coordinates: [[[122, 13], [124, 13], [124, 15], [122, 15], [122, 13]]] } }],
     }));
   });

@@ -3,17 +3,15 @@ import { planningScenarioSchema, planningTemplateSchema, scenarioInsideProvince,
 import { all, execute, one, type Database } from './database';
 
 const LOCK_TTL_MS = 15 * 60 * 1000;
+const POLL_MS = 1_500;
+const STREAM_MS = 240_000;
 
-export function createPlanningRouter(db: Database, isAuthorized: (request: Request) => boolean, province?: ProvinceGeoJSON) {
-  // ponytail: locks and previews are process-local; move them to shared storage only when this server runs in multiple processes.
+export function createPlanningRouter(db: Database, isAuthorized: (request: Request) => Promise<boolean>, province?: ProvinceGeoJSON) {
+  // Locks, previews and live events live in the database so they work across serverless instances.
   const router = express.Router();
-  const locks = new Map<string, { sessionId: string; expiresAt: number }>();
-  const previews = new Map<string, PlanningScenario>();
-  const viewers = new Map<string, Set<Response>>();
 
   const requireAuthorization: express.RequestHandler = (request, response, next) => {
-    if (!isAuthorized(request)) return response.status(401).json({ error: 'Authorization required' });
-    next();
+    isAuthorized(request).then(authorized => authorized ? next() : response.status(401).json({ error: 'Authorization required' }), next);
   };
 
   const asyncRoute = (handler: (request: Request, response: Response) => Promise<unknown>): express.RequestHandler =>
@@ -36,18 +34,22 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
     })).filter(revision => revision.snapshot.classification === 'Public');
   };
 
-  const hasScenarioLock = (request: Request) => {
-    const lock = locks.get(request.params.id);
-    return Boolean(lock && lock.expiresAt > Date.now() && lock.sessionId === request.headers['x-planning-session']);
+  const activeLock = (scenarioId: string) =>
+    one<{ session_id: string; expires_at: number }>(db, 'SELECT session_id, expires_at FROM planning_locks WHERE scenario_id = ? AND expires_at > ?', scenarioId, Date.now());
+
+  const hasScenarioLock = async (request: Request) => {
+    const lock = await activeLock(request.params.id);
+    return Boolean(lock && lock.session_id === request.headers['x-planning-session']);
   };
 
-  const broadcast = (scenarioId: string, event: string, data: unknown) => {
-    const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    viewers.get(scenarioId)?.forEach(response => response.write(payload));
-  };
+  // Viewers poll this table (see /events), so every instance's writes reach every viewer.
+  const broadcast = (scenarioId: string, event: string, data: unknown) => db.batch([
+    { sql: 'INSERT INTO planning_events (scenario_id, event, data, created_at) VALUES (?, ?, ?, ?)', args: [scenarioId, event, JSON.stringify(data), Date.now()] },
+    { sql: 'DELETE FROM planning_events WHERE created_at < ?', args: [Date.now() - 60 * 60 * 1000] },
+  ], 'write');
 
   router.get('/scenarios', asyncRoute(async (request, response) => {
-    if (!isAuthorized(request)) {
+    if (!await isAuthorized(request)) {
       const latest = new Map<string, PlanningRevision>();
       for (const revision of await publicRevisions()) if (!latest.has(revision.scenarioId)) latest.set(revision.scenarioId, revision);
       return response.json([...latest.values()].map(revision => ({ ...revision.snapshot, publishedRevision: revision.revision })));
@@ -61,7 +63,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
   }));
 
   router.get('/scenarios/:id', asyncRoute(async (request, response) => {
-    if (!isAuthorized(request)) {
+    if (!await isAuthorized(request)) {
       const revision = (await publicRevisions(request.params.id))[0];
       return revision ? response.json(revision.snapshot) : response.status(404).json({ error: 'Scenario not found' });
     }
@@ -91,7 +93,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
     if (!parsed.success || parsed.data.id !== request.params.id) return response.status(400).json({ error: 'Invalid scenario' });
     const current = await getScenario(request.params.id);
     if (!current) return response.status(404).json({ error: 'Scenario not found' });
-    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
+    if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     if (parsed.data.draftVersion !== current.draftVersion) return response.status(409).json({ error: 'Scenario changed', current });
     if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
     const scenario = { ...parsed.data, draftVersion: current.draftVersion + 1, updatedAt: new Date().toISOString() } as PlanningScenario;
@@ -99,28 +101,28 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
       name = ?, valid_from = ?, valid_until = ?, draft_version = ?, archived_at = ?, updated_at = ?, document = ?
       WHERE id = ? AND draft_version = ?`, scenario.name, scenario.validFrom ?? null, scenario.validUntil ?? null, scenario.draftVersion, scenario.archivedAt ?? null, scenario.updatedAt, JSON.stringify(scenario), scenario.id, current.draftVersion);
     if (result.rowsAffected === 0) return response.status(409).json({ error: 'Scenario changed', current: await getScenario(scenario.id) });
-    previews.delete(scenario.id);
-    broadcast(scenario.id, 'saved', scenario);
+    await execute(db, 'DELETE FROM planning_previews WHERE scenario_id = ?', scenario.id);
+    await broadcast(scenario.id, 'saved', scenario);
     response.json(scenario);
   }));
 
   router.delete('/scenarios/:id', requireAuthorization, asyncRoute(async (request, response) => {
     const current = await getScenario(request.params.id);
     if (!current) return response.status(404).json({ error: 'Scenario not found' });
-    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
+    if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     if (request.body?.name !== current.name) return response.status(400).json({ error: 'Type the scenario name to delete it' });
     await db.batch([
       { sql: 'DELETE FROM planning_revisions WHERE scenario_id = ?', args: [current.id] },
       { sql: 'DELETE FROM planning_scenarios WHERE id = ?', args: [current.id] },
+      { sql: 'DELETE FROM planning_previews WHERE scenario_id = ?', args: [current.id] },
+      { sql: 'DELETE FROM planning_locks WHERE scenario_id = ?', args: [current.id] },
     ], 'write');
-    previews.delete(current.id);
-    locks.delete(current.id);
-    broadcast(current.id, 'deleted', { id: current.id });
+    await broadcast(current.id, 'deleted', { id: current.id });
     response.json({ success: true });
   }));
 
   router.get('/scenarios/:id/revisions', asyncRoute(async (request, response) => {
-    if (!isAuthorized(request)) return response.json(await publicRevisions(request.params.id));
+    if (!await isAuthorized(request)) return response.json(await publicRevisions(request.params.id));
     const rows = await all<Record<string, unknown>>(db, 'SELECT * FROM planning_revisions WHERE scenario_id = ? ORDER BY revision DESC', request.params.id);
     response.json(rows.map(row => ({
       id: row.id,
@@ -134,7 +136,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
   router.post('/scenarios/:id/publish', requireAuthorization, asyncRoute(async (request, response) => {
     const scenario = await getScenario(request.params.id);
     if (!scenario) return response.status(404).json({ error: 'Scenario not found' });
-    if (!hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
+    if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     const validation = validateForPublish(scenario);
     if (validation.errors.length > 0) return response.status(400).json(validation);
     const publishedAt = new Date().toISOString();
@@ -150,7 +152,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
       publishedAt,
       snapshot: scenario,
     };
-    broadcast(scenario.id, 'published', published);
+    await broadcast(scenario.id, 'published', published);
     response.status(201).json({ ...published, warnings: validation.warnings });
   }));
 
@@ -158,53 +160,67 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
     if (!await getScenario(request.params.id)) return response.status(404).json({ error: 'Scenario not found' });
     const sessionId = typeof request.body?.sessionId === 'string' ? request.body.sessionId : '';
     if (!sessionId) return response.status(400).json({ error: 'Session ID required' });
-    const existing = locks.get(request.params.id);
-    if (existing && existing.expiresAt > Date.now() && existing.sessionId !== sessionId && !request.body?.force) {
-      return response.status(409).json({ error: 'Scenario is being edited', expiresAt: existing.expiresAt });
+    const now = Date.now();
+    const lock = { sessionId, expiresAt: now + LOCK_TTL_MS };
+    // One conditional upsert, so two instances cannot both take the lock.
+    const taken = await execute(db, `INSERT INTO planning_locks (scenario_id, session_id, expires_at) VALUES (?, ?, ?)
+      ON CONFLICT(scenario_id) DO UPDATE SET session_id = excluded.session_id, expires_at = excluded.expires_at
+      WHERE planning_locks.expires_at <= ? OR planning_locks.session_id = excluded.session_id OR ?`,
+      request.params.id, sessionId, lock.expiresAt, now, request.body?.force ? 1 : 0);
+    if (taken.rowsAffected === 0) {
+      const existing = await activeLock(request.params.id);
+      return response.status(409).json({ error: 'Scenario is being edited', expiresAt: existing?.expires_at });
     }
-    const lock = { sessionId, expiresAt: Date.now() + LOCK_TTL_MS };
-    locks.set(request.params.id, lock);
-    broadcast(request.params.id, 'lock', { locked: true, expiresAt: lock.expiresAt });
+    await broadcast(request.params.id, 'lock', { locked: true, expiresAt: lock.expiresAt });
     response.json(lock);
   }));
 
-  router.delete('/scenarios/:id/lock', requireAuthorization, (request, response) => {
-    const existing = locks.get(request.params.id);
-    if (existing && existing.sessionId !== request.body?.sessionId && !request.body?.force) return response.status(409).json({ error: 'Lock belongs to another session' });
-    locks.delete(request.params.id);
-    broadcast(request.params.id, 'lock', { locked: false });
+  router.delete('/scenarios/:id/lock', requireAuthorization, asyncRoute(async (request, response) => {
+    const existing = await activeLock(request.params.id);
+    if (existing && existing.session_id !== request.body?.sessionId && !request.body?.force) return response.status(409).json({ error: 'Lock belongs to another session' });
+    await execute(db, 'DELETE FROM planning_locks WHERE scenario_id = ?', request.params.id);
+    await broadcast(request.params.id, 'lock', { locked: false });
     response.json({ success: true });
-  });
+  }));
 
-  router.put('/scenarios/:id/preview', requireAuthorization, (request, response) => {
+  router.put('/scenarios/:id/preview', requireAuthorization, asyncRoute(async (request, response) => {
     const parsed = planningScenarioSchema.safeParse(request.body);
-    const lock = locks.get(request.params.id);
     if (!parsed.success || parsed.data.id !== request.params.id) return response.status(400).json({ error: 'Invalid preview' });
     if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
-    if (!lock || lock.expiresAt <= Date.now() || lock.sessionId !== request.headers['x-planning-session']) {
-      return response.status(409).json({ error: 'Editing lock required' });
-    }
-    previews.set(request.params.id, parsed.data as PlanningScenario);
-    broadcast(request.params.id, 'preview', parsed.data);
+    if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Editing lock required' });
+    await execute(db, 'INSERT INTO planning_previews (scenario_id, document) VALUES (?, ?) ON CONFLICT(scenario_id) DO UPDATE SET document = excluded.document', request.params.id, JSON.stringify(parsed.data));
+    await broadcast(request.params.id, 'preview', parsed.data);
     response.status(204).end();
-  });
+  }));
 
+  // ponytail: polls the events table every POLL_MS; push via a pub/sub service only if the delay matters.
+  // The stream ends before the serverless time limit; EventSource reconnects and resumes from Last-Event-ID.
   router.get('/scenarios/:id/events', requireAuthorization, asyncRoute(async (request, response) => {
     if (!await getScenario(request.params.id)) return response.status(404).json({ error: 'Scenario not found' });
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache');
     response.setHeader('Connection', 'keep-alive');
     response.flushHeaders();
-    const scenarioViewers = viewers.get(request.params.id) ?? new Set<Response>();
-    scenarioViewers.add(response);
-    viewers.set(request.params.id, scenarioViewers);
-    const initial = previews.get(request.params.id) ?? await getScenario(request.params.id);
-    if (initial) response.write(`event: snapshot\ndata: ${JSON.stringify(initial)}\n\n`);
-    const keepAlive = setInterval(() => response.write(': keep-alive\n\n'), 25_000);
-    request.on('close', () => {
-      clearInterval(keepAlive);
-      scenarioViewers.delete(response);
-    });
+    const scenarioId = request.params.id;
+    const resumeFrom = Number(request.headers['last-event-id']);
+    let lastId = Number.isSafeInteger(resumeFrom) && resumeFrom > 0 ? resumeFrom
+      : (await one<{ id: number | null }>(db, 'SELECT MAX(id) AS id FROM planning_events'))?.id ?? 0;
+    const preview = await one<{ document: string }>(db, 'SELECT document FROM planning_previews WHERE scenario_id = ?', scenarioId);
+    const initial = preview ? JSON.parse(preview.document) : await getScenario(scenarioId);
+    if (initial) response.write(`id: ${lastId}\nevent: snapshot\ndata: ${JSON.stringify(initial)}\n\n`);
+    let closed = false;
+    request.on('close', () => { closed = true; });
+    const endAt = Date.now() + STREAM_MS;
+    while (!closed && Date.now() < endAt) {
+      const events = await all<{ id: number; event: string; data: string }>(db, 'SELECT id, event, data FROM planning_events WHERE scenario_id = ? AND id > ? ORDER BY id', scenarioId, lastId);
+      for (const event of events) {
+        response.write(`id: ${event.id}\nevent: ${event.event}\ndata: ${event.data}\n\n`);
+        lastId = event.id;
+      }
+      if (!events.length) response.write(': keep-alive\n\n');
+      await new Promise(resolve => setTimeout(resolve, POLL_MS));
+    }
+    response.end();
   }));
 
   router.get('/templates', requireAuthorization, asyncRoute(async (_request, response) => {

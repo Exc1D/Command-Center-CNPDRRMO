@@ -3,6 +3,7 @@ import path from 'node:path';
 import { municipalities } from '../lib/reference';
 import { pointInPolygon } from '../lib/planning';
 import { haversineDistance } from '../lib/utils';
+import { privateDir } from './privateReferenceFiles';
 type Geometry = {type:'Point';coordinates:[number,number]} | {type:'Polygon';coordinates:[number,number][][]};
 export type PopulationPoint = {geometry:{coordinates:[number,number]};properties:{populationCount:number|null;duplicateId?:boolean}};
 
@@ -30,7 +31,7 @@ export async function estimateExposure(geometry:Geometry,radiusMetres?:number) {
   // Read one municipality at a time; population details never enter a public static asset or response.
   for(const municipality of municipalities) {
     let raw:string;
-    try {raw=await fs.readFile(path.join(process.cwd(),'.private/population',municipality+'.geojson'),'utf8');}
+    try {raw=await fs.readFile(path.join(privateDir,'population',municipality+'.geojson'),'utf8');}
     catch(error) {if((error as NodeJS.ErrnoException).code==='ENOENT'){unavailableMunicipalities.push(municipality);continue;}throw error;}
     const counts=countExposed(JSON.parse(raw).features,geometry,radiusMetres);
     byMunicipality.push({municipality,...counts});

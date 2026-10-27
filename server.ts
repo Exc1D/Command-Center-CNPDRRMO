@@ -1,6 +1,6 @@
 import { estimateExposure } from './src/server/population';
 import { analyzeLayerExposure } from './src/server/layerExposure';
-import { restorePrivateReferenceFiles } from './src/server/privateReferenceFiles';
+import { privateDir, restorePrivateReferenceFiles } from './src/server/privateReferenceFiles';
 import 'dotenv/config';
 import express from "express";
 import path from "path";
@@ -71,93 +71,93 @@ const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 export function createApp(db: Database, correctPin: string, provinceBoundary?: Parameters<typeof createPlanningRouter>[2]) {
   if (!/^\d{4}$/.test(correctPin)) throw new Error('PIN_SECRET must contain exactly four digits');
   const app = express();
-  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+  // Vercel's edge sets X-Forwarded-For itself, so trust it there; elsewhere only trust local proxies.
+  app.set('trust proxy', process.env.VERCEL ? true : 'loopback, linklocal, uniquelocal');
 
-  // ponytail: process-local sessions and rate limits; use a shared store only for multi-instance deployment.
-  const operationsSessions = new Map<string, { id: string; expiresAt: number }>();
+  // Sessions and PIN attempts live in the database so every serverless instance sees the same state.
   // ponytail: sessions are the audit identity; add named accounts when distinct operator roles are required.
-  const pinAttempts = new Map<string, { count: number; resetAt: number }>();
   const recordAudit = (sessionId: string, method: string, route: string) => {
     void execute(db, 'INSERT INTO operations_audit (session_id, method, path, created_at) VALUES (?, ?, ?, ?)', sessionId, method, route, new Date().toISOString()).catch(error => {
       console.error('Failed to record operations audit entry:', error);
     });
   };
   const tokenFrom = (request: express.Request) => request.headers.cookie?.match(/(?:^|;\s*)operationsToken=([^;]+)/)?.[1];
-  const hasOperationsSession = (request: express.Request) => {
+  const operationsSessionId = async (request: express.Request) => {
     const token = tokenFrom(request);
-    if (!token) return false;
-    const session = operationsSessions.get(token);
-    if (!session || session.expiresAt <= Date.now()) {
-      operationsSessions.delete(token);
-      return false;
-    }
-    return true;
+    if (!token) return undefined;
+    const session = await one<{ id: string }>(db, 'SELECT id FROM operations_sessions WHERE token = ? AND expires_at > ?', token, Date.now());
+    return session?.id;
   };
+  const hasOperationsSession = async (request: express.Request) => Boolean(await operationsSessionId(request));
 
   app.post('/api/verify-pin', (request, response, next) => {
     const identity = `ip:${request.ip || 'unknown'}`;
     response.on('finish', () => recordAudit(identity, request.method, `${request.path}:${response.statusCode}`));
     next();
-  }, express.json({ limit: '1kb' }), (request, response) => {
-    const key = request.ip || 'unknown';
-    const now = Date.now();
-    if (!pinAttempts.has(key) && pinAttempts.size >= 10_000) {
-      for (const [ip, attempt] of pinAttempts) if (attempt.resetAt <= now) pinAttempts.delete(ip);
-      if (pinAttempts.size >= 10_000) return response.status(429).json({ error: 'Too many attempts. Try again later.' });
+  }, express.json({ limit: '1kb' }), async (request, response, next) => {
+    try {
+      const key = request.ip || 'unknown';
+      const now = Date.now();
+      const attempts = await one<{ count: number; reset_at: number }>(db, 'SELECT count, reset_at FROM pin_attempts WHERE ip = ?', key);
+      if (attempts && attempts.reset_at > now && attempts.count >= 5) {
+        return response.status(429).json({ error: 'Too many attempts. Try again later.' });
+      }
+      const { pin } = request.body;
+      if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return response.status(400).json({ error: 'Invalid PIN format' });
+      if (pin !== correctPin) {
+        const count = attempts && attempts.reset_at > now ? attempts.count + 1 : 1;
+        await execute(db, 'INSERT INTO pin_attempts (ip, count, reset_at) VALUES (?, ?, ?) ON CONFLICT(ip) DO UPDATE SET count = excluded.count, reset_at = excluded.reset_at', key, count, now + 15 * 60 * 1000);
+        return response.status(401).json({ valid: false });
+      }
+      const token = randomUUID();
+      await db.batch([
+        { sql: 'DELETE FROM pin_attempts WHERE ip = ? OR reset_at <= ?', args: [key, now] },
+        { sql: 'DELETE FROM operations_sessions WHERE expires_at <= ?', args: [now] },
+        { sql: 'INSERT INTO operations_sessions (token, id, expires_at) VALUES (?, ?, ?)', args: [token, randomUUID(), now + 8 * 60 * 60 * 1000] },
+      ], 'write');
+      response.setHeader('Set-Cookie', `operationsToken=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+      response.json({ valid: true });
+    } catch (error) {
+      next(error);
     }
-    const attempts = pinAttempts.get(key);
-    if (attempts && attempts.resetAt > now && attempts.count >= 5) {
-      return response.status(429).json({ error: 'Too many attempts. Try again later.' });
-    }
-    const { pin } = request.body;
-    if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return response.status(400).json({ error: 'Invalid PIN format' });
-    if (pin !== correctPin) {
-      pinAttempts.set(key, { count: attempts && attempts.resetAt > now ? attempts.count + 1 : 1, resetAt: now + 15 * 60 * 1000 });
-      return response.status(401).json({ valid: false });
-    }
-    pinAttempts.delete(key);
-    if (operationsSessions.size >= 10_000) {
-      for (const [id, session] of operationsSessions) if (session.expiresAt <= now) operationsSessions.delete(id);
-      if (operationsSessions.size >= 10_000) return response.status(503).json({ error: 'Too many active sessions' });
-    }
-    const token = randomUUID();
-    operationsSessions.set(token, { id: randomUUID(), expiresAt: now + 8 * 60 * 60 * 1000 });
-    response.setHeader('Set-Cookie', `operationsToken=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-    response.json({ valid: true });
   });
 
   app.get('/api/reference/population/:municipality', async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
-    if (!hasOperationsSession(request)) return response.status(401).json({error:'Authorization required'});
+    if (!await hasOperationsSession(request)) return response.status(401).json({error:'Authorization required'});
     const municipality = request.params.municipality;
     if (!municipalities.includes(municipality)) return response.status(404).json({error:'Municipality not found'});
     try {
-      const contents = await fs.promises.readFile(path.join(process.cwd(), '.private/population', municipality + '.geojson'), 'utf8');
+      const contents = await fs.promises.readFile(path.join(privateDir, 'population', municipality + '.geojson'), 'utf8');
       response.type('json').send(contents);
     } catch {
       response.status(404).json({error:'Population data unavailable for this municipality'});
     }
   });
 
-  app.get('/api/session', (request, response) => response.json({ valid: hasOperationsSession(request) }));
-  app.post('/api/logout', (request, response) => {
+  app.get('/api/session', (request, response, next) => {
+    hasOperationsSession(request).then(valid => response.json({ valid }), next);
+  });
+  app.post('/api/logout', (request, response, next) => {
     const token = tokenFrom(request);
-    if (token) operationsSessions.delete(token);
-    response.setHeader('Set-Cookie', 'operationsToken=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
-    response.json({ success: true });
+    (token ? execute(db, 'DELETE FROM operations_sessions WHERE token = ?', token) : Promise.resolve()).then(() => {
+      response.setHeader('Set-Cookie', 'operationsToken=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+      response.json({ success: true });
+    }, next);
   });
 
   // Protect every current and future mutation at one boundary; public reads opt in inside their routers.
   app.use((request, response, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method) || request.path === '/api/verify-pin') return next();
-    if (!hasOperationsSession(request)) return response.status(401).json({ error: 'Authorization required' });
-    const sessionId = operationsSessions.get(tokenFrom(request)!)!.id;
-    response.on('finish', () => {
-      if (response.statusCode < 400 && request.path !== '/api/logout') {
-        recordAudit(sessionId, request.method, request.path);
-      }
-    });
-    next();
+    operationsSessionId(request).then(sessionId => {
+      if (!sessionId) return response.status(401).json({ error: 'Authorization required' });
+      response.on('finish', () => {
+        if (response.statusCode < 400 && request.path !== '/api/logout') {
+          recordAudit(sessionId, request.method, request.path);
+        }
+      });
+      next();
+    }, next);
   });
   app.use(express.json({ limit: '6mb' }));
 
@@ -424,13 +424,17 @@ app.delete("/api/evacuation-centers/:id", async (req, res) => {
   return app;
 }
 
-async function startServer() {
+export async function createConfiguredApp() {
   const correctPin = process.env.PIN_SECRET;
   if (!correctPin) throw new Error('PIN_SECRET environment variable is required');
   const db = await createDatabase();
   await restorePrivateReferenceFiles(db);
   const provinceBoundary = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'Municipal Boundary.geojson'), 'utf8'));
-  const app = createApp(db, correctPin, provinceBoundary);
+  return createApp(db, correctPin, provinceBoundary);
+}
+
+async function startServer() {
+  const app = await createConfiguredApp();
 
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import('vite');
@@ -452,7 +456,8 @@ async function startServer() {
   });
 }
 
-if (!process.env.VITEST) {
+// On Vercel, api/index.ts serves the app instead of a listening server.
+if (!process.env.VITEST && !process.env.VERCEL) {
   startServer().catch(error => {
     console.error(error);
     process.exit(1);

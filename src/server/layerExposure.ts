@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { municipalities, REFERENCE_LAYERS } from '../lib/reference';
+import { privateDir } from './privateReferenceFiles';
 
 export type ExposureCounts = {matchedRecords:number;populationSum:number;missingPopulationRecords:number;duplicateIdRecords:number};
 type ExposureClass = {id:string;layer:string;label:string};
@@ -69,6 +70,6 @@ const indexSchema=z.object({
   (b.missingPopulationRecords<b.matchedRecords || b.populationSum===0)), 'Invalid exposure aggregate');
 
 export async function analyzeLayerExposure(selection:ExposureSelection) {
-  const index=indexSchema.parse(JSON.parse(await fs.readFile(path.join(process.cwd(),'.private/population-exposure.json'),'utf8')));
+  const index=indexSchema.parse(JSON.parse(await fs.readFile(path.join(privateDir,'population-exposure.json'),'utf8')));
   return summarizeLayerExposure(index as ExposureIndex,selection);
 }

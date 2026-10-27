@@ -7,12 +7,15 @@ import { types } from 'node:util';
 import { municipalities } from '../lib/reference';
 import type { Database } from './database';
 
+// Vercel's filesystem is read-only except /tmp.
+export const privateDir = process.env.VERCEL ? '/tmp/.private' : path.join(process.cwd(), '.private');
+
 const filenames = ['population-exposure.json', ...municipalities.map(name => `population/${name}.geojson`)];
 const maxFileBytes = 32 * 1024 * 1024;
 const digest = (contents: Buffer) => createHash('sha256').update(contents).digest('hex');
 const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT';
 
-export async function uploadPrivateReferenceFiles(db: Database, directory = path.join(process.cwd(), '.private')) {
+export async function uploadPrivateReferenceFiles(db: Database, directory = privateDir) {
   const files: { name: string; content: Buffer; sha256: string }[] = [];
   for (const name of filenames) {
     let contents: Buffer;
@@ -33,7 +36,7 @@ export async function uploadPrivateReferenceFiles(db: Database, directory = path
   return files.length;
 }
 
-export async function restorePrivateReferenceFiles(db: Database, directory = path.join(process.cwd(), '.private')) {
+export async function restorePrivateReferenceFiles(db: Database, directory = privateDir) {
   const names = (await db.execute('SELECT name FROM private_reference_files')).rows.map(row => row.name);
   if (!names.length) return 0;
   if (names.length < 2 || !names.includes(filenames[0]) || names.some(name => typeof name !== 'string' || !filenames.includes(name))) {

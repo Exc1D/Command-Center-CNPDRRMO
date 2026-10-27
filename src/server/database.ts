@@ -53,6 +53,23 @@ export async function createDatabase(url?: string): Promise<Database> {
     `CREATE TABLE IF NOT EXISTS planning_templates (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, document TEXT NOT NULL, updated_at TEXT NOT NULL
     )`,
+    // Shared state that serverless instances cannot keep in memory.
+    `CREATE TABLE IF NOT EXISTS operations_sessions (
+      token TEXT PRIMARY KEY, id TEXT NOT NULL, expires_at INTEGER NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS pin_attempts (
+      ip TEXT PRIMARY KEY, count INTEGER NOT NULL, reset_at INTEGER NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS planning_locks (
+      scenario_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, expires_at INTEGER NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS planning_previews (
+      scenario_id TEXT PRIMARY KEY, document TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS planning_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, scenario_id TEXT NOT NULL, event TEXT NOT NULL,
+      data TEXT NOT NULL, created_at INTEGER NOT NULL
+    )`,
   ];
   await db.batch(schema.map(sql => ({ sql, args: [] })), 'write');
 
