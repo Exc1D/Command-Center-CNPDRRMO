@@ -6,7 +6,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { z } from "zod";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createPlanningRouter } from "./src/server/planning";
 import { all, createDatabase, execute, one, type Database } from "./src/server/database";
 
@@ -98,15 +98,17 @@ export function createApp(db: Database, correctPin: string, provinceBoundary?: P
     try {
       const key = request.ip || 'unknown';
       const now = Date.now();
-      const attempts = await one<{ count: number; reset_at: number }>(db, 'SELECT count, reset_at FROM pin_attempts WHERE ip = ?', key);
-      if (attempts && attempts.reset_at > now && attempts.count >= 5) {
-        return response.status(429).json({ error: 'Too many attempts. Try again later.' });
-      }
       const { pin } = request.body;
       if (typeof pin !== 'string' || !/^\d{4}$/.test(pin)) return response.status(400).json({ error: 'Invalid PIN format' });
-      if (pin !== correctPin) {
-        const count = attempts && attempts.reset_at > now ? attempts.count + 1 : 1;
-        await execute(db, 'INSERT INTO pin_attempts (ip, count, reset_at) VALUES (?, ?, ?) ON CONFLICT(ip) DO UPDATE SET count = excluded.count, reset_at = excluded.reset_at', key, count, now + 15 * 60 * 1000);
+      // Count the attempt atomically before checking, so parallel requests across instances can't slip past the limit.
+      const attempt = await one<{ count: number }>(db, `INSERT INTO pin_attempts (ip, count, reset_at) VALUES (?, 1, ?)
+        ON CONFLICT(ip) DO UPDATE SET
+          count = CASE WHEN pin_attempts.reset_at > ? THEN pin_attempts.count + 1 ELSE 1 END,
+          reset_at = CASE WHEN pin_attempts.reset_at > ? THEN pin_attempts.reset_at ELSE excluded.reset_at END
+        RETURNING count`, key, now + 15 * 60 * 1000, now, now);
+      if (!attempt || attempt.count > 5) return response.status(429).json({ error: 'Too many attempts. Try again later.' });
+      const digest = (value: string) => createHash('sha256').update(value).digest();
+      if (!timingSafeEqual(digest(pin), digest(correctPin))) {
         return response.status(401).json({ valid: false });
       }
       const token = randomUUID();
