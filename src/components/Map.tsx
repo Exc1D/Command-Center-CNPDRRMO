@@ -158,7 +158,9 @@ function FlyToHandler() {
   const map = useMap();
 
   useEffect(() => {
-    map.flyTo(mapCenter, mapZoom, { duration: 1.5 });
+    // Leaflet's flyTo divides by the container size, so a hidden (0×0) map would throw NaN LatLng.
+    if (!map.getSize().x) map.setView(mapCenter, mapZoom);
+    else map.flyTo(mapCenter, mapZoom, { duration: 1.5 });
   }, [mapCenter, mapZoom, map]);
 
   return null;
