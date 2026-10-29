@@ -102,7 +102,7 @@ export default function App() {
           </div>
           <div className="min-w-0">
             <h1 className="text-[17px] font-display font-semibold tracking-tight text-on-surface leading-tight">
-              Command Center
+              Interactive Map
             </h1>
             <p className="text-xs text-on-surface/55 truncate">
               Camarines Norte Provincial DRRMO

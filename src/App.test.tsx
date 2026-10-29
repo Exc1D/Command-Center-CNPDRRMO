@@ -127,7 +127,7 @@ describe('App', () => {
       render(<App />);
 
       // Verify the header is rendered
-      expect(screen.getByText('Command Center')).toBeInTheDocument();
+      expect(screen.getByText('Interactive Map')).toBeInTheDocument();
       await waitFor(() => expect(mockGetAllCenters).toHaveBeenCalled());
     });
 
@@ -141,7 +141,7 @@ describe('App', () => {
 
       // App should still render (error is caught internally)
       await waitFor(() => {
-        expect(screen.getByText('Command Center')).toBeInTheDocument();
+        expect(screen.getByText('Interactive Map')).toBeInTheDocument();
       });
 
       consoleSpy.mockRestore();
