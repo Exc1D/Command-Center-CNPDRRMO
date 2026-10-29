@@ -10,7 +10,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { createPlanningRouter } from "./src/server/planning";
 import { all, createDatabase, execute, one, type Database } from "./src/server/database";
 
-import { HAZARD_TYPES, LEGACY_TYPES, canonicalLocation, municipalities, REFERENCE_LAYERS, FLOOD_COLORS } from './src/lib/reference';
+import { HAZARD_TYPES, LEGACY_TYPES, ROAD_STATUS, canonicalLocation, municipalities, REFERENCE_LAYERS, FLOOD_COLORS } from './src/lib/reference';
 import { PLANNING_SYMBOLS } from './src/lib/planning';
 
 export { createDatabase } from "./src/server/database";
@@ -33,11 +33,11 @@ const geometrySchema = z.discriminatedUnion('type', [
 
 const hazardSchema = z.object({
   id: z.string().uuid(),
-  type: z.string().refine(value => value === 'resource' || [...HAZARD_TYPES,...LEGACY_TYPES].some(t => t.id === value)),
+  type: z.string().refine(value => value === 'resource' || value === 'road' || [...HAZARD_TYPES,...LEGACY_TYPES].some(t => t.id === value)),
   symbolKey: z.string().refine(value => PLANNING_SYMBOLS.some(symbol => symbol.key === value)).nullable().optional(),
   affectedPopulationBasis: z.enum(['reported','population_estimate','household_estimate']).transform(value => value === 'household_estimate' ? 'population_estimate' : value).optional(),
   affectedPopulation: z.number().int().min(0).max(100_000_000).nullable().optional(),
-  severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical', 'Not applicable']),
+  severity: z.enum(['Minor', 'Moderate', 'Severe', 'Critical', 'Not applicable', ...Object.keys(ROAD_STATUS)] as [string, ...string[]]),
   title: z.string().trim().max(120).optional(),
   municipality: z.string().trim().max(120).optional(),
   barangay: z.string().trim().max(500).optional(),
@@ -47,11 +47,13 @@ const hazardSchema = z.object({
   version: z.number().int().nonnegative().optional(),
 });
 
-// Resource pins reuse operational storage and offline sync without becoming incidents.
+// Resource pins and road status reuse operational storage and offline sync without becoming incidents.
 function validPinKind(record: { type: unknown; severity: unknown; symbolKey?: unknown; geometry?: { type?: string }; affectedPopulation?: unknown; affectedPopulationBasis?: unknown }) {
-  return record.type === 'resource'
-    ? record.geometry?.type === 'Point' && Boolean(record.symbolKey) && record.severity === 'Not applicable' && record.affectedPopulation == null && record.affectedPopulationBasis !== 'population_estimate'
-    : record.severity !== 'Not applicable';
+  const noPopulation = record.affectedPopulation == null && record.affectedPopulationBasis !== 'population_estimate';
+  const roadStatus = Object.hasOwn(ROAD_STATUS, String(record.severity));
+  if (record.type === 'resource') return record.geometry?.type === 'Point' && Boolean(record.symbolKey) && record.severity === 'Not applicable' && noPopulation;
+  if (record.type === 'road') return (record.geometry?.type === 'Point' || record.geometry?.type === 'LineString') && roadStatus && noPopulation;
+  return record.severity !== 'Not applicable' && !roadStatus;
 }
 
 const headcount = z.number().int().nonnegative().max(1_000_000);
@@ -223,7 +225,7 @@ app.post("/api/hazards", async (req, res) => {
       return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     }
     const { id, type, symbolKey, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
-    if (!validPinKind(parsed.data)) return res.status(400).json({error:'Resource pins require a point and symbol, without incident severity or population'});
+    if (!validPinKind(parsed.data)) return res.status(400).json({error:'Resource pins need a point and symbol; road status needs a point or line and a road status; neither takes incident severity or population'});
     const location = canonicalLocation(parsed.data.municipality,parsed.data.barangay);
     if (!location) return res.status(400).json({error:'Select a valid municipality and barangay'});
     const {municipality,barangay} = location;

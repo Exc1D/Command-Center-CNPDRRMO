@@ -29,6 +29,19 @@ export function centerOccupancyTone(center: Pick<EvacuationCenter, 'status' | 'p
   return CENTER_STATUS[status] ?? CENTER_STATUS.standby;
 }
 
+// Province-wide headline counts for the Monitor view. Only open or full centers count as sheltering people.
+export function monitorSummary(hazards: { type: string; severity: string }[], centers: Pick<EvacuationCenter, 'status' | 'personsNow' | 'familiesNow'>[]) {
+  const sheltering = centers.filter(center => center.status === 'open' || center.status === 'full');
+  return {
+    incidents: hazards.filter(hazard => hazard.type !== 'resource' && hazard.type !== 'road').length,
+    roadsClosed: hazards.filter(hazard => hazard.type === 'road' && hazard.severity === 'Not passable').length,
+    openCenters: sheltering.length,
+    totalCenters: centers.length,
+    personsNow: sheltering.reduce((sum, center) => sum + (center.personsNow ?? 0), 0),
+    familiesNow: sheltering.reduce((sum, center) => sum + (center.familiesNow ?? 0), 0),
+  };
+}
+
 export interface DetectedLocation {
   municipality: string;
   barangay: string;

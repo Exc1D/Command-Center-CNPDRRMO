@@ -13,14 +13,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('offers only pin tools and opens point details without retaining temporary markers', async () => {
+it('offers pin and road-line tools and opens point details without retaining temporary markers', async () => {
   useStore.setState({ isMapAuthorized: true });
   let map: L.Map;
   function CaptureMap() { map = useMap(); return null; }
   const view = render(<MapContainer center={[14, 123]} zoom={10}><CaptureMap /><MonitoringPins /></MapContainer>);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Add incident or resource pin' })).toBeInTheDocument());
   expect(screen.getByRole('button', { name: 'Add evacuation center pin' })).toBeInTheDocument();
-  expect(view.container.querySelectorAll('.leaflet-pm-toolbar .leaflet-buttons-control-button')).toHaveLength(2);
+  expect(view.container.querySelectorAll('.leaflet-pm-toolbar .leaflet-buttons-control-button')).toHaveLength(3);
+  expect(screen.getByRole('button', { name: 'Mark road status along a line' })).toBeInTheDocument();
   act(() => {
     const layer = L.marker([14, 123]).addTo(map);
     map.fire('pm:create', { shape: 'Marker', layer });
@@ -33,6 +34,9 @@ it('offers only pin tools and opens point details without retaining temporary ma
     map.fire('pm:create', { shape: 'Polygon', layer: L.polygon([[14,123],[14,124],[15,123]]) });
   });
   expect(useStore.getState().isDropTagModalOpen).toBe(false);
+  act(() => map.fire('pm:create', { shape: 'Line', layer: L.polyline([[14,123],[14.1,123.1]]) }));
+  expect(useStore.getState()).toMatchObject({ isDropTagModalOpen: true, dropTagTempGeometry: { type: 'LineString' } });
+  act(() => useStore.getState().closeDropTagModal());
   act(() => map.fire('pm:create', { shape: 'CircleMarker', layer: L.circleMarker([14, 123]) }));
   expect(useStore.getState()).toMatchObject({ isEvacuationCenterModalOpen: true, evacuationCenterTempCoords: [123, 14] });
   act(() => {

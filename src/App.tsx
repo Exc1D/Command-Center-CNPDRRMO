@@ -10,6 +10,7 @@ import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
 import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
 import { PlanningOverlay, PlanningSidebar } from "./components/PlanningUI";
 import { usePlanningStore } from "./lib/planningStore";
+import { monitorSummary } from "./lib/utils";
 import { PlanningAPI } from "./lib/planningApi";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
@@ -50,9 +51,15 @@ export default function App() {
     };
     refresh();
 
+    // ponytail: every open screen polls every 15 s while visible; move to server-sent events if hosting leaves serverless.
+    const refreshIfVisible = () => { if (!document.hidden) refresh(); };
+    const timer = window.setInterval(refreshIfVisible, 15_000);
     window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refreshIfVisible);
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, [isMapAuthorized, setEvacuationCenters, setHazards]);
 
@@ -169,6 +176,7 @@ export default function App() {
           >
           <DangerMap />
           </ErrorBoundary>
+          {!planning.isPlanningMode && <MonitorSummary />}
           <PopUpCard />
           <ErrorBoundary
             fallback={
@@ -189,5 +197,27 @@ export default function App() {
       <EvacuationCenterModal />
       <EvacuationCenterCard />
     </div>
+  );
+}
+
+function MonitorSummary() {
+  const hazards = useStore(state => state.hazards);
+  const centers = useStore(state => state.evacuationCenters);
+  const summary = monitorSummary(hazards, centers);
+  const items = [
+    ['Incidents logged', summary.incidents.toLocaleString()],
+    ['Roads not passable', summary.roadsClosed.toLocaleString()],
+    ['Centers open', `${summary.openCenters} of ${summary.totalCenters}`],
+    ['Evacuees inside now', `${summary.personsNow.toLocaleString()} persons · ${summary.familiesNow.toLocaleString()} families`],
+  ];
+  return (
+    <dl aria-label="Province summary" className="absolute top-3 left-16 z-[450] flex flex-wrap gap-2 max-w-[calc(100%-8rem)] pointer-events-none">
+      {items.map(([label, value]) => (
+        <div key={label} className="bg-surface-container-lowest/95 border border-outline-variant/45 rounded-xl px-3 py-2 shadow-panel">
+          <dt className="text-[11px] text-on-surface/60">{label}</dt>
+          <dd className="text-sm font-semibold tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

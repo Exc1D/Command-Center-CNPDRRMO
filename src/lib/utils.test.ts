@@ -221,6 +221,13 @@ describe('detectLocationFromGeometry', () => {
 
 });
 
+it('summarizes incidents and evacuees, counting only centers that are sheltering people', () => {
+  expect(utils.monitorSummary(
+    [{ type: 'flood', severity: 'Moderate' }, { type: 'resource', severity: 'Not applicable' }, { type: 'landslide', severity: 'Severe' }, { type: 'road', severity: 'Not passable' }, { type: 'road', severity: 'Passable' }],
+    [{ status: 'open', personsNow: 40, familiesNow: 10 }, { status: 'full', personsNow: 60, familiesNow: 15 }, { status: 'closed', personsNow: 99, familiesNow: 9 }, {}],
+  )).toEqual({ incidents: 2, roadsClosed: 1, openCenters: 2, totalCenters: 4, personsNow: 100, familiesNow: 25 });
+});
+
 it('colors evacuation centers by declared status, flagging open centers near capacity', () => {
   expect(utils.centerOccupancyTone({ capacity: 100 }).label).toBe('Standby');
   expect(utils.centerOccupancyTone({ status: 'open', personsNow: 79, capacity: 100 }).label).toBe('Open');

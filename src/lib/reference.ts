@@ -16,7 +16,10 @@ export const LEGACY_TYPES = [
   {id:'earthquake',label:'Earthquake Fault (legacy)',color:'#991b1b',symbol:'ϟ'},
   {id:'vehicular_accident',label:'Vehicular Accident (legacy)',color:'#dc2626',symbol:'!'},
 ];
-export const hazardDefinition = (id: string) => [...HAZARD_TYPES, ...LEGACY_TYPES].find(t => t.id === id);
+// Road and bridge status reuses incident storage; its status lives in the severity field.
+export const ROAD_TYPE = {id:'road',label:'Road / Bridge Status',color:'#475569',symbol:'═'};
+export const ROAD_STATUS: Record<string,string> = {Passable:'#15803d','Limited access':'#d97706','Not passable':'#dc2626'};
+export const hazardDefinition = (id: string) => [...HAZARD_TYPES, ...LEGACY_TYPES, ROAD_TYPE].find(t => t.id === id);
 export const FLOOD_COLORS: Record<string,string> = {'Very High':'#12003c',High:'#3e0683',Moderate:'#a61fec',Low:'#d5beee'};
 export const RIL_COLORS: Record<string,string> = {'Very High Susceptibility':'#902400','High Susceptibility':'#FF0000','Moderate Susceptibility':'#008000','Low Susceptibility':'#FFFF00','Debris Flow/Possible Accumulation Zone':'#000000'};
 export const REFERENCE_LAYERS = [
@@ -44,5 +47,5 @@ export function filterMapRecords(hazards: Hazard[], types: string[], municipalit
     (!barangay || normalize(h.barangay || '') === normalize(barangay)));
 }
 export function filterIncidents(hazards: Hazard[], types: string[], municipality = '', barangay = '') {
-  return filterMapRecords(hazards, types.filter(type => type !== 'resource'), municipality, barangay);
+  return filterMapRecords(hazards, types.filter(type => type !== 'resource' && type !== 'road'), municipality, barangay);
 }
