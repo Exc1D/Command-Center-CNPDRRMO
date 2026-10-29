@@ -1,9 +1,7 @@
 import axios from 'axios';
+import { retryable } from './api';
 import { db } from './db';
 import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './planning';
-
-const retryable = (error: unknown) => axios.isAxiosError(error)
-  && (!error.response || error.response.status === 429 || error.response.status >= 500);
 
 export const PlanningAPI = {
   async list(authorized = false): Promise<Array<PlanningScenario & { publishedRevision?: number | null }>> {

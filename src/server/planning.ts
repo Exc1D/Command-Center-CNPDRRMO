@@ -22,7 +22,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
     return row ? planningScenarioSchema.parse(JSON.parse(row.document)) as PlanningScenario : null;
   };
 
-  const publicRevisions = async (scenarioId?: string) => {
+  const revisions = async (scenarioId?: string) => {
     const rows = await all<Record<string, unknown>>(db, `SELECT id, scenario_id, revision, published_at, snapshot FROM planning_revisions
       ${scenarioId ? 'WHERE scenario_id = ?' : ''} ORDER BY revision DESC`, ...(scenarioId ? [scenarioId] : []));
     return rows.map(row => ({
@@ -30,9 +30,16 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
       scenarioId: row.scenario_id as string,
       revision: row.revision as number,
       publishedAt: row.published_at as string,
-      snapshot: planningScenarioSchema.parse(JSON.parse(row.snapshot as string)) as PlanningScenario,
-    })).filter(revision => revision.snapshot.classification === 'Public');
+      snapshot: JSON.parse(row.snapshot as string),
+    }));
   };
+  // Signed-out viewers get only schema-clean Public snapshots.
+  const publicRevisions = async (scenarioId?: string) => (await revisions(scenarioId))
+    .map(revision => ({ ...revision, snapshot: planningScenarioSchema.parse(revision.snapshot) as PlanningScenario }))
+    .filter(revision => revision.snapshot.classification === 'Public');
+
+  const outsideProvince = (scenario: unknown) => province !== undefined && !scenarioInsideProvince(scenario as PlanningScenario, province);
+  const OUTSIDE_PROVINCE = { error: 'Planning objects must remain inside Camarines Norte' };
 
   const activeLock = (scenarioId: string) =>
     one<{ session_id: string; expires_at: number }>(db, 'SELECT session_id, expires_at FROM planning_locks WHERE scenario_id = ? AND expires_at > ?', scenarioId, Date.now());
@@ -75,7 +82,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
   router.post('/scenarios', requireAuthorization, asyncRoute(async (request, response) => {
     const parsed = planningScenarioSchema.safeParse(request.body);
     if (!parsed.success) return response.status(400).json({ error: 'Invalid scenario', details: parsed.error.flatten() });
-    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
+    if (outsideProvince(parsed.data)) return response.status(400).json(OUTSIDE_PROVINCE);
     const scenario = { ...parsed.data, draftVersion: 1, updatedAt: new Date().toISOString() } as PlanningScenario;
     try {
       await execute(db, `INSERT INTO planning_scenarios
@@ -95,7 +102,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
     if (!current) return response.status(404).json({ error: 'Scenario not found' });
     if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Active editing lock required' });
     if (parsed.data.draftVersion !== current.draftVersion) return response.status(409).json({ error: 'Scenario changed', current });
-    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
+    if (outsideProvince(parsed.data)) return response.status(400).json(OUTSIDE_PROVINCE);
     const scenario = { ...parsed.data, draftVersion: current.draftVersion + 1, updatedAt: new Date().toISOString() } as PlanningScenario;
     const result = await execute(db, `UPDATE planning_scenarios SET
       name = ?, valid_from = ?, valid_until = ?, draft_version = ?, archived_at = ?, updated_at = ?, document = ?
@@ -123,14 +130,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
 
   router.get('/scenarios/:id/revisions', asyncRoute(async (request, response) => {
     if (!await isAuthorized(request)) return response.json(await publicRevisions(request.params.id));
-    const rows = await all<Record<string, unknown>>(db, 'SELECT * FROM planning_revisions WHERE scenario_id = ? ORDER BY revision DESC', request.params.id);
-    response.json(rows.map(row => ({
-      id: row.id,
-      scenarioId: row.scenario_id,
-      revision: row.revision,
-      publishedAt: row.published_at,
-      snapshot: JSON.parse(row.snapshot as string),
-    })));
+    response.json(await revisions(request.params.id));
   }));
 
   router.post('/scenarios/:id/publish', requireAuthorization, asyncRoute(async (request, response) => {
@@ -186,7 +186,7 @@ export function createPlanningRouter(db: Database, isAuthorized: (request: Reque
   router.put('/scenarios/:id/preview', requireAuthorization, asyncRoute(async (request, response) => {
     const parsed = planningScenarioSchema.safeParse(request.body);
     if (!parsed.success || parsed.data.id !== request.params.id) return response.status(400).json({ error: 'Invalid preview' });
-    if (province && !scenarioInsideProvince(parsed.data as PlanningScenario, province)) return response.status(400).json({ error: 'Planning objects must remain inside Camarines Norte' });
+    if (outsideProvince(parsed.data)) return response.status(400).json(OUTSIDE_PROVINCE);
     if (!await hasScenarioLock(request)) return response.status(409).json({ error: 'Editing lock required' });
     await execute(db, 'INSERT INTO planning_previews (scenario_id, document) VALUES (?, ?) ON CONFLICT(scenario_id) DO UPDATE SET document = excluded.document', request.params.id, JSON.stringify(parsed.data));
     await broadcast(request.params.id, 'preview', parsed.data);

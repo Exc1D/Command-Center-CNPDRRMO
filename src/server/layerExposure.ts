@@ -13,8 +13,8 @@ export type ExposureIndex = {
   classes:ExposureClass[];buckets:Bucket[];
 };
 export type ExposureSelection = {layers:string[];floodClasses:string[];municipality:string;barangay:string};
-const emptyCounts = ():ExposureCounts => ({matchedRecords:0,populationSum:0,missingPopulationRecords:0,duplicateIdRecords:0});
-function add(total:ExposureCounts, row:ExposureCounts) {
+export const emptyCounts = ():ExposureCounts => ({matchedRecords:0,populationSum:0,missingPopulationRecords:0,duplicateIdRecords:0});
+export function addCounts(total:ExposureCounts, row:ExposureCounts) {
   for(const key of ['matchedRecords','populationSum','missingPopulationRecords','duplicateIdRecords'] as const) {
     const sum=total[key]+row[key];
     if(!Number.isSafeInteger(row[key]) || row[key]<0 || !Number.isSafeInteger(sum)) throw new Error('Invalid population aggregate');
@@ -34,18 +34,18 @@ export function summarizeLayerExposure(index:ExposureIndex, selection:ExposureSe
     if(selection.municipality && bucket.municipality!==selection.municipality) continue;
     if(!bucket.barangay) unlocatedRecords+=bucket.matchedRecords;
     if(selection.barangay && bucket.barangay!==selection.barangay) continue;
-    add(available,bucket);
+    addCounts(available,bucket);
     const key=JSON.stringify([bucket.municipality,bucket.barangay]);
     const location=locations.get(key) ?? {municipality:bucket.municipality,barangay:bucket.barangay,available:emptyCounts(),exposed:emptyCounts()};
-    locations.set(key,location);add(location.available,bucket);
+    locations.set(key,location);addCounts(location.available,bucket);
     const matchedClasses=byClass.filter(c=>bucket.classes.includes(c.id));
     if(!matchedClasses.length) continue;
     // Each bucket represents disjoint source records, even when its classes overlap.
-    add(exposed,bucket);add(location.exposed,bucket);
-    for(const c of matchedClasses) add(c,bucket);
+    addCounts(exposed,bucket);addCounts(location.exposed,bucket);
+    for(const c of matchedClasses) addCounts(c,bucket);
     const matchedLayers=byLayer.filter(l=>matchedClasses.some(c=>c.layer===l.id));
-    for(const l of matchedLayers) add(l,bucket);
-    if(matchedLayers.length>1) add(multipleHazards,bucket);
+    for(const l of matchedLayers) addCounts(l,bucket);
+    if(matchedLayers.length>1) addCounts(multipleHazards,bucket);
   }
   return {
     selection,available,exposed,multipleHazards,byLayer,byClass,
