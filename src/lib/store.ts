@@ -84,13 +84,6 @@ interface AppState {
 export const DISASTER_TYPES = HAZARD_TYPES;
 export const SUSCEPTIBILITY_LEVELS = Object.entries(FLOOD_COLORS).map(([id,color]) => ({id,label:id,color}));
 
-export const SYNC_STATUS = {
-  SYNCED: 'synced',
-  PENDING_ADD: 'pending_add',
-  PENDING_UPDATE: 'pending_update',
-  PENDING_DELETE: 'pending_delete',
-} as const;
-
 export const useStore = create<AppState>((set) => ({
   referenceLayers: [],
   elementLayers: [],

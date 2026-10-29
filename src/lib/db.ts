@@ -1,6 +1,8 @@
 import Dexie, { Table } from 'dexie';
 import type { PlanningRevision, PlanningScenario, PlanningTemplate } from './planning';
 
+export type SyncStatus = 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
+
 export interface Hazard {
   id: string;
   type: string;
@@ -17,7 +19,7 @@ export interface Hazard {
   dateAdded: string;
   version?: number;
   conflictData?: string;
-  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
+  syncStatus?: SyncStatus;
 }
 
 export interface EvacuationCenter {
@@ -38,7 +40,7 @@ export interface EvacuationCenter {
   occupancyUpdatedAt?: string;
   version?: number;
   conflictData?: string;
-  syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
+  syncStatus?: SyncStatus;
 }
 
 export class OfflineDB extends Dexie {

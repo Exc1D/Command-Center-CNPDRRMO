@@ -207,56 +207,58 @@ export function createApp(db: Database, correctPin: string, provinceBoundary?: P
 
   app.use('/api/planning', createPlanningRouter(db, hasOperationsSession, provinceBoundary));
 
-app.get("/api/hazards", async (req, res) => {
-  try {
-    const hazards = await all(db, 'SELECT * FROM hazards');
-    res.json(hazards);
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to fetch hazards:`, error);
-    res.status(500).json({ error: 'Failed to fetch hazards', errorId });
-  }
-});
-
-app.post("/api/hazards", async (req, res) => {
-  try {
-    const parsed = hazardSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
+  // One 500 shape for every record route; each failure gets an id that operators can quote from the logs.
+  const route = (what: string, handler: express.RequestHandler, duplicate?: string): express.RequestHandler => async (req, res, next) => {
+    try {
+      await handler(req, res, next);
+    } catch (error) {
+      if (duplicate && (error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: duplicate });
+      const errorId = generateErrorId();
+      console.error(`[${errorId}] Failed to ${what}:`, error);
+      res.status(500).json({ error: `Failed to ${what}`, errorId });
     }
+  };
+  // A versioned UPDATE that touched nothing either lost a race (409 with the current row) or hit a deleted record.
+  const staleOrMissing = async (res: express.Response, table: string, id: string, label: string) => {
+    const current = await one<Record<string, unknown>>(db, `SELECT * FROM ${table} WHERE id = ?`, id);
+    return current ? res.status(409).json({ error: `${label} changed`, current }) : res.status(404).json({ error: `${label} not found` });
+  };
+
+  for (const [base, table, label] of [['/api/hazards', 'hazards', 'Hazard'], ['/api/evacuation-centers', 'evacuation_centers', 'Evacuation center']]) {
+    const noun = label.toLowerCase();
+    app.get(base, route(`fetch ${noun}s`, async (_req, res) => {
+      res.json(await all(db, `SELECT * FROM ${table}`));
+    }));
+    app.delete(`${base}/:id`, route(`delete ${noun}`, async (req, res) => {
+      const { id } = req.params;
+      if (!uuidRegex.test(id)) return res.status(400).json({ error: `Invalid ${noun} ID format` });
+      const result = await execute(db, `DELETE FROM ${table} WHERE id = ?`, id);
+      if (result.rowsAffected === 0) return res.status(404).json({ error: `${label} not found` });
+      res.json({ success: true });
+    }));
+  }
+
+  app.post("/api/hazards", route('save hazard', async (req, res) => {
+    const parsed = hazardSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid hazard data', details: parsed.error.flatten() });
     const { id, type, symbolKey, severity, title, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis } = parsed.data;
     if (!validPinKind(parsed.data)) return res.status(400).json({error:'Resource pins need a point and symbol; road status needs a point or line and a road status; neither takes incident severity or population'});
     const location = canonicalLocation(parsed.data.municipality,parsed.data.barangay);
     if (!location) return res.status(400).json({error:'Select a valid municipality and barangay'});
     const {municipality,barangay} = location;
-    // Retain legacy types arriving from an existing offline queue with their original meaning.
-
     await execute(db, `
       INSERT INTO hazards (id, type, severity, title, municipality, barangay, notes, geometry, dateAdded, affectedPopulation, affectedPopulationBasis, symbolKey)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, id, type, severity, title || '', municipality || '', barangay || '', notes, JSON.stringify(geometry), dateAdded, affectedPopulation ?? null, affectedPopulationBasis ?? 'reported', symbolKey ?? null);
     res.status(201).json({ success: true, id, version: 1 });
-  } catch (error) {
-    if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Hazard already exists' });
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to save hazard:`, error);
-    res.status(500).json({ error: 'Failed to save hazard', errorId });
-  }
-});
+  }, 'Hazard already exists'));
 
-app.put("/api/hazards/:id", async (req, res) => {
-  try {
+  app.put("/api/hazards/:id", route('update hazard', async (req, res) => {
     const { id } = req.params;
-
-    if (!uuidRegex.test(id)) {
-      return res.status(400).json({ error: 'Invalid hazard ID format' });
-    }
-
+    if (!uuidRegex.test(id)) return res.status(400).json({ error: 'Invalid hazard ID format' });
     const updateSchema = hazardSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() });
     const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
-    }
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
 
     let { type, symbolKey, severity, title, municipality, barangay, notes, geometry, dateAdded, version, affectedPopulation, affectedPopulationBasis } = parsed.data;
     const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
@@ -303,80 +305,27 @@ app.put("/api/hazards/:id", async (req, res) => {
       id,
       version,
     );
-    if (result.rowsAffected === 0) {
-      const current = await one<Record<string, unknown>>(db, 'SELECT * FROM hazards WHERE id = ?', id);
-      return current ? res.status(409).json({ error: 'Hazard changed', current }) : res.status(404).json({ error: 'Hazard not found' });
-    }
+    if (result.rowsAffected === 0) return staleOrMissing(res, 'hazards', id, 'Hazard');
     res.json({ success: true, id, version: version + 1 });
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to update hazard:`, error);
-    res.status(500).json({ error: 'Failed to update hazard', errorId });
-  }
-});
+  }));
 
-app.delete("/api/hazards/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!uuidRegex.test(id)) {
-      return res.status(400).json({ error: 'Invalid hazard ID format' });
-    }
-
-    const result = await execute(db, 'DELETE FROM hazards WHERE id = ?', id);
-    if (result.rowsAffected === 0) {
-      return res.status(404).json({ error: 'Hazard not found' });
-    }
-    res.json({ success: true });
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to delete hazard:`, error);
-    res.status(500).json({ error: 'Failed to delete hazard', errorId });
-  }
-});
-
-app.get("/api/evacuation-centers", async (req, res) => {
-  try {
-    const centers = await all(db, 'SELECT * FROM evacuation_centers');
-    res.json(centers);
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to fetch evacuation centers:`, error);
-    res.status(500).json({ error: 'Failed to fetch evacuation centers', errorId });
-  }
-});
-
-app.post("/api/evacuation-centers", async (req, res) => {
-  try {
+  app.post("/api/evacuation-centers", route('save evacuation center', async (req, res) => {
     const parsed = evacuationCenterSchema.refine(cumulativeCoversNow, 'Cumulative counts cannot be below current counts').safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid evacuation center data', details: parsed.error.flatten() });
-    }
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid evacuation center data', details: parsed.error.flatten() });
     const { id, name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt } = parsed.data;
     await execute(db, `
       INSERT INTO evacuation_centers (id, name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded, status ?? 'standby', familiesNow ?? 0, personsNow ?? 0, familiesCumulative ?? 0, personsCumulative ?? 0, occupancyUpdatedAt);
     res.status(201).json({ success: true, id, version: 1 });
-  } catch (error) {
-    if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Evacuation center already exists' });
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to save evacuation center:`, error);
-    res.status(500).json({ error: 'Failed to save evacuation center', errorId });
-  }
-});
+  }, 'Evacuation center already exists'));
 
-app.put("/api/evacuation-centers/:id", async (req, res) => {
-  try {
+  app.put("/api/evacuation-centers/:id", route('update evacuation center', async (req, res) => {
     const { id } = req.params;
-    if (!uuidRegex.test(id)) {
-      return res.status(400).json({ error: 'Invalid evacuation center ID format' });
-    }
+    if (!uuidRegex.test(id)) return res.status(400).json({ error: 'Invalid evacuation center ID format' });
     const updateSchema = evacuationCenterSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() }).refine(cumulativeCoversNow, 'Cumulative counts cannot be below current counts');
     const parsed = updateSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
-    }
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     const { name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt, version } = parsed.data;
     const result = await execute(db, `
       UPDATE evacuation_centers
@@ -412,36 +361,9 @@ app.put("/api/evacuation-centers/:id", async (req, res) => {
       id,
       version,
     );
-    if (result.rowsAffected === 0) {
-      const current = await one<Record<string, unknown>>(db, 'SELECT * FROM evacuation_centers WHERE id = ?', id);
-      return current ? res.status(409).json({ error: 'Evacuation center changed', current }) : res.status(404).json({ error: 'Evacuation center not found' });
-    }
+    if (result.rowsAffected === 0) return staleOrMissing(res, 'evacuation_centers', id, 'Evacuation center');
     res.json({ success: true, id, version: version + 1 });
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to update evacuation center:`, error);
-    res.status(500).json({ error: 'Failed to update evacuation center', errorId });
-  }
-});
-
-app.delete("/api/evacuation-centers/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!uuidRegex.test(id)) {
-      return res.status(400).json({ error: 'Invalid evacuation center ID format' });
-    }
-
-    const result = await execute(db, 'DELETE FROM evacuation_centers WHERE id = ?', id);
-    if (result.rowsAffected === 0) {
-      return res.status(404).json({ error: 'Evacuation center not found' });
-    }
-    res.json({ success: true });
-  } catch (error) {
-    const errorId = generateErrorId();
-    console.error(`[${errorId}] Failed to delete evacuation center:`, error);
-    res.status(500).json({ error: 'Failed to delete evacuation center', errorId });
-  }
-});
+  }));
 
   app.use((error: unknown, _request: express.Request, response: express.Response, next: express.NextFunction) => {
     if (error instanceof SyntaxError && 'body' in error) return response.status(400).json({ error: 'Invalid JSON body' });

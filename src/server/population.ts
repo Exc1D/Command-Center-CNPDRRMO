@@ -4,6 +4,7 @@ import { municipalities } from '../lib/reference';
 import { pointInPolygon } from '../lib/planning';
 import { haversineDistance } from '../lib/utils';
 import { privateDir } from './privateReferenceFiles';
+import { addCounts, emptyCounts } from './layerExposure';
 type Geometry = {type:'Point';coordinates:[number,number]} | {type:'Polygon';coordinates:[number,number][][]};
 export type PopulationPoint = {geometry:{coordinates:[number,number]};properties:{populationCount:number|null;duplicateId?:boolean}};
 
@@ -11,7 +12,7 @@ export function countExposed(points:PopulationPoint[],geometry:Geometry,radiusMe
   if(geometry.type==='Point' && (!Number.isFinite(radiusMetres) || radiusMetres!<=0)) throw new Error('Point analysis requires an explicit positive radius');
   const coords=geometry.type==='Polygon'?geometry.coordinates.flat():[];
   const bounds=coords.length?[Math.min(...coords.map(c=>c[0])),Math.min(...coords.map(c=>c[1])),Math.max(...coords.map(c=>c[0])),Math.max(...coords.map(c=>c[1]))]:null;
-  const result={matchedRecords:0,populationSum:0,missingPopulationRecords:0,duplicateIdRecords:0};
+  const result=emptyCounts();
   for(const f of points) {
     const [lng,lat]=f.geometry.coordinates;
     const inside=geometry.type==='Point'?haversineDistance(lat,lng,geometry.coordinates[1],geometry.coordinates[0])*1000<=radiusMetres!:
@@ -37,6 +38,7 @@ export async function estimateExposure(geometry:Geometry,radiusMetres?:number) {
     byMunicipality.push({municipality,...counts});
   }
   if(!byMunicipality.length) throw new Error('No population datasets installed');
-  const totals=byMunicipality.reduce((total,row)=>({matchedRecords:total.matchedRecords+row.matchedRecords,populationSum:total.populationSum+row.populationSum,missingPopulationRecords:total.missingPopulationRecords+row.missingPopulationRecords,duplicateIdRecords:total.duplicateIdRecords+row.duplicateIdRecords}),{matchedRecords:0,populationSum:0,missingPopulationRecords:0,duplicateIdRecords:0});
+  const totals=emptyCounts();
+  for(const row of byMunicipality) addCounts(totals,row);
   return {...totals,byMunicipality,unavailableMunicipalities,method:geometry.type==='Polygon'?'Population points within incident polygon':'Population points within '+radiusMetres+' m radius',calculatedAt:new Date().toISOString(),coverageNote:'Source population sum, not confirmed affected people. Duplicate IDs retained. Six outlying coordinates excluded; coordinate disagreements unresolved. Paracale lacks population counts; Talisay is incomplete. A zero match does not establish zero exposure.'};
 }

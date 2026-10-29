@@ -68,8 +68,8 @@ interface BarangayGeoJSON {
   features: BarangayFeature[];
 }
 
-let barangayCache: { data: BarangayGeoJSON; timestamp: number } | null = null;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// ponytail: the barangay file is static, so load it once per page; a failed load is retried next time.
+let barangays: Promise<BarangayGeoJSON> | null = null;
 
 export function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -91,39 +91,24 @@ export function getCentroid(geometry: any): { lat: number; lng: number } | null 
     if (!Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2 || !geometry.coordinates.every(Number.isFinite)) return null;
     return { lat: geometry.coordinates[1], lng: geometry.coordinates[0] };
   }
-  if (geometry.type === 'Polygon' && geometry.coordinates?.[0]) {
-    const coords = geometry.coordinates[0];
-    if (!Array.isArray(coords) || coords.length === 0 || !coords.every((c: unknown) => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isFinite))) return null;
-    let latSum = 0,
-      lngSum = 0;
-    for (const c of coords) {
-      latSum += c[1];
-      lngSum += c[0];
-    }
-    return { lat: latSum / coords.length, lng: lngSum / coords.length };
-  }
-  if (geometry.type === 'LineString' && geometry.coordinates?.[0]) {
-    const coords = geometry.coordinates;
-    if (!Array.isArray(coords) || coords.length === 0 || !coords.every((c: unknown) => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isFinite))) return null;
-    let latSum = 0,
-      lngSum = 0;
-    for (const c of coords) {
-      latSum += c[1];
-      lngSum += c[0];
-    }
-    return { lat: latSum / coords.length, lng: lngSum / coords.length };
-  }
-  return null;
+  const coords = geometry.type === 'Polygon' ? geometry.coordinates?.[0] : geometry.type === 'LineString' ? geometry.coordinates : null;
+  if (!Array.isArray(coords) || coords.length === 0 || !coords.every((c: unknown) => Array.isArray(c) && c.length >= 2 && c.slice(0, 2).every(Number.isFinite))) return null;
+  return {
+    lat: coords.reduce((sum: number, c: number[]) => sum + c[1], 0) / coords.length,
+    lng: coords.reduce((sum: number, c: number[]) => sum + c[0], 0) / coords.length,
+  };
 }
 
-export async function loadBarangayGeoJSON(): Promise<BarangayGeoJSON> {
-  if (barangayCache && Date.now() - barangayCache.timestamp < CACHE_TTL_MS) {
-    return barangayCache.data;
-  }
-  const response = await fetch('/baranggays.geojson');
-  if (!response.ok) throw new Error(`Failed to load barangay data: ${response.status}`);
-  barangayCache = { data: await response.json(), timestamp: Date.now() };
-  return barangayCache.data;
+export function loadBarangayGeoJSON(): Promise<BarangayGeoJSON> {
+  return barangays ??= fetch('/baranggays.geojson')
+    .then(response => {
+      if (!response.ok) throw new Error(`Failed to load barangay data: ${response.status}`);
+      return response.json();
+    })
+    .catch(error => {
+      barangays = null;
+      throw error;
+    });
 }
 
 export async function detectLocationFromGeometry(
