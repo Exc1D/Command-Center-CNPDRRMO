@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Hazard } from '../lib/db';
 import { HAZARD_TYPES, ROAD_STATUS, hazardDefinition, canonicalLocation } from '../lib/reference';
@@ -29,6 +29,19 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
   const [error,setError]=useState('');
   const [suggestion,setSuggestion]=useState('');
   const setHazards=useStore(s=>s.setHazards);
+  // New pins fill the location from the nearest reference point so the reporter only confirms it.
+  useEffect(()=>{
+    if(record) return;
+    let cancelled=false;
+    setSuggestion('Finding the nearest barangay…');
+    detectLocationFromGeometry(geometry).then(result=>{
+      if(cancelled) return;
+      const location=result && canonicalLocation(result.municipality,result.barangay);
+      if(location){setMunicipality(m=>m || location.municipality);setBarangay(b=>b || location.barangay);setSuggestion('Filled in from the nearest reference point. Check it is right.');}
+      else setSuggestion('No nearby barangay found. Choose the location.');
+    }).catch(()=>{ if(!cancelled) setSuggestion('Could not find the location automatically. Choose it below.'); });
+    return ()=>{cancelled=true;};
+  },[record,geometry]);
   const unchangedLocation=record && municipality===record.municipality?.trim() && barangay===record.barangay?.trim();
   async function save(event:React.FormEvent) {
     event.preventDefault();
@@ -37,7 +50,9 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     if(isResource && !symbolKey) {setError('Choose a resource symbol.');return;}
     if(affectedPopulation!==null && (!Number.isSafeInteger(affectedPopulation) || affectedPopulation<0 || affectedPopulation>100_000_000)) {setError('Affected population must be a whole number from 0 to 100,000,000.');return;}
     setBusy(true);setError('');
-    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type:isResource || isRoad?kind:type,symbolKey:symbolKey || null,severity:isResource?'Not applicable':isRoad?roadStatus:severity,title:title.trim() || (isResource?PLANNING_SYMBOLS.find(symbol=>symbol.key===symbolKey)?.label:isRoad?'Untitled road or bridge':'Untitled Incident'),municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:isResource || isRoad?'reported':basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
+    const place=barangay?` – ${barangay}`:'';
+    const defaultTitle=isResource?PLANNING_SYMBOLS.find(symbol=>symbol.key===symbolKey)?.label:isRoad?`Road or bridge${place}`:`${hazardDefinition(type)?.label || 'Incident'}${place}`;
+    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type:isResource || isRoad?kind:type,symbolKey:symbolKey || null,severity:isResource?'Not applicable':isRoad?roadStatus:severity,title:title.trim() || defaultTitle,municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:isResource || isRoad?'reported':basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
     try {
       if(record) await HazardAPI.updateHazard(hazard); else await HazardAPI.addHazard(hazard);
       setHazards(await HazardAPI.getAllHazards());
@@ -45,33 +60,30 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     } catch(e) {setError(e instanceof Error?e.message:'Could not save. Your entries are still here.');}
     finally {setBusy(false);}
   }
+  const symbolField=geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin symbol<select className="reference-select mt-1" value={symbolKey} onChange={e=>setSymbolKey(e.target.value)}>
+        <option value="">{isResource?'Choose a resource symbol':isRoad?'Use road icon':'Use hazard icon'}</option>
+        <SymbolOptions />
+      </select><span className="block text-xs font-normal mt-1">{isResource || isRoad?'Uses the same symbols as Planning.':'Uses the same symbols as Planning. Hazard type and severity stay with the incident.'}</span></label>;
   return <div className="backdrop-in fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
     <form onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="incident-heading" className="sheet-in w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
       <div className="flex justify-between gap-3"><h2 id="incident-heading" className="text-xl font-bold">{isRoad?(record?'Edit Road or Bridge Status':'Road or Bridge Status'):isResource?(record?'Edit Resource Pin':'Resource Pin Details'):(record?'Edit Incident Details':'Incident Details')}</h2><button type="button" aria-label="Close incident details" className="min-w-11 min-h-11 grid place-items-center" onClick={onClose} disabled={busy}><X/></button></div>
       {!record && <label className="block text-sm font-semibold">Pin type<select className="reference-select mt-1" value={kind} onChange={e=>setKind(e.target.value)}><option value="incident">Incident</option>{geometry?.type==='Point' && <option value="resource">Resource</option>}<option value="road">Road or bridge status</option></select></label>}
-      <label className="block text-sm font-semibold">{isResource?'Resource title':isRoad?'Road or bridge name':'Incident Title'}<input autoFocus className="reference-select mt-1" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder={isResource?'e.g. Ambulance Team Alpha':isRoad?'e.g. Bagasbas Bridge':'e.g. Flooding at Bagasbas'}/></label>
+      <label className="block text-sm font-semibold">{isResource?'Resource title':isRoad?'Road or bridge name':'Incident Title'} <span className="font-normal text-on-surface/60">(optional)</span><input autoFocus className="reference-select mt-1" value={title} maxLength={120} onChange={e=>setTitle(e.target.value)} placeholder={isResource?'e.g. Ambulance Team Alpha':isRoad?'e.g. Bagasbas Bridge':'e.g. Flooding at Bagasbas'}/></label>
       <LocationFields required municipality={municipality} barangay={barangay} onChange={(m,b)=>{setMunicipality(m);setBarangay(b);setSuggestion('');}}/>
-      {!record && <button type="button" className="text-sm underline min-h-11" onClick={async()=>{
-        setSuggestion('Looking for a nearby barangay…');
-        try {const result=await detectLocationFromGeometry(geometry);const location=result && canonicalLocation(result.municipality,result.barangay);
-          if(location){setMunicipality(location.municipality);setBarangay(location.barangay);setSuggestion('Suggested from the nearest reference point. Confirm the location; this is not a boundary check.');}
-          else setSuggestion('No nearby reference point found. Select the location manually.');
-        }catch {setSuggestion('Location suggestion unavailable. Select the location manually.');}
-      }}>Suggest nearby location</button>}
       {suggestion && <p role="status" className="text-xs">{suggestion}</p>}
       {isRoad && <label className="block text-sm font-semibold">Road status<select className="reference-select mt-1" value={roadStatus} onChange={e=>setRoadStatus(e.target.value)}>{Object.keys(ROAD_STATUS).map(s=><option key={s}>{s}</option>)}</select></label>}
       {kind==='incident' && <label className="block text-sm font-semibold">Hazard Type<select className="reference-select mt-1" value={type} onChange={e=>setType(e.target.value)}>
         {!HAZARD_TYPES.some(t=>t.id===type) && <option value={type}>{hazardDefinition(type)?.label || type}</option>}
         {HAZARD_TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
       </select></label>}
-      {geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin symbol<select className="reference-select mt-1" value={symbolKey} onChange={e=>setSymbolKey(e.target.value)}>
-        <option value="">{isResource?'Choose a resource symbol':isRoad?'Use road icon':'Use hazard icon'}</option>
-        <SymbolOptions />
-      </select><span className="block text-xs font-normal mt-1">{isResource || isRoad?'Uses the same symbols as Planning.':'Uses the same symbols as Planning. Hazard type and severity stay with the incident.'}</span></label>}
+      {isResource && symbolField}
       {kind==='incident' && <><label className="block text-sm font-semibold">Severity Level<select className="reference-select mt-1" value={severity} onChange={e=>setSeverity(e.target.value)}>{['Minor','Moderate','Severe','Critical'].map(s=><option key={s}>{s}</option>)}</select></label>
       <label className="block text-sm font-semibold">Affected Population<input type="number" min={0} max={100000000} step={1} className="reference-select mt-1" value={affected} onChange={e=>{setAffected(e.target.value);setBasis('reported');}} placeholder="Unknown"/></label>
       <p className="text-xs text-on-surface/60">Leave blank if unknown. Enter 0 only when zero affected people is confirmed.</p>
-      <section className="rounded-xl border border-outline-variant p-3 space-y-2">
+      </>}
+      {!isResource && (kind==='incident' || geometry?.type==='Point') && <details className="rounded-xl border border-outline-variant p-3"><summary className="text-sm font-semibold cursor-pointer min-h-8">More options</summary><div className="space-y-4 mt-3">
+      {symbolField}
+      {kind==='incident' && <section className="space-y-2">
         <h3 className="text-sm font-bold">Estimate from population data</h3>
         <p className="text-xs">Counts source population within the incident area. Review coverage and data issues before using the estimate.</p>
         {geometry?.type==='Point' && <label className="block text-sm">Analysis radius (metres)<input type="number" min={1} max={50000} value={radius} className="reference-select mt-1" placeholder="Choose the incident impact radius" onChange={e=>{setRadius(e.target.value);setEstimate(null);}}/></label>}
@@ -98,7 +110,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
           }}>Use as provisional estimate</button>
         </div>}
         <p className="text-xs font-semibold">Population basis: {basis==='population_estimate'?'Provisional population estimate':'Field report / manual entry'}</p>
-      </section></>}
+      </section>}</div></details>}
       <label className="block text-sm font-semibold">Field Notes<textarea className="reference-select mt-1" rows={3} maxLength={4000} value={notes} onChange={e=>setNotes(e.target.value)}/></label>
       {error && <p role="alert" className="text-primary">{error}</p>}
       <button disabled={busy} className="btn-primary w-full min-h-12 disabled:opacity-50">{busy?'Saving…':record?'Save Changes':isResource?'Save Resource Pin':isRoad?'Save Road Status':'Save Incident'}</button>

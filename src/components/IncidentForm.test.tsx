@@ -41,7 +41,7 @@ it('creates a standalone resource without incident fields and excludes it from a
   expect(screen.getByRole('alert')).toHaveTextContent('Choose a resource symbol.');
   expect(HazardAPI.addHazard).not.toHaveBeenCalled();
   await user.selectOptions(screen.getByRole('combobox',{name:/Pin symbol/}),'ambulance');
-  await user.type(screen.getByLabelText('Resource title'),'Ambulance Team Alpha');
+  await user.type(screen.getByLabelText(/^Resource title/),'Ambulance Team Alpha');
   await user.click(screen.getByRole('button',{name:'Save Resource Pin'}));
   await waitFor(()=>expect(HazardAPI.addHazard).toHaveBeenCalledWith(expect.objectContaining({type:'resource',symbolKey:'ambulance',title:'Ambulance Team Alpha',severity:'Not applicable',affectedPopulation:null,geometry:point})));
   const saved=vi.mocked(HazardAPI.addHazard).mock.calls[0][0];

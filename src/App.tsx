@@ -10,9 +10,10 @@ import { EvacuationCenterModal } from "./components/EvacuationCenterModal";
 import { EvacuationCenterCard } from "./components/EvacuationCenterCard";
 import { PlanningOverlay, PlanningSidebar } from "./components/PlanningUI";
 import { usePlanningStore } from "./lib/planningStore";
-import { monitorSummary } from "./lib/utils";
+import { getCentroid, monitorSummary } from "./lib/utils";
+import { MAP_CONFIG } from "./lib/constants";
 import { PlanningAPI } from "./lib/planningApi";
-import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { ChevronDown, ChevronUp, CircleHelp, LockKeyhole, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 const AnalyticsPanel = lazy(() => import('./components/AnalyticsPanel').then(module => ({ default: module.AnalyticsPanel })));
 
@@ -27,8 +28,10 @@ export default function App() {
     syncState,
     clearSyncError,
   } = useStore();
-  const [sidebarOpen,setSidebarOpen] = useState(true);
+  // Phones open on the map; the layers panel would otherwise cover most of it.
+  const [sidebarOpen,setSidebarOpen] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? true);
   const planning = usePlanningStore();
+  const [guideOpen, setGuideOpen] = useState(() => !readFlag(GUIDE_SEEN_KEY));
 
   useEffect(() => {
     fetch('/api/session').then(response => response.json()).then(data => setMapAuthorized(data.valid === true)).catch(() => {});
@@ -145,6 +148,10 @@ export default function App() {
             <span className="mode-switch-track" aria-hidden="true"><span /></span>
             <span className="mode-label mode-label-planning"><strong>Planning</strong><small id="planning-mode-hint">Build a response</small></span>
           </button>
+          {/* Help sits apart from the main navigation, in the top-right corner where people expect it. */}
+          <button onClick={() => setGuideOpen(true)} aria-label="How to use this app" title="How to use this app" className="nav-text-button inline-flex items-center gap-1.5">
+            <CircleHelp size={18} aria-hidden="true" /><span className="max-sm:hidden">Help</span>
+          </button>
         </div>
       </header>
 
@@ -177,6 +184,11 @@ export default function App() {
           <DangerMap />
           </ErrorBoundary>
           {!planning.isPlanningMode && <MonitorSummary />}
+          {!planning.isPlanningMode && !isMapAuthorized && (
+            <button onClick={() => useStore.getState().openPinModal('unlock')} className="summary-chip absolute bottom-6 left-1/2 -translate-x-1/2 z-[450] flex items-center gap-2 whitespace-nowrap">
+              <LockKeyhole size={16} aria-hidden="true" /> Unlock editing to add reports
+            </button>
+          )}
           <PopUpCard />
           <ErrorBoundary
             fallback={
@@ -191,6 +203,7 @@ export default function App() {
         </section>
       </main>
 
+      {guideOpen && <QuickGuide onClose={() => { writeFlag(GUIDE_SEEN_KEY, true); setGuideOpen(false); }} />}
       <DropTagModal />
       <PinModal />
       <EditHazardModal />
@@ -200,24 +213,85 @@ export default function App() {
   );
 }
 
+const SUMMARY_HIDDEN_KEY = 'summaryHidden';
+const GUIDE_SEEN_KEY = 'guideSeen';
+const readFlag = (key: string) => { try { return localStorage.getItem(key) === '1'; } catch { return false; } };
+const writeFlag = (key: string, on: boolean) => { try { on ? localStorage.setItem(key, '1') : localStorage.removeItem(key); } catch { /* private mode: preference lasts this visit only */ } };
+
 function MonitorSummary() {
   const hazards = useStore(state => state.hazards);
   const centers = useStore(state => state.evacuationCenters);
+  const [hidden, setHidden] = useState(() => readFlag(SUMMARY_HIDDEN_KEY));
+  const [roadIndex, setRoadIndex] = useState(0);
   const summary = monitorSummary(hazards, centers);
-  const items = [
-    ['Incidents logged', summary.incidents.toLocaleString()],
-    ['Roads not passable', summary.roadsClosed.toLocaleString()],
-    ['Centers open', `${summary.openCenters} of ${summary.totalCenters}`],
-    ['Evacuees inside now', `${summary.personsNow.toLocaleString()} persons · ${summary.familiesNow.toLocaleString()} families`],
+  const toggle = () => setHidden(value => { writeFlag(SUMMARY_HIDDEN_KEY, !value); return !value; });
+
+  const showCenters = () => { const s = useStore.getState(); if (!s.evacuationCentersVisible) s.toggleEvacuationCenters(); };
+  const nextClosedRoad = () => {
+    const closed = hazards.filter(h => h.type === 'road' && h.severity === 'Not passable' && getCentroid(h.geometry));
+    if (!closed.length) return;
+    const road = closed[roadIndex % closed.length];
+    const point = getCentroid(road.geometry)!;
+    useStore.getState().flyTo([point.lat, point.lng], MAP_CONFIG.BARANGAY_ZOOM);
+    useStore.getState().setSelectedHazard(road);
+    setRoadIndex(index => index + 1);
+  };
+  const items: [string, string, string, () => void][] = [
+    ['Incidents logged', summary.incidents.toLocaleString(), 'Open analytics', () => useStore.getState().setAnalyticsOpen(true)],
+    ['Roads not passable', summary.roadsClosed.toLocaleString(), summary.roadsClosed ? 'Show next closed road on the map' : 'No closed roads', nextClosedRoad],
+    ['Centers open', `${summary.openCenters} of ${summary.totalCenters}`, 'Show evacuation centers on the map', showCenters],
+    ['Evacuees inside now', `${summary.personsNow.toLocaleString()} persons · ${summary.familiesNow.toLocaleString()} families`, 'Show evacuation centers on the map', showCenters],
   ];
+
+  if (hidden) return (
+    <button onClick={toggle} aria-expanded={false} className="summary-chip absolute top-3 left-16 z-[450] flex items-center gap-1.5">
+      <ChevronDown size={16} aria-hidden="true" /> Show summary
+    </button>
+  );
   return (
-    <dl aria-label="Province summary" className="absolute top-3 left-16 z-[450] flex flex-wrap gap-2 max-w-[calc(100%-8rem)] pointer-events-none">
-      {items.map(([label, value]) => (
-        <div key={label} className="bg-surface-container-lowest/95 border border-outline-variant/45 rounded-xl px-3 py-2 shadow-panel">
-          <dt className="text-[11px] text-on-surface/60">{label}</dt>
-          <dd className="text-sm font-semibold tabular-nums">{value}</dd>
-        </div>
+    <section aria-label="Province summary" className="absolute top-3 left-16 z-[450] flex flex-wrap items-start gap-2 max-w-[calc(100%-8rem)] pointer-events-none">
+      {items.map(([label, value, hint, onClick]) => (
+        <button key={label} onClick={onClick} title={hint} className="summary-card pointer-events-auto text-left">
+          <span className="block text-[11px] text-on-surface/60">{label}</span>
+          <span className="block text-sm font-semibold tabular-nums">{value}</span>
+        </button>
       ))}
-    </dl>
+      <button onClick={toggle} aria-expanded={true} aria-label="Hide summary" title="Hide summary" className="summary-chip pointer-events-auto self-center">
+        <ChevronUp size={16} aria-hidden="true" />
+      </button>
+    </section>
+  );
+}
+
+const GUIDE_STEPS = [
+  ['Monitor: see what is happening', 'The map shows reported incidents, closed roads and evacuation centers. Tap a number at the top of the map to jump to it. To add a report, tap “Unlock editing”, enter the PIN, then use the pin buttons on the left edge of the map.'],
+  ['Planning: build a response', 'Switch to Planning at the top right to draft a response plan. Work through the three tabs in order: 1 Brief, 2 Map, 3 Review.'],
+  ['Analytics: check the numbers', 'Analytics gives a situation overview, shows where to focus and lists the latest reports. Open it from the top bar at any time. Tap Help in the top-right corner to see this guide again.'],
+];
+
+function QuickGuide({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const [title, body] = GUIDE_STEPS[step];
+  const last = step === GUIDE_STEPS.length - 1;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="backdrop-in fixed inset-0 z-[1500] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="guide-title" className="sheet-in w-full max-w-sm rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
+        <p className="text-xs font-semibold text-on-surface/60">Quick guide · {step + 1} of {GUIDE_STEPS.length}</p>
+        <h2 id="guide-title" className="text-lg font-bold">{title}</h2>
+        <p className="text-sm leading-relaxed">{body}</p>
+        <div className="flex items-center justify-between gap-2 pt-2">
+          <button onClick={onClose} className="nav-text-button">Skip</button>
+          <div className="flex gap-2">
+            {step > 0 && <button onClick={() => setStep(step - 1)} className="nav-text-button">Back</button>}
+            <button autoFocus onClick={() => last ? onClose() : setStep(step + 1)} className="btn-primary min-h-10 px-5 rounded-full">{last ? 'Got it' : 'Next'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
