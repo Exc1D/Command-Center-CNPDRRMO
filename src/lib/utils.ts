@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { MAP_CONFIG } from './constants';
 import { format } from 'date-fns';
+import type { EvacuationCenter } from './db';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,6 +11,22 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(value: string | undefined, pattern: string, fallback = 'Unknown') {
   const date = new Date(value ?? '');
   return Number.isNaN(date.getTime()) ? fallback : format(date, pattern);
+}
+
+export const CENTER_STATUS = {
+  standby: { label: 'Standby', color: '#64748b' },
+  open: { label: 'Open', color: '#059669' },
+  full: { label: 'Full', color: '#dc2626' },
+  closed: { label: 'Closed', color: '#9ca3af' },
+} as const;
+
+// The declared status wins, except an open center reads as nearly full at 80% of capacity and at capacity from 100%.
+export function centerOccupancyTone(center: Pick<EvacuationCenter, 'status' | 'personsNow' | 'capacity'>) {
+  const status = center.status ?? 'standby';
+  const persons = center.personsNow ?? 0;
+  if (status === 'open' && persons >= center.capacity) return { label: 'At capacity', color: '#dc2626' };
+  if (status === 'open' && persons >= center.capacity * 0.8) return { label: 'Nearly full', color: '#d97706' };
+  return CENTER_STATUS[status] ?? CENTER_STATUS.standby;
 }
 
 export interface DetectedLocation {

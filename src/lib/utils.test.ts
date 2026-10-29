@@ -220,3 +220,11 @@ describe('detectLocationFromGeometry', () => {
   });
 
 });
+
+it('colors evacuation centers by declared status, flagging open centers near capacity', () => {
+  expect(utils.centerOccupancyTone({ capacity: 100 }).label).toBe('Standby');
+  expect(utils.centerOccupancyTone({ status: 'open', personsNow: 79, capacity: 100 }).label).toBe('Open');
+  expect(utils.centerOccupancyTone({ status: 'open', personsNow: 80, capacity: 100 }).label).toBe('Nearly full');
+  expect(utils.centerOccupancyTone({ status: 'open', personsNow: 100, capacity: 100 }).label).toBe('At capacity');
+  expect(utils.centerOccupancyTone({ status: 'closed', personsNow: 100, capacity: 100 }).label).toBe('Closed');
+});

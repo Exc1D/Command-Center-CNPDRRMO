@@ -54,6 +54,7 @@ function validPinKind(record: { type: unknown; severity: unknown; symbolKey?: un
     : record.severity !== 'Not applicable';
 }
 
+const headcount = z.number().int().nonnegative().max(1_000_000);
 const evacuationCenterSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
@@ -64,7 +65,17 @@ const evacuationCenterSchema = z.object({
   coordinates: coordinate,
   dateAdded: z.string().datetime(),
   version: z.number().int().nonnegative().optional(),
+  status: z.enum(['standby', 'open', 'full', 'closed']).optional(),
+  familiesNow: headcount.optional(),
+  personsNow: headcount.optional(),
+  familiesCumulative: headcount.optional(),
+  personsCumulative: headcount.optional(),
+  occupancyUpdatedAt: z.string().datetime().optional(),
 });
+// DROMIC cumulative counts include everyone currently inside. ponytail: checked only when both sides are sent; the card always sends both.
+const cumulativeCoversNow = (center: { familiesNow?: number; personsNow?: number; familiesCumulative?: number; personsCumulative?: number }) =>
+  (center.familiesNow == null || center.familiesCumulative == null || center.familiesCumulative >= center.familiesNow)
+  && (center.personsNow == null || center.personsCumulative == null || center.personsCumulative >= center.personsNow);
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -335,15 +346,15 @@ app.get("/api/evacuation-centers", async (req, res) => {
 
 app.post("/api/evacuation-centers", async (req, res) => {
   try {
-    const parsed = evacuationCenterSchema.safeParse(req.body);
+    const parsed = evacuationCenterSchema.refine(cumulativeCoversNow, 'Cumulative counts cannot be below current counts').safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid evacuation center data', details: parsed.error.flatten() });
     }
-    const { id, name, type, capacity, municipality, barangay, coordinates, dateAdded } = parsed.data;
+    const { id, name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt } = parsed.data;
     await execute(db, `
-      INSERT INTO evacuation_centers (id, name, type, capacity, municipality, barangay, coordinates, dateAdded)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded);
+      INSERT INTO evacuation_centers (id, name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, id, name, type, capacity, municipality || '', barangay || '', JSON.stringify(coordinates), dateAdded, status ?? 'standby', familiesNow ?? 0, personsNow ?? 0, familiesCumulative ?? 0, personsCumulative ?? 0, occupancyUpdatedAt);
     res.status(201).json({ success: true, id, version: 1 });
   } catch (error) {
     if ((error as Error).message.includes('UNIQUE')) return res.status(409).json({ error: 'Evacuation center already exists' });
@@ -359,12 +370,12 @@ app.put("/api/evacuation-centers/:id", async (req, res) => {
     if (!uuidRegex.test(id)) {
       return res.status(400).json({ error: 'Invalid evacuation center ID format' });
     }
-    const updateSchema = evacuationCenterSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() });
+    const updateSchema = evacuationCenterSchema.partial().omit({ id: true, version: true }).extend({ version: z.number().int().positive() }).refine(cumulativeCoversNow, 'Cumulative counts cannot be below current counts');
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid update data', details: parsed.error.flatten() });
     }
-    const { name, type, capacity, municipality, barangay, coordinates, dateAdded, version } = parsed.data;
+    const { name, type, capacity, municipality, barangay, coordinates, dateAdded, status, familiesNow, personsNow, familiesCumulative, personsCumulative, occupancyUpdatedAt, version } = parsed.data;
     const result = await execute(db, `
       UPDATE evacuation_centers
       SET name = COALESCE(?, name),
@@ -374,6 +385,12 @@ app.put("/api/evacuation-centers/:id", async (req, res) => {
           barangay = COALESCE(?, barangay),
           coordinates = COALESCE(?, coordinates),
           dateAdded = COALESCE(?, dateAdded),
+          status = COALESCE(?, status),
+          familiesNow = COALESCE(?, familiesNow),
+          personsNow = COALESCE(?, personsNow),
+          familiesCumulative = COALESCE(?, familiesCumulative),
+          personsCumulative = COALESCE(?, personsCumulative),
+          occupancyUpdatedAt = COALESCE(?, occupancyUpdatedAt),
           version = version + 1
       WHERE id = ? AND version = ?
     `,
@@ -384,6 +401,12 @@ app.put("/api/evacuation-centers/:id", async (req, res) => {
       barangay,
       coordinates ? JSON.stringify(coordinates) : undefined,
       dateAdded,
+      status,
+      familiesNow,
+      personsNow,
+      familiesCumulative,
+      personsCumulative,
+      occupancyUpdatedAt,
       id,
       version,
     );

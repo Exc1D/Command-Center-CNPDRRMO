@@ -79,6 +79,10 @@ export async function createDatabase(url?: string): Promise<Database> {
     ['hazards', 'affectedPopulation', 'INTEGER CHECK (affectedPopulation >= 0)'],
     ['hazards', 'title', 'TEXT'], ['hazards', 'municipality', 'TEXT'], ['hazards', 'barangay', 'TEXT'],
     ['hazards', 'version', 'INTEGER NOT NULL DEFAULT 1'], ['evacuation_centers', 'version', 'INTEGER NOT NULL DEFAULT 1'],
+    ['evacuation_centers', 'status', "TEXT NOT NULL DEFAULT 'standby'"],
+    ['evacuation_centers', 'familiesNow', 'INTEGER NOT NULL DEFAULT 0'], ['evacuation_centers', 'personsNow', 'INTEGER NOT NULL DEFAULT 0'],
+    ['evacuation_centers', 'familiesCumulative', 'INTEGER NOT NULL DEFAULT 0'], ['evacuation_centers', 'personsCumulative', 'INTEGER NOT NULL DEFAULT 0'],
+    ['evacuation_centers', 'occupancyUpdatedAt', 'TEXT'],
   ];
   for (const [table, column, type] of migrations) {
     const columns = (await db.execute(`PRAGMA table_info(${table})`)).rows as Row[];
