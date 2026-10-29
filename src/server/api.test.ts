@@ -74,6 +74,16 @@ describe('production API', () => {
     expect((await client.get('/api/hazards')).body[0]).toMatchObject({type:'resource',symbolKey:'eoc',title:'Command post',affectedPopulation:null});
   });
 
+  it('keeps road status apart from incident severity', async () => {
+    await authorize();
+    const road={...hazard,type:'road',severity:'Not passable',affectedPopulation:null,geometry:{type:'LineString',coordinates:[[123,14],[123.1,14.1]]}};
+    expect((await client.post('/api/hazards').send({...road,severity:'Moderate'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send({...hazard,severity:'Passable'})).status).toBe(400);
+    expect((await client.post('/api/hazards').send(road)).status).toBe(201);
+    expect((await client.put('/api/hazards/'+hazard.id).send({version:1,severity:'Passable'})).status).toBe(200);
+    expect((await client.get('/api/hazards')).body[0]).toMatchObject({type:'road',severity:'Passable'});
+  });
+
   it('rejects missing dates and malformed geometry at the trust boundary', async () => {
     await authorize();
     const { dateAdded: _, ...missingDate } = hazard;

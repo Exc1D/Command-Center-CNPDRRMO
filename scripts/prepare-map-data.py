@@ -8,7 +8,8 @@ import openpyxl
 from pyproj import Transformer
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
-from shapely import make_valid, get_num_coordinates
+from shapely import make_valid, get_num_coordinates, set_precision
+from shapely.ops import unary_union
 from storm_surge import STORM_SURGE_ARCHIVE, read_storm_surge
 
 root = Path(__file__).resolve().parents[1]
@@ -80,6 +81,9 @@ manifest["layers"]["flood"] = {"source": "CamarinesNorte_FloodPerMunicipality.ge
 boundary = json.loads((out / "boundaries.geojson").read_text())
 bounds = shape({"type": "GeometryCollection", "geometries": [f["geometry"] for f in boundary["features"]]}).bounds
 def within(c): return bounds[0] <= c[0] <= bounds[2] and bounds[1] <= c[1] <= bounds[3]
+# Dissolved, coarse outline for the map's outside-province dimming; the buffer pair closes slivers between municipalities.
+province = unary_union([shape(f["geometry"]) for f in boundary["features"]]).buffer(0.0005).buffer(-0.0005).simplify(0.0005)
+write(out / "province.geojson", fc([{"type": "Feature", "properties": {}, "geometry": mapping(set_precision(province, 1e-5))}]))
 with zipfile.ZipFile(args.source_dir / "CPF geojson & symbology-20260921T020344Z-1-001.zip") as z:
     cpf = json.loads(z.read(next(n for n in z.namelist() if n.endswith(".geojson"))))
 points = []

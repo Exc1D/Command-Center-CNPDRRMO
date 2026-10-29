@@ -25,11 +25,11 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('only offers pin placement and ignores shape creation in monitoring', async () => {
+it('offers pins and road lines but ignores area creation in monitoring', async () => {
   const { container, unmount } = render(<DangerMap />);
   await waitFor(() => expect(container.querySelector('.leaflet-pm-icon-marker')).toBeInTheDocument());
   expect(container.querySelector('.leaflet-pm-icon-polygon')).not.toBeInTheDocument();
-  expect(container.querySelector('.leaflet-pm-icon-polyline')).not.toBeInTheDocument();
+  expect(container.querySelector('.leaflet-pm-icon-polyline')).toBeInTheDocument();
   expect(container.querySelector('.leaflet-pm-icon-rectangle')).not.toBeInTheDocument();
   expect(container.querySelector('.leaflet-pm-icon-edit')).not.toBeInTheDocument();
   expect(container.querySelector('.leaflet-pm-icon-drag')).not.toBeInTheDocument();

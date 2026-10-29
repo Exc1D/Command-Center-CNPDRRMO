@@ -8,7 +8,7 @@ import { MAP_CONFIG } from '../lib/constants';
 import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
 import { ReferenceMapLayers, incidentIcon } from './ReferenceMapLayers';
-import { hazardDefinition, filterMapRecords } from '../lib/reference';
+import { hazardDefinition, filterMapRecords, ROAD_STATUS } from '../lib/reference';
 import { centerOccupancyTone, getCentroid } from '../lib/utils';
 
 // Fix Leaflet icon issue
@@ -39,6 +39,7 @@ const GEOMAN_TRANSLATIONS = {
   buttonTitles: {
     drawMarkerButton: 'Add incident or resource pin',
     drawCircleMarkerButton: 'Add evacuation center pin',
+    drawLineButton: 'Mark road status along a line',
   },
 };
 
@@ -94,7 +95,7 @@ export function MonitoringPins() {
       position: 'topleft',
       drawMarker: true,
       drawCircleMarker: true,
-      drawPolyline: false,
+      drawPolyline: true,
       drawRectangle: false,
       drawPolygon: false,
       drawCircle: false,
@@ -122,13 +123,13 @@ export function MonitoringPins() {
       map.pm.disableDraw();
       map.removeLayer(layer);
 
-      // Monitoring creates points only; existing areas and lines remain viewable.
+      // Monitoring creates points and road-status lines; existing areas remain viewable.
       if (e.shape === 'CircleMarker') {
         // Evacuation center marker
         const coords: [number, number] = [geojson.geometry.coordinates[0], geojson.geometry.coordinates[1]];
         openEvacuationCenterModal(coords);
-      } else if (e.shape === 'Marker' && geojson.geometry.type === 'Point') {
-        // Incident pin
+      } else if ((e.shape === 'Marker' && geojson.geometry.type === 'Point') || (e.shape === 'Line' && geojson.geometry.type === 'LineString')) {
+        // Incident, resource or road status
         openDropTagModal(geojson.geometry);
       }
     };
@@ -156,12 +157,46 @@ function FlyToHandler() {
   const mapCenter = useStore(state => state.mapCenter);
   const mapZoom = useStore(state => state.mapZoom);
   const map = useMap();
+  const firstRun = useRef(true);
 
   useEffect(() => {
+    // The province default means "home": fit the province to whatever screen size this is.
+    const home = mapZoom === MAP_CONFIG.DEFAULT_ZOOM && mapCenter[0] === MAP_CONFIG.PROVINCE_CENTER[0] && mapCenter[1] === MAP_CONFIG.PROVINCE_CENTER[1];
+    const animate = !firstRun.current;
+    firstRun.current = false;
+    // The zoom floor keeps a map that loads mostly covered (phone sidebar) from opening on the whole country.
+    const [center, zoom] = home
+      ? [L.latLngBounds(MAP_CONFIG.PROVINCE_BOUNDS).getCenter(), Math.max(map.getBoundsZoom(MAP_CONFIG.PROVINCE_BOUNDS), MAP_CONFIG.DEFAULT_ZOOM - 1)]
+      : [L.latLng(mapCenter), mapZoom];
     // Leaflet's flyTo divides by the container size, so a hidden (0×0) map would throw NaN LatLng.
     if (!map.getSize().x) map.setView(mapCenter, mapZoom);
-    else map.flyTo(mapCenter, mapZoom, { duration: 1.5 });
+    else if (animate) map.flyTo(center, zoom, { duration: 1.5 });
+    else map.setView(center, zoom);
   }, [mapCenter, mapZoom, map]);
+
+  return null;
+}
+
+// Dims everything outside Camarines Norte so the province reads as the working area.
+function ProvinceMask() {
+  const map = useMap();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let mask: L.Polygon | undefined;
+    const pane = map.getPane('provinceMask') ?? map.createPane('provinceMask');
+    pane.style.zIndex = '350'; // above base tiles, below every data layer
+    pane.style.pointerEvents = 'none';
+    fetch('/reference/province.geojson', { signal: controller.signal }).then(response => response.json()).then(data => {
+      // Each island's outer ring becomes a hole in a world-sized polygon.
+      const holes = data.features[0].geometry.coordinates.map((polygon: number[][][]) => polygon[0].map(([lng, lat]) => [lat, lng]));
+      mask = L.polygon([[[85, -180], [85, 180], [-85, 180], [-85, -180]], ...holes], {
+        pane: 'provinceMask', interactive: false, pmIgnore: true,
+        color: '#334155', weight: 1.5, opacity: 0.7, fillColor: '#0f172a', fillOpacity: 0.3,
+      } as L.PolylineOptions).addTo(map);
+    }).catch(() => {}); // ponytail: cosmetic layer, the map works without it
+    return () => { controller.abort(); mask?.remove(); };
+  }, [map]);
 
   return null;
 }
@@ -223,7 +258,7 @@ export default function DangerMap() {
   const hazards = useStore(state => state.hazards);
   const municipality = useStore(state => state.selectedMunicipality);
   const barangay = useStore(state => state.selectedBarangay);
-  const resourcePins = filterMapRecords(hazards, ['resource'], municipality, barangay);
+  const resourcePins = filterMapRecords(hazards, ['resource', 'road'], municipality, barangay);
   const setSelectedHazard = useStore(state => state.setSelectedHazard);
   const incidentsVisible = useStore(state => state.incidentsVisible);
   const isPlanningMode = usePlanningStore(state => state.isPlanningMode);
@@ -234,6 +269,7 @@ export default function DangerMap() {
   };
 
   const getStyle = (hazard: any) => {
+    if (hazard.type === 'road') return { color: ROAD_STATUS[hazard.severity] ?? '#475569', weight: 6, opacity: 0.95, dashArray: hazard.severity === 'Not passable' ? '10 6' : undefined };
     const typeDef = hazardDefinition(hazard.type);
     const baseColor = typeDef?.color || 'var(--color-primary)';
     
@@ -307,6 +343,7 @@ export default function DangerMap() {
         {!isPlanningMode && <MonitoringPins />}
         {isPlanningMode && <PlanningMapLayer />}
         {isPlanningMode && <PublishedPlanningLayers />}
+        <ProvinceMask />
         <MapScaleControl /><MapResizeHandler />
         <FlyToHandler />
         <EvacuationCenterMarkersHandler />
@@ -324,7 +361,7 @@ export default function DangerMap() {
               <GeoJSON
                 key={JSON.stringify(hazard)}
                 pmIgnore={true}
-                pointToLayer={(_feature,latlng)=>L.marker(latlng,{title:hazard.title || hazardDefinition(hazard.type)?.label || 'Resource pin',alt:hazard.title || (hazard.type==='resource'?'Resource pin':'Incident'),icon:incidentIcon(hazard.type,hazard.symbolKey),pmIgnore:true})}
+                pointToLayer={(_feature,latlng)=>L.marker(latlng,{title:hazard.title || hazardDefinition(hazard.type)?.label || 'Resource pin',alt:hazard.title || (hazard.type==='resource'?'Resource pin':'Incident'),icon:incidentIcon(hazard.type,hazard.symbolKey,hazard.type==='road'?ROAD_STATUS[hazard.severity]:undefined),pmIgnore:true})}
                 data={geojson as any}
                 style={() => getStyle(hazard)}
                 onEachFeature={onEachFeature}

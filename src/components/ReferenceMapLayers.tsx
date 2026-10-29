@@ -7,13 +7,13 @@ import { HazardLegend } from './HazardLegend';
 import { getPlanningSymbolIcon } from '../lib/planningIcons';
 import { REFERENCE_LAYERS, ELEMENT_LAYERS, hazardDefinition } from '../lib/reference';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { School, Landmark, Cross, Church, Flame, Shield, Building2, Plane, Anchor, Bus, Flag, Tent, ShoppingBasket, Briefcase, Waves, Mountain, Activity, Zap, Droplets } from 'lucide-react';
+import { School, Landmark, Cross, Church, Flame, Shield, Building2, Plane, Anchor, Bus, Flag, Tent, ShoppingBasket, Briefcase, Waves, Mountain, Activity, Zap, Droplets, TrafficCone } from 'lucide-react';
 
 const icons: Record<string, typeof School> = {School, 'Municipal Hall':Landmark, 'Barangay Hall':Landmark, 'Fire Station':Flame, 'Health Center/Station':Cross, Hospital:Cross, 'Pharmacy/ Drug Store':Cross, Church, Chapel:Church, 'Police Station':Shield, 'Transportation: Port, Airport':Plane, 'Transportation: Port, Fishlanding/Dock/Pier':Anchor, 'Transportation: Terminal, PUV/Bus':Bus, 'Red Cross':Cross, Plaza:Flag, 'Military/Armed Forces':Tent, Market:ShoppingBasket, 'Multipurpose Hall':Building2, 'National Government Agency':Briefcase};
-const hazardIcons: Record<string,typeof Waves> = {flood:Droplets,storm_surge:Waves,rain_induced_landslide:Mountain,landslide:Mountain,tsunami:Waves,liquefaction:Activity,erosion:Mountain,groundshaking:Activity,earthquake_event:Zap,earthquake:Zap};
-export function incidentIcon(type: string, symbolKey?: string | null) {
+const hazardIcons: Record<string,typeof Waves> = {flood:Droplets,storm_surge:Waves,rain_induced_landslide:Mountain,landslide:Mountain,tsunami:Waves,liquefaction:Activity,erosion:Mountain,groundshaking:Activity,earthquake_event:Zap,earthquake:Zap,road:TrafficCone};
+export function incidentIcon(type: string, symbolKey?: string | null, color?: string) {
   const def=hazardDefinition(type); const Icon=symbolKey ? getPlanningSymbolIcon(symbolKey) : hazardIcons[type] || Flag;
-  return L.divIcon({className:'incident-icon',html:renderToStaticMarkup(<Icon color={def?.color ?? '#555'} size={24}/>),iconSize:[36,36],iconAnchor:[18,18]});
+  return L.divIcon({className:'incident-icon',html:renderToStaticMarkup(<Icon color={color ?? def?.color ?? '#555'} size={24}/>),iconSize:[36,36],iconAnchor:[18,18]});
 }
 function textPopup(parts: unknown[]) {
   const element=document.createElement('div');

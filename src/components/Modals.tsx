@@ -1,5 +1,5 @@
 import { IncidentForm } from './IncidentForm';
-import { hazardDefinition } from '../lib/reference';
+import { hazardDefinition, ROAD_STATUS } from '../lib/reference';
 import { PLANNING_SYMBOLS } from '../lib/planning';
 import { useState, useEffect } from 'react';
 import { useStore, DISASTER_TYPES } from '../lib/store';
@@ -21,6 +21,7 @@ export function PopUpCard() {
 
   const typeDef = hazardDefinition(selectedHazard.type);
   const isResource = selectedHazard.type === 'resource';
+  const isRoad = selectedHazard.type === 'road';
   const symbolLabel = PLANNING_SYMBOLS.find(symbol => symbol.key === selectedHazard.symbolKey)?.label;
 
   return (
@@ -34,17 +35,18 @@ export function PopUpCard() {
     >
       <div 
         className="h-1.5 w-full" 
-        style={{ backgroundColor: typeDef?.color }}
+        style={{ backgroundColor: isRoad ? ROAD_STATUS[selectedHazard.severity] : typeDef?.color }}
       />
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <div className="text-[10px] uppercase text-tertiary mb-1 font-bold tracking-[0.05em]">{isResource ? 'Resource Pin' : 'Active Hazard Profile'}</div>
+            <div className="text-[10px] uppercase text-tertiary mb-1 font-bold tracking-[0.05em]">{isResource ? 'Resource Pin' : isRoad ? 'Road / Bridge Status' : 'Active Hazard Profile'}</div>
             <h3 className="text-xl font-display font-bold text-on-surface leading-tight mb-1">
               {selectedHazard.title || typeDef?.label}
             </h3>
             <p className="text-xs font-semibold text-on-surface/60 mb-3">{[typeDef?.label, symbolLabel].filter(Boolean).join(' · ')}</p>
-            {!isResource && <span className={`inline-block px-3 py-1 text-[10px] uppercase tracking-[0.05em] font-bold rounded-sm border ${
+            {isRoad && <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-[0.05em] font-bold rounded-sm text-white" style={{ backgroundColor: ROAD_STATUS[selectedHazard.severity] }}>{selectedHazard.severity}</span>}
+            {!isResource && !isRoad && <span className={`inline-block px-3 py-1 text-[10px] uppercase tracking-[0.05em] font-bold rounded-sm border ${
               selectedHazard.severity === 'Critical' ? 'bg-error-container text-[var(--color-primary-container)] border-error-container' :
               selectedHazard.severity === 'Severe' ? 'bg-[#ffe4cc] text-[#ea580c] border-transparent' :
               selectedHazard.severity === 'Moderate' ? 'bg-[#fef3c7] text-[#ca8a04] border-transparent' :
@@ -58,7 +60,7 @@ export function PopUpCard() {
           </button>
         </div>
         
-        <div className="space-y-4 mb-6"><p className="text-sm">{selectedHazard.municipality || "Location unknown"} · {selectedHazard.barangay || "Barangay unknown"}</p>{!isResource && <p className="text-sm">Affected population: {selectedHazard.affectedPopulation == null ? "Unknown" : selectedHazard.affectedPopulation.toLocaleString()} {selectedHazard.affectedPopulationBasis === "population_estimate" && "(provisional population estimate)"}</p>}
+        <div className="space-y-4 mb-6"><p className="text-sm">{selectedHazard.municipality || "Location unknown"} · {selectedHazard.barangay || "Barangay unknown"}</p>{!isResource && !isRoad && <p className="text-sm">Affected population: {selectedHazard.affectedPopulation == null ? "Unknown" : selectedHazard.affectedPopulation.toLocaleString()} {selectedHazard.affectedPopulationBasis === "population_estimate" && "(provisional population estimate)"}</p>}
           <div>
             <p className="text-[9px] uppercase font-bold text-on-surface/50 tracking-[0.05em]">Timestamp</p>
             <p className="text-sm text-on-surface/80 font-sans font-medium mt-1">{formatDate(selectedHazard.dateAdded, 'MM/dd/yyyy HH:mm:ss')}</p>
