@@ -106,6 +106,16 @@ describe('production API', () => {
     expect((await client.post('/api/evacuation-centers').send(center)).status).toBe(201);
     expect((await client.delete(`/api/evacuation-centers/${center.id}`)).status).toBe(200);
   });
+
+  it('defaults new centers to standby and keeps cumulative occupancy at or above current', async () => {
+    const center = { id: crypto.randomUUID(), name: 'School', type: 'school', capacity: 100, coordinates: [122.98, 14.13], dateAdded: new Date().toISOString() };
+    await authorize();
+    expect((await client.post('/api/evacuation-centers').send(center)).status).toBe(201);
+    expect((await client.get('/api/evacuation-centers')).body[0]).toMatchObject({ status: 'standby', personsNow: 0, personsCumulative: 0 });
+    expect((await client.put(`/api/evacuation-centers/${center.id}`).send({ version: 1, personsNow: 40, personsCumulative: 30 })).status).toBe(400);
+    expect((await client.put(`/api/evacuation-centers/${center.id}`).send({ version: 1, status: 'open', familiesNow: 10, personsNow: 40, familiesCumulative: 12, personsCumulative: 55 })).status).toBe(200);
+    expect((await client.get('/api/evacuation-centers')).body[0]).toMatchObject({ status: 'open', familiesNow: 10, personsNow: 40, familiesCumulative: 12, personsCumulative: 55, version: 2 });
+  });
 });
 
 it('validates population estimates and persists nullable population and its basis through optimistic updates', async()=>{

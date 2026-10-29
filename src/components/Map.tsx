@@ -9,7 +9,7 @@ import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
 import { ReferenceMapLayers, incidentIcon } from './ReferenceMapLayers';
 import { hazardDefinition, filterMapRecords } from '../lib/reference';
-import { getCentroid } from '../lib/utils';
+import { centerOccupancyTone, getCentroid } from '../lib/utils';
 
 // Fix Leaflet icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -48,10 +48,10 @@ export async function loadEvacuationCenters() {
   return centers;
 }
 
-const evacuationCenterIcon = L.divIcon({
+const evacuationCenterIcon = (color: string) => L.divIcon({
   className: 'evacuation-center-marker',
   html: `<div style="
-    background: #059669;
+    background: ${color};
     width: 32px;
     height: 32px;
     border-radius: 50% 50% 50% 0;
@@ -190,7 +190,7 @@ function EvacuationCenterMarkersHandler() {
     evacuationCenters.forEach((center) => {
       if (!Array.isArray(center.coordinates) || center.coordinates.length < 2 || !center.coordinates.every(Number.isFinite)) return;
       const marker = L.marker([center.coordinates[1], center.coordinates[0]], {
-        icon: evacuationCenterIcon, pmIgnore: true
+        icon: evacuationCenterIcon(centerOccupancyTone(center).color), pmIgnore: true
       }) as any;
       marker._evacuationCenterMarker = true;
 
@@ -198,7 +198,8 @@ function EvacuationCenterMarkersHandler() {
         <div style="min-width: 150px;">
           <strong style="font-size: 14px;">${escapeHtml(String(center.name || 'Unnamed center'))}</strong>
           <p style="margin: 4px 0; color: #666; font-size: 12px;">${CENTER_TYPE_LABELS[center.type] || ''}</p>
-          <p style="margin: 2px 0; font-size: 12px;">Capacity: ${Number(center.capacity)}</p>
+          <p style="margin: 2px 0; font-size: 12px; font-weight: 600;">${centerOccupancyTone(center).label}</p>
+          <p style="margin: 2px 0; font-size: 12px;">Inside now: ${Number(center.personsNow ?? 0)} / ${Number(center.capacity)} persons (${Number(center.familiesNow ?? 0)} families)</p>
           <p style="margin: 2px 0; font-size: 12px;">${escapeHtml(String(center.barangay || ''))}${center.municipality ? `, ${escapeHtml(String(center.municipality))}` : ''}</p>
         </div>
       `);

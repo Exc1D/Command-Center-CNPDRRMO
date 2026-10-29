@@ -29,6 +29,13 @@ export interface EvacuationCenter {
   barangay: string;
   coordinates: [number, number]; // [lng, lat]
   dateAdded: string;
+  // DROMIC-style occupancy; optional because records cached before these fields existed lack them.
+  status?: 'standby' | 'open' | 'full' | 'closed';
+  familiesNow?: number;
+  personsNow?: number;
+  familiesCumulative?: number;
+  personsCumulative?: number;
+  occupancyUpdatedAt?: string;
   version?: number;
   conflictData?: string;
   syncStatus?: 'synced' | 'pending_add' | 'pending_update' | 'pending_delete' | 'conflict';
