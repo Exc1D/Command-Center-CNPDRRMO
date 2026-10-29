@@ -67,6 +67,8 @@ export function ReferenceControls() {
       }}/>
       <LocationOverview/>
     </section>
+    {/* Everything below is optional during an event, so it stays folded until someone needs it. */}
+    <details className="map-layers border-t border-outline-variant/40 pt-2"><summary className="min-h-11 cursor-pointer font-bold py-3">Map layers</summary><div className="space-y-5 pt-2">
     <label className="block font-bold">Basemap<select className="reference-select mt-2" value={s.baseMap} onChange={e=>s.setBaseMap(e.target.value as typeof s.baseMap)}><option value="street">Street · OpenStreetMap</option><option value="topo">Topographic · OpenTopoMap</option><option value="satellite">Satellite · Esri</option></select></label>
     <section>
       <details className="border border-outline-variant/40 rounded-xl p-3"><summary className="min-h-11 cursor-pointer text-sm font-semibold">Hazards</summary>
@@ -85,7 +87,6 @@ export function ReferenceControls() {
         <label className="reference-check text-xs"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show reported incidents and resource pins</label>
         {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check text-xs"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
       </details>
-      <HazardLegend filterFlood />
     </section>
     <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>t.id!=='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
       <p className="text-xs mt-2">Critical Point Facilities include transport facilities: ports, airport and terminals.</p>
@@ -95,5 +96,8 @@ export function ReferenceControls() {
       </div>
       <p className="text-xs text-on-surface/60">Roads © OpenStreetMap contributors.</p>
     </section>
+    </div></details>
+    {/* The legend stays outside the fold so the colors are explained whenever a hazard layer is on. */}
+    {s.referenceLayers.length>0 && <HazardLegend filterFlood />}
   </div>;
 }

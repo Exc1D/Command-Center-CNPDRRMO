@@ -5,7 +5,7 @@ export default function Sidebar() {
   const s=useStore();
   return <aside className="operational-sidebar w-[360px] max-w-[85vw] h-full bg-surface-container-low flex flex-col text-on-surface border-r border-outline-variant/35">
     <div className="flex-1 overflow-y-auto p-5 space-y-5">
-      <h2 className="text-xl font-bold pr-12">Map layers</h2>
+      <h2 className="text-xl font-bold pr-12">Map</h2>
       <button className="operations-button" onClick={async()=>{
         if(s.isMapAuthorized) {
           try { const r=await fetch('/api/logout',{method:'POST'}); if(!r.ok) throw new Error('Could not lock operations'); s.setMapAuthorized(false); }

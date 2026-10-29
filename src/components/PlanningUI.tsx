@@ -298,9 +298,17 @@ export function PlanningSidebar() {
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-planning mb-1">Operational plan</p>
             <h2 className="text-xl font-display font-extrabold tracking-tight truncate max-w-56">{scenario.name || 'Untitled Plan'}</h2>
           </div>
-          <button className="h-12 px-4 border border-outline-variant/50 bg-surface-container-lowest rounded-xl text-sm font-bold shrink-0" onClick={() => {
+          <div className="flex shrink-0 -mr-2">
+          {/* Starts the next event from this plan: a new unsaved draft with the same map work but no dates. */}
+          <button className="min-h-11 px-2.5 rounded-lg text-xs font-semibold text-on-surface/65 hover:bg-surface-container hover:text-on-surface" onClick={() => {
+            planning.load({ ...structuredClone(scenario), id: crypto.randomUUID(), name: `Copy of ${scenario.name}`.slice(0, 120), draftVersion: 0, archivedAt: undefined, validFrom: undefined, validUntil: undefined, updatedAt: new Date().toISOString() }, true);
+            planning.setMessage('Copied as a new draft. Set its start and end times, then save.');
+            setSidebarTab('brief');
+          }}>Duplicate</button>
+          <button className="min-h-11 px-2.5 rounded-lg text-xs font-semibold text-on-surface/65 hover:bg-surface-container hover:text-on-surface" onClick={() => {
             if (!planning.dirty || confirm('Discard unsaved changes?')) { planning.newBoard(); setSidebarTab('brief'); }
           }}>New</button>
+          </div>
         </div>
 
         {!operational.isMapAuthorized && <button onClick={() => operational.openPinModal('unlock')} className="w-full min-h-12 px-4 rounded-xl bg-planning-container text-on-planning-container text-sm font-bold mb-3">Enter operations PIN to edit this plan</button>}
@@ -460,8 +468,9 @@ export function PlanningOverlay() {
 
   return (
     <>
-      <div className="planning-mode-status absolute top-4 left-4 z-[700] bg-surface-container-lowest text-on-surface border border-outline-variant/45 rounded-xl px-4 h-11 flex items-center gap-2 text-xs font-bold shadow-panel">
-        <span className={`w-2 h-2 rounded-full ${planning.dirty ? 'bg-planning' : canEdit ? 'bg-success' : 'bg-tertiary'}`} />
+      {/* A quiet status label: it should be readable when looked for, not compete with the map. */}
+      <div role="status" className="planning-mode-status absolute top-4 left-4 z-[700] bg-surface-container-lowest/70 backdrop-blur-sm text-on-surface/70 rounded-full px-2.5 h-7 flex items-center gap-1.5 text-[11px] font-medium">
+        <span className={`w-1.5 h-1.5 rounded-full ${planning.dirty ? 'bg-planning' : planning.temporary ? 'bg-on-surface/40' : canEdit ? 'bg-success' : 'bg-tertiary'}`} />
         {planning.dirty ? 'Changes need saving' : planning.temporary ? 'New plan, not saved' : canEdit ? 'Saved plan' : 'Live view only'}
       </div>
       {planning.tool === 'symbol' && <div className="absolute bottom-[104px] left-1/2 -translate-x-1/2 z-[699] w-[520px] max-w-[calc(100%-2rem)] bg-surface-container-lowest border border-outline-variant/45 rounded-2xl shadow-panel p-4">

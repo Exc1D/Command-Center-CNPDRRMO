@@ -45,6 +45,17 @@ describe('Planning UI', () => {
     expect(screen.getByRole('button', { name: 'Emergency Operations Center' }).querySelector('svg')).toBeInTheDocument();
   });
 
+  it('duplicates a saved plan as a new undated draft', async () => {
+    const saved = { ...createPlanningScenario('Typhoon Ada'), draftVersion: 3, validFrom: '2026-10-01T00:00:00.000Z', validUntil: '2026-10-03T00:00:00.000Z' };
+    usePlanningStore.getState().load(saved);
+    render(<PlanningSidebar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Duplicate' }));
+    const { history, temporary } = usePlanningStore.getState();
+    expect(history?.present).toMatchObject({ name: 'Copy of Typhoon Ada', draftVersion: 0, validFrom: undefined, validUntil: undefined });
+    expect(history?.present.id).not.toBe(saved.id);
+    expect(temporary).toBe(true);
+  });
+
   it('disables scenario mutation for a read-only viewer', async () => {
     useStore.setState({ isMapAuthorized: false });
     render(<PlanningSidebar />);

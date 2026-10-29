@@ -113,7 +113,7 @@ export function PopUpCard() {
               onClick={() => openPinModal('delete', selectedHazard.id)}
               className="w-full flex items-center justify-center gap-2 bg-error-container/50 text-[var(--color-primary-container)] hover:bg-[#ffdad6] py-2.5 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors rounded-md"
             >
-              <Trash2 className="w-4 h-4" /> Purge Record
+              <Trash2 className="w-4 h-4" /> Delete report
             </button>
           </div>
         )}
