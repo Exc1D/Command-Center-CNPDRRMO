@@ -128,6 +128,7 @@ export function PinModal() {
   const [error, setError] = useState(false);
   const [operationError, setOperationError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (isPinModalOpen) {
@@ -135,6 +136,7 @@ export function PinModal() {
       setError(false);
       setOperationError(false);
       setIsVerifying(false);
+      setMessage('');
     }
   }, [isPinModalOpen]);
 
@@ -146,6 +148,7 @@ export function PinModal() {
 
   const verifyPin = async () => {
     setIsVerifying(true);
+    setMessage('');
     try {
       const response = await fetch('/api/verify-pin', {
         method: 'POST',
@@ -160,6 +163,7 @@ export function PinModal() {
           handleUnlock();
         }
       } else {
+        setMessage('Wrong PIN. Try again.');
         setError(true);
         setTimeout(() => {
           setPin('');
@@ -167,6 +171,7 @@ export function PinModal() {
         }, 500);
       }
     } catch {
+      setMessage('Could not check the PIN. Check your connection and try again.');
       setError(true);
       setTimeout(() => {
         setPin('');
@@ -203,6 +208,7 @@ export function PinModal() {
         setSelectedHazard(null);
         closePinModal();
       } catch {
+        setMessage('Could not delete this record. Try again.');
         setOperationError(true);
         setTimeout(() => {
           setOperationError(false);
@@ -240,13 +246,14 @@ export function PinModal() {
           <div className="w-14 h-14 bg-error-container text-[var(--color-primary-container)] rounded-full flex items-center justify-center font-bold text-3xl mx-auto mb-4 shadow-[0_4px_12px_rgba(183,0,17,0.1)]">
             {pinActionType === 'unlock' ? <ShieldAlert className="w-6 h-6" /> : '!'}
           </div>
-          <h2 className="text-xl font-display font-bold tracking-tight text-on-surface">Verification Required</h2>
+          <h2 className="text-xl font-display font-bold tracking-tight text-on-surface">Enter PIN</h2>
           <p className="text-[11px] text-on-surface/60 mt-2 font-medium uppercase tracking-[0.05em]">
             {pinActionType === 'unlock' 
-              ? 'Enter 4-digit security PIN to unlock map operations.' 
-              : 'Enter 4-digit security PIN to authorize purge command.'}
+              ? 'Enter the 4-digit PIN to add and edit pins on the map.' 
+              : 'Enter the 4-digit PIN to delete this record.'}
           </p>
         </div>
+        <p role="alert" className="min-h-5 -mt-3 mb-3 text-center text-sm font-semibold text-primary">{message}</p>
 
         {/* PIN Indicators */}
         <div className="flex justify-center gap-3 mb-8">

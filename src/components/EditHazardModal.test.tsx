@@ -91,7 +91,7 @@ describe('EditHazardModal', () => {
     render(<EditHazardModal />);
 
     // Check that the title input has the hazard's title
-    const titleInput = screen.getByLabelText('Incident Title');
+    const titleInput = screen.getByLabelText(/^Incident Title/);
     expect((titleInput as HTMLInputElement).value).toBe('Test Hazard');
   });
 

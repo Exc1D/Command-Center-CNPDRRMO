@@ -89,17 +89,15 @@ describe('DropTagModal', () => {
     render(<DropTagModal />);
 
     expect(screen.getByText('Incident Details')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('Suggest nearby location'));
     await waitFor(() => expect(screen.getByLabelText('Municipality')).toHaveValue('Daet'));
   });
 
   it('saves a monitoring pin with a planning symbol', async () => {
     useStore.setState({ dropTagTempGeometry: { type: 'Point', coordinates: [122.98, 14.13] } });
     render(<DropTagModal />);
-    await userEvent.click(screen.getByText('Suggest nearby location'));
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /^Pin symbol/ }), 'rescue-boat');
     await userEvent.click(screen.getByRole('button', { name: 'Save Incident' }));
-    await waitFor(() => expect(mockAddHazard).toHaveBeenCalledWith(expect.objectContaining({ symbolKey: 'rescue-boat', geometry: { type: 'Point', coordinates: [122.98, 14.13] } })));
+    await waitFor(() => expect(mockAddHazard).toHaveBeenCalledWith(expect.objectContaining({ symbolKey: 'rescue-boat', title: 'Flood – Bagasbas', geometry: { type: 'Point', coordinates: [122.98, 14.13] } })));
   });
 
   it('does not render when isDropTagModalOpen is false', () => {
@@ -116,7 +114,6 @@ describe('DropTagModal', () => {
     expect(screen.getByText('Flood')).toBeInTheDocument();
     expect(screen.getByText('Storm Surge')).toBeInTheDocument();
     expect(screen.getByText('Rain-Induced Landslide')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('Suggest nearby location'));
     await waitFor(() => expect(screen.getByLabelText('Municipality')).toHaveValue('Daet'));
   });
 
@@ -160,7 +157,7 @@ describe('PinModal', () => {
   it('renders modal when isPinModalOpen is true', () => {
     render(<PinModal />);
 
-    expect(screen.getByText('Verification Required')).toBeInTheDocument();
+    expect(screen.getByText('Enter PIN')).toBeInTheDocument();
   });
 
   it('does not render when isPinModalOpen is false', () => {
@@ -168,7 +165,7 @@ describe('PinModal', () => {
 
     render(<PinModal />);
 
-    expect(screen.queryByText('Verification Required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter PIN')).not.toBeInTheDocument();
   });
 
   it('keypad buttons are present', () => {
@@ -191,6 +188,16 @@ describe('PinModal', () => {
     }
 
     expect(closePinModalSpy).toHaveBeenCalled();
+  });
+
+  it('says so when the PIN is wrong', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => ({ valid: false }) }) as any;
+    try {
+      render(<PinModal />);
+      for (const digit of '1234') await userEvent.click(screen.getByRole('button', { name: digit }));
+      expect(await screen.findByText('Wrong PIN. Try again.')).toBeInTheDocument();
+    } finally { global.fetch = originalFetch; }
   });
 });
 

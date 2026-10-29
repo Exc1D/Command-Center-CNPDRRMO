@@ -62,6 +62,13 @@ summary:active,
 .nav-text-button:focus-visible { outline: 2px solid var(--color-tertiary); outline-offset: 2px; }
 .nav-text-button:disabled { opacity: 0.4; cursor: default; }
 
+/* Monitor summary: each card is a shortcut; the chip hides or restores the strip. */
+.summary-card, .summary-chip { background: rgb(255 255 255 / 0.95); border: 1px solid rgb(0 0 0 / 0.1); box-shadow: 0 4px 16px rgb(0 0 0 / 0.1); cursor: pointer; transition: background 150ms, transform 150ms; }
+.summary-card { border-radius: 12px; padding: 8px 12px; }
+.summary-chip { border-radius: 999px; min-height: 36px; padding: 0 12px; font-size: 13px; font-weight: 600; color: var(--color-tertiary); }
+.summary-card:hover, .summary-chip:hover { background: #fff; transform: translateY(-1px); }
+.summary-card:focus-visible, .summary-chip:focus-visible { outline: 2px solid var(--color-tertiary); outline-offset: 2px; }
+
 /* Segmented control. Markup stays a role="switch" button; the white thumb slides under the active label. */
 .mode-switch {
   position: relative;
