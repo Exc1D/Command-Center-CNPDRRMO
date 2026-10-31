@@ -2,15 +2,16 @@
 Run: python scripts/prepare-map-data.py --source-dir /path/to/supplied/files
 Raw inputs are never modified. Population output must NOT be served statically.
 """
-import argparse, collections, hashlib, json, re, zipfile
+import argparse, collections, hashlib, json, re, zipfile, shapely
 from pathlib import Path
 import openpyxl
 from pyproj import Transformer
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, MultiPolygon
 from shapely.ops import transform
 from shapely import make_valid, get_num_coordinates, set_precision
 from shapely.ops import unary_union
 from storm_surge import STORM_SURGE_ARCHIVE, read_storm_surge
+from noah_flood import NOAH_FLOOD_STEM, read_noah_flood
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -37,7 +38,7 @@ to_m = Transformer.from_crs(4326, 32651, always_xy=True).transform
 to_ll = Transformer.from_crs(32651, 4326, always_xy=True).transform
 river_ll = Transformer.from_crs("ESRI:102457", 4326, always_xy=True, allow_ballpark=False)
 print("River transform:", river_ll.description, flush=True)
-def derivative(key, filename, tolerance=2, fields=None, project=False, data=None):
+def derivative(key, filename, tolerance=2, fields=None, project=False, data=None, min_part_m2=0, digits=None):
     raw = (args.source_dir / filename).read_bytes()
     if data is None: data = json.loads(raw)
     features, before, after, repairs = [], 0, 0, 0
@@ -53,9 +54,12 @@ def derivative(key, filename, tolerance=2, fields=None, project=False, data=None
             g = make_valid(g); repairs += 1
             issue(filename, i, "Invalid source geometry repaired in display derivative only")
         projected = transform(to_m, g)
+        # Sieve: drop isolated raster specks smaller than min_part_m2.
+        if min_part_m2: projected = MultiPolygon([p for p in getattr(projected, "geoms", [projected]) if p.geom_type == "Polygon" and p.area >= min_part_m2])
         simple = projected.simplify(tolerance, preserve_topology=True)
         if projected.area: max_area_change = max(max_area_change, abs(simple.area / projected.area - 1))
         g = transform(to_ll, simple)
+        if digits is not None: g = shapely.transform(g, lambda c: c.round(digits))
         if not g.is_valid:
             g = make_valid(g)
             issue(filename, i, 'Projection round-trip topology repaired in display derivative only')
@@ -64,12 +68,14 @@ def derivative(key, filename, tolerance=2, fields=None, project=False, data=None
         p = f.get("properties", {})
         features.append({"type": "Feature", "properties": {k: p.get(k) for k in fields} if fields else p, "geometry": mapping(g)})
     write(out / f"{key}.geojson", fc(features))
-    manifest["layers"][key] = {"source": filename, "sha256": hashlib.sha256(raw).hexdigest(), "features": len(features), "sourceCoordinates": int(before), "displayCoordinates": int(after), "simplificationMetres": tolerance, "maxFeatureAreaChangeRatio": max_area_change, "repairedFeatures": repairs, "bytes": (out / f"{key}.geojson").stat().st_size}
+    manifest["layers"][key] = {"source": filename, "sha256": hashlib.sha256(raw).hexdigest(), "features": len(features), "sourceCoordinates": int(before), "displayCoordinates": int(after), "simplificationMetres": tolerance, "minPartSquareMetres": min_part_m2, "maxFeatureAreaChangeRatio": max_area_change, "repairedFeatures": repairs, "bytes": (out / f"{key}.geojson").stat().st_size}
     print(key, manifest["layers"][key], flush=True)
 
 derivative("boundaries", "Municipal Boundary NAMRIA.geojson", fields=["ADM3_EN", "ADM3_PCODE", "AREA_SQKM"])
 derivative("landslide", "CN_RIL.geojson", fields=["lndslidesu"])
 derivative("storm_surge", STORM_SURGE_ARCHIVE, data=read_storm_surge(args.source_dir))
+# 10 m raster source: ~200k one-cell specks; sieving them keeps the layer phone-sized (drops ~21% Low, ~3% High area).
+derivative("noah_flood_5yr", NOAH_FLOOD_STEM + ".shp", tolerance=10, data=read_noah_flood(args.source_dir), min_part_m2=250, digits=5)
 derivative("liquefaction", "CN_liquefaction.geojson", fields=["Liq_Class"])
 derivative("tsunami", "CN_tsunami.geojson", tolerance=5, fields=["Inun_desc", "Inun_depth"])
 derivative("roads", "OSMCN_roads.geojson", fields=["Road Class", "RoadName", "fclass", "Mun"])

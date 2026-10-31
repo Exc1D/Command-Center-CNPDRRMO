@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../lib/store';
-import { canonicalLocation, FLOOD_COLORS, REFERENCE_LAYERS } from '../lib/reference';
+import { canonicalLocation, EXPOSURE_LAYERS, FLOOD_COLORS, REFERENCE_LAYERS } from '../lib/reference';
 import type { ExposureCounts, LayerExposureResult } from '../server/layerExposure';
 
 const populationText=(counts:ExposureCounts)=>counts.matchedRecords>0 && counts.matchedRecords===counts.missingPopulationRecords?'Unknown':counts.populationSum.toLocaleString();
@@ -9,8 +9,9 @@ export function PopulationExposure() {
   const [result,setResult]=useState<{key:string;data:LayerExposureResult}|null>(null);
   const [error,setError]=useState('');
   const [retry,setRetry]=useState(0);
-  const key=JSON.stringify({layers:s.referenceLayers,floodClasses:s.activeSusceptibilityFilters,municipality:s.selectedMunicipality,barangay:s.selectedBarangay});
-  const ready=s.isMapAuthorized && s.referenceLayers.length>0;
+  const layers=s.referenceLayers.filter(id=>EXPOSURE_LAYERS.some(l=>l.id===id));
+  const key=JSON.stringify({layers,floodClasses:s.activeSusceptibilityFilters,municipality:s.selectedMunicipality,barangay:s.selectedBarangay});
+  const ready=s.isMapAuthorized && layers.length>0;
   useEffect(()=>{
     setResult(null);setError('');
     if(!ready) return;
@@ -32,9 +33,9 @@ export function PopulationExposure() {
   const available=!!data?.available.matchedRecords;
   return <section className="space-y-4 text-sm" aria-label="Hazard–population exposure">
     <div><h3 className="font-bold text-lg">Population in hazard zones</h3><p className="mt-1 text-on-surface/70">Provisional estimates, not confirmed affected-person counts.</p></div>
-    <fieldset><legend className="font-semibold">Hazard layers</legend><div className="grid sm:grid-cols-2 gap-x-4">{REFERENCE_LAYERS.map(layer=><label key={layer.id} className="reference-check"><input type="checkbox" checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/>{layer.label}</label>)}</div></fieldset>
+    <fieldset><legend className="font-semibold">Hazard layers</legend><div className="grid sm:grid-cols-2 gap-x-4">{EXPOSURE_LAYERS.map(layer=><label key={layer.id} className="reference-check"><input type="checkbox" checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/>{layer.label}</label>)}</div></fieldset>
     {s.referenceLayers.includes('flood') && <fieldset><legend className="font-semibold">Flood susceptibility classes</legend><div className="flex flex-wrap gap-x-5">{Object.keys(FLOOD_COLORS).map(label=><label key={label} className="reference-check"><input type="checkbox" checked={s.activeSusceptibilityFilters.includes(label)} onChange={()=>s.toggleSusceptibilityFilter(label)}/>{label}</label>)}</div><p className="text-xs">No selection includes all classes.</p></fieldset>}
-    {!s.referenceLayers.length && <p role="status">Select a hazard layer to calculate exposure.</p>}
+    {!layers.length && <p role="status">Select a hazard layer to calculate exposure.</p>}
     {!s.isMapAuthorized && <div><p>Unlock operations to analyze the private population dataset.</p><button className="nav-text-button underline" onClick={()=>s.openPinModal('unlock')}>Unlock population analysis</button></div>}
     {ready && !data && !error && <p role="status">Calculating population exposure…</p>}
     {error && <div role="alert"><p>{error}</p><button className="nav-text-button underline" onClick={()=>setRetry(v=>v+1)}>Retry analysis</button></div>}

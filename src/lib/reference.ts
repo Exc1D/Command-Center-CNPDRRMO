@@ -28,7 +28,10 @@ export const REFERENCE_LAYERS = [
   {id:'landslide',label:'Rain-Induced Landslide Susceptibility',field:'lndslidesu',colors:RIL_COLORS},
   {id:'liquefaction',label:'Liquefaction Susceptibility',field:'Liq_Class',colors:{'Generally Susceptible':'#ffaa00'} as Record<string,string>},
   {id:'tsunami',label:'Tsunami Inundation',field:'Inun_desc',colors:{'General inundation':'#c7cf5d','Inundation depth':'#25cfde'} as Record<string,string>},
+  // ponytail: display only; add to the private exposure index when it is next rebuilt.
+  {id:'noah_flood_5yr',label:'Flood Hazard (Project NOAH, 5-year)',field:'hazardClass',colors:{Low:'#facc15',Medium:'#f97316',High:'#dc2626'} as Record<string,string>,exposure:false},
 ];
+export const EXPOSURE_LAYERS = REFERENCE_LAYERS.filter(layer => layer.exposure !== false);
 export const ELEMENT_LAYERS = [
   {id:'facilities',label:'Critical Point Facilities'}, {id:'population',label:'Population'},
   {id:'roads',label:'Roads'}, {id:'rivers',label:'Rivers'}, {id:'boundaries',label:'Municipal Boundaries (NAMRIA)'},
