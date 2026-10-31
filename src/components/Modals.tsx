@@ -6,7 +6,7 @@ import { useStore, DISASTER_TYPES } from '../lib/store';
 import { HazardAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, X, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Trash2, Edit3, X, AlertTriangle, ShieldAlert, Check, Delete } from 'lucide-react';
 import { detectLocationFromGeometry, formatDate } from '../lib/utils';
 
 export function DropTagModal() {
@@ -128,7 +128,11 @@ export function PinModal() {
   const [error, setError] = useState(false);
   const [operationError, setOperationError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [message, setMessage] = useState('');
+  const busy = error || isVerifying || success;
+  // Short buzz on phones that support it; silently skipped elsewhere.
+  const buzz = (pattern: number | number[]) => navigator.vibrate?.(pattern);
 
   useEffect(() => {
     if (isPinModalOpen) {
@@ -136,6 +140,7 @@ export function PinModal() {
       setError(false);
       setOperationError(false);
       setIsVerifying(false);
+      setSuccess(false);
       setMessage('');
     }
   }, [isPinModalOpen]);
@@ -157,6 +162,10 @@ export function PinModal() {
       });
       const data = await response.json();
       if (data.valid) {
+        // Hold the green "accepted" state briefly so the unlock reads as a confirmation, not a vanish.
+        setSuccess(true);
+        buzz(30);
+        await new Promise(resolve => setTimeout(resolve, 450));
         if (pinActionType === 'delete') {
           await handleDelete();
         } else if (pinActionType === 'unlock') {
@@ -165,6 +174,7 @@ export function PinModal() {
       } else {
         setMessage('Wrong PIN. Try again.');
         setError(true);
+        buzz([40, 60, 40]);
         setTimeout(() => {
           setPin('');
           setError(false);
@@ -186,18 +196,18 @@ export function PinModal() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (!isPinModalOpen) return;
       if (e.key >= '0' && e.key <= '9') {
-        if (pin.length < 4 && !error && !isVerifying) {
+        if (pin.length < 4 && !busy) {
           setPin(prev => prev + e.key);
         }
       } else if (e.key === 'Backspace') {
-        setPin(prev => prev.slice(0, -1));
+        if (!busy) setPin(prev => prev.slice(0, -1));
       } else if (e.key === 'Escape') {
         closePinModal();
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isPinModalOpen, pin, error, isVerifying]);
+  }, [isPinModalOpen, pin, busy]);
 
   const handleDelete = async () => {
     if (pinActionData) {
@@ -208,6 +218,8 @@ export function PinModal() {
         setSelectedHazard(null);
         closePinModal();
       } catch {
+        setSuccess(false);
+        setPin('');
         setMessage('Could not delete this record. Try again.');
         setOperationError(true);
         setTimeout(() => {
@@ -223,7 +235,7 @@ export function PinModal() {
   };
 
   const handleKeyPress = (num: string) => {
-    if (pin.length < 4 && !error && !isVerifying) {
+    if (pin.length < 4 && !busy) {
       setPin(prev => prev + num);
     }
   };
@@ -243,9 +255,12 @@ export function PinModal() {
         </button>
 
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 bg-error-container text-[var(--color-primary-container)] rounded-full flex items-center justify-center font-bold text-3xl mx-auto mb-4 shadow-[0_4px_12px_rgba(183,0,17,0.1)]">
-            {pinActionType === 'unlock' ? <ShieldAlert className="w-6 h-6" /> : '!'}
-          </div>
+          <motion.div
+            animate={success ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+            className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-3xl mx-auto mb-4 transition-colors duration-300 ${success ? 'bg-success text-white' : 'bg-error-container text-[var(--color-primary-container)] shadow-[0_4px_12px_rgba(183,0,17,0.1)]'}`}
+          >
+            {success ? <Check className="w-7 h-7" strokeWidth={3} /> : pinActionType === 'unlock' ? <ShieldAlert className="w-6 h-6" /> : '!'}
+          </motion.div>
           <h2 className="text-xl font-display font-bold tracking-tight text-on-surface">Enter PIN</h2>
           <p className="text-[11px] text-on-surface/60 mt-2 font-medium uppercase tracking-[0.05em]">
             {pinActionType === 'unlock' 
@@ -256,18 +271,27 @@ export function PinModal() {
         <p role="alert" className="min-h-5 -mt-3 mb-3 text-center text-sm font-semibold text-primary">{message}</p>
 
         {/* PIN Indicators */}
-        <div className="flex justify-center gap-3 mb-8">
-          {[0, 1, 2, 3].map(i => (
-            <div 
-              key={i} 
-              className={`w-3.5 h-3.5 rounded-full transition-all duration-200 border ${
-                pin.length > i 
-                  ? error ? 'bg-primary border-primary' : 'bg-tertiary border-tertiary shadow-[0_0_8px_rgba(0,94,145,0.4)]' 
-                  : 'bg-transparent border-on-surface/20'
-              }`} 
-            />
-          ))}
+        <div className={`flex justify-center gap-3 mb-3 ${isVerifying ? 'animate-pulse' : ''}`}>
+          {[0, 1, 2, 3].map(i => {
+            const filled = pin.length > i;
+            return (
+              <motion.div
+                key={i}
+                animate={success ? { scale: [1, 1.4, 1] } : filled ? { scale: [0.5, 1.3, 1] } : { scale: 1 }}
+                transition={{ duration: 0.28, delay: success ? i * 0.05 : 0 }}
+                className={`w-3.5 h-3.5 rounded-full transition-colors duration-200 border ${
+                  success ? 'bg-success border-success'
+                  : filled
+                    ? error ? 'bg-primary border-primary' : 'bg-tertiary border-tertiary shadow-[0_0_8px_rgba(0,94,145,0.4)]'
+                    : 'bg-transparent border-on-surface/20'
+                }`}
+              />
+            );
+          })}
         </div>
+        <p aria-live="polite" className={`mb-6 text-center text-xs font-medium ${success ? 'text-success' : 'text-on-surface/50'}`}>
+          {success ? 'PIN accepted' : isVerifying ? 'Checking…' : 'Opens by itself after the 4th digit'}
+        </p>
 
         {/* Keypad */}
         <div className="grid grid-cols-3 gap-3">
@@ -275,23 +299,26 @@ export function PinModal() {
             <button
               key={num}
               onClick={() => handleKeyPress(num.toString())}
-              className="h-14 bg-surface-container-low hover:bg-surface-container shadow-sm flex items-center justify-center font-display font-bold text-xl text-on-surface rounded-md transition-colors"
+              className="h-14 bg-surface-container-low hover:bg-surface-container shadow-sm flex items-center justify-center font-display font-bold text-xl text-on-surface rounded-md transition-[transform,background-color] active:scale-95 active:bg-surface-container-high disabled:opacity-60"
+              disabled={busy}
             >
               {num}
             </button>
           ))}
           <button
             onClick={() => handleKeyPress('0')}
-            className="h-14 bg-surface-container-low hover:bg-surface-container shadow-sm flex items-center justify-center font-display font-bold text-xl text-on-surface rounded-md transition-colors col-start-2"
+            className="h-14 bg-surface-container-low hover:bg-surface-container shadow-sm flex items-center justify-center font-display font-bold text-xl text-on-surface rounded-md transition-[transform,background-color] active:scale-95 active:bg-surface-container-high disabled:opacity-60 col-start-2"
+            disabled={busy}
           >
             0
           </button>
           <button
             aria-label="Remove last PIN digit"
             onClick={() => setPin(prev => prev.slice(0, -1))}
-            className="h-14 bg-transparent hover:bg-error-container text-on-surface/40 hover:text-primary flex items-center justify-center transition-colors rounded-md"
+            disabled={busy || pin.length === 0}
+            className="h-14 bg-transparent hover:bg-surface-container text-on-surface/50 hover:text-on-surface flex items-center justify-center transition-[transform,background-color] active:scale-95 rounded-md disabled:opacity-30"
           >
-            <X className="w-5 h-5" />
+            <Delete className="w-5 h-5" />
           </button>
         </div>
       </motion.div>
