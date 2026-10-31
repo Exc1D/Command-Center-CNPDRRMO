@@ -464,7 +464,7 @@ export function erasePlanningObjects(
   return { objects: erased ? next : objects, erased, skipped, limitReached };
 }
 
-type ProvinceGeometry = { type: 'Polygon' | 'MultiPolygon'; coordinates: any };
+export type ProvinceGeometry = { type: 'Polygon' | 'MultiPolygon'; coordinates: any };
 export type ProvinceGeoJSON = { features: Array<{ geometry: ProvinceGeometry }> };
 
 function pointInRing(point: [number, number], ring: [number, number][]) {

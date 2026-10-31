@@ -29,7 +29,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
   const [error,setError]=useState('');
   const [suggestion,setSuggestion]=useState('');
   const setHazards=useStore(s=>s.setHazards);
-  // New pins fill the location from the nearest reference point so the reporter only confirms it.
+  // New pins fill the location from the map boundaries so the reporter only confirms or corrects it.
   useEffect(()=>{
     if(record) return;
     let cancelled=false;
@@ -37,7 +37,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     detectLocationFromGeometry(geometry).then(result=>{
       if(cancelled) return;
       const location=result && canonicalLocation(result.municipality,result.barangay);
-      if(location){setMunicipality(m=>m || location.municipality);setBarangay(b=>b || location.barangay);setSuggestion('Filled in from the nearest reference point. Check it is right.');}
+      if(location){setMunicipality(m=>m || location.municipality);setBarangay(b=>b || location.barangay);setSuggestion('Filled in from where you placed the pin. Change it if it is wrong.');}
       else setSuggestion('No nearby barangay found. Choose the location.');
     }).catch(()=>{ if(!cancelled) setSuggestion('Could not find the location automatically. Choose it below.'); });
     return ()=>{cancelled=true;};

@@ -208,6 +208,26 @@ describe('detectLocationFromGeometry', () => {
     expect(result!.barangay).toContain('Poblacion 1');
   });
 
+  it('uses the municipal boundary the pin sits in, even when another town\'s barangay center is nearer', async () => {
+    const boundaries = {
+      type: 'FeatureCollection',
+      features: [{
+        geometry: { type: 'Polygon', coordinates: [[[122.94, 14.03], [123.0, 14.03], [123.0, 14.105], [122.94, 14.105], [122.94, 14.03]]] },
+        properties: { ADM3_EN: 'Basud' },
+      }],
+    };
+    global.fetch = vi.fn((url: string) => Promise.resolve({
+      ok: true,
+      json: async () => (url.includes('boundaries') ? boundaries : MOCK_BARANGAY_GEOJSON),
+    })) as any;
+    // Fresh module so earlier tests' cached files don't leak in.
+    vi.resetModules();
+    const fresh = await import('../lib/utils');
+    // About 2 km from Daet's Barangay IV and 4 km from Basud's Poblacion 1, but inside Basud.
+    const result = await fresh.detectLocationFromGeometry({ type: 'Point', coordinates: [122.96, 14.10] });
+    expect(result).toMatchObject({ municipality: 'Basud', barangay: 'Poblacion 1' });
+  });
+
   it('results are sorted by distance ascending', async () => {
     const point = {
       type: 'Point',
