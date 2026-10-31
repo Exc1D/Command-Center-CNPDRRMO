@@ -3,6 +3,7 @@ import { twMerge } from 'tailwind-merge';
 import { MAP_CONFIG } from './constants';
 import { format } from 'date-fns';
 import type { EvacuationCenter } from './db';
+import { pointInsideProvince, type ProvinceGeometry } from './planning';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -111,45 +112,59 @@ export function loadBarangayGeoJSON(): Promise<BarangayGeoJSON> {
     });
 }
 
+// ponytail: municipal polygons are loaded once per page; a failed load is retried next time.
+let municipalBoundaries: Promise<{ features: Array<{ geometry: ProvinceGeometry; properties: { ADM3_EN: string } }> }> | null = null;
+
+async function municipalityAt(point: [number, number]): Promise<string | null> {
+  municipalBoundaries ??= fetch('/reference/boundaries.geojson')
+    .then(response => {
+      if (!response.ok) throw new Error(`Failed to load municipal boundaries: ${response.status}`);
+      return response.json();
+    })
+    .catch(error => {
+      municipalBoundaries = null;
+      throw error;
+    });
+  const { features } = await municipalBoundaries;
+  const match = features.find(feature =>
+    ['Polygon', 'MultiPolygon'].includes(feature.geometry?.type) && pointInsideProvince(point, { features: [feature] }));
+  // NAMRIA labels the capital "Daet (Capital)"; the barangay list calls it "Daet".
+  return match?.properties.ADM3_EN.replace(' (Capital)', '') ?? null;
+}
+
+// The municipality comes from the boundary the pin sits in. Barangay boundaries are not available,
+// so the barangay is the nearest barangay center inside that municipality; the form lets people correct it.
 export async function detectLocationFromGeometry(
   geometry: any
 ): Promise<DetectedLocation | null> {
-  const geojson = await loadBarangayGeoJSON();
   const centroid = getCentroid(geometry);
-
   if (!centroid) return null;
 
-  const detectedBarangays: Array<{
-    name: string;
-    municipality: string;
-    distance: number;
-  }> = [];
+  const [geojson, municipality] = await Promise.all([
+    loadBarangayGeoJSON(),
+    municipalityAt([centroid.lng, centroid.lat]).catch(() => null),
+  ]);
 
-  for (const feature of geojson.features) {
-    const bCoords = feature.geometry.coordinates;
-    const bLat = bCoords[1];
-    const bLng = bCoords[0];
-    const dist = haversineDistance(centroid.lat, centroid.lng, bLat, bLng);
+  const candidates = municipality
+    ? geojson.features.filter(feature => feature.properties.municipality === municipality)
+    : geojson.features;
+  // Outside every boundary (for example just offshore) only a barangay center within the threshold counts.
+  const maxKm = municipality && candidates.length > 0 ? Infinity : MAP_CONFIG.DETECTION_THRESHOLD_KM;
 
-    if (dist < MAP_CONFIG.DETECTION_THRESHOLD_KM) {
-      detectedBarangays.push({
-        name: feature.properties.name,
-        municipality: feature.properties.municipality,
-        distance: dist,
-      });
-    }
-  }
-
-  detectedBarangays.sort((a, b) => a.distance - b.distance);
+  const detectedBarangays = (candidates.length > 0 ? candidates : geojson.features)
+    .map(feature => ({
+      name: feature.properties.name,
+      municipality: feature.properties.municipality,
+      distance: haversineDistance(centroid.lat, centroid.lng, feature.geometry.coordinates[1], feature.geometry.coordinates[0]),
+    }))
+    .filter(barangay => barangay.distance < maxKm)
+    .sort((a, b) => a.distance - b.distance);
 
   if (detectedBarangays.length === 0) return null;
 
-  const municipality = detectedBarangays[0].municipality;
-  const barangayNames = detectedBarangays[0].name;
-
   return {
-    municipality,
-    barangay: barangayNames,
+    municipality: detectedBarangays[0].municipality,
+    barangay: detectedBarangays[0].name,
     isMultiple: detectedBarangays.length > 1,
   };
 }
