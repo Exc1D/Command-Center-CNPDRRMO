@@ -38,6 +38,8 @@ vi.mock('lucide-react', () => ({
   Trash2: () => <span data-testid="icon-trash">Trash2</span>,
   Edit3: () => <span data-testid="icon-edit">Edit3</span>,
   ShieldAlert: () => <span data-testid="icon-shield">ShieldAlert</span>,
+  Check: () => <span data-testid="icon-check">Check</span>,
+  Delete: () => <span data-testid="icon-delete">Delete</span>,
 }));
 
 // Mock uuid
@@ -197,6 +199,19 @@ describe('PinModal', () => {
       render(<PinModal />);
       for (const digit of '1234') await userEvent.click(screen.getByRole('button', { name: digit }));
       expect(await screen.findByText('Wrong PIN. Try again.')).toBeInTheDocument();
+    } finally { global.fetch = originalFetch; }
+  });
+
+  it('shows the PIN was accepted before unlocking', async () => {
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => ({ valid: true }) }) as any;
+    useStore.setState({ pinActionType: 'unlock', isMapAuthorized: false });
+    try {
+      render(<PinModal />);
+      expect(screen.getByText('Opens by itself after the 4th digit')).toBeInTheDocument();
+      for (const digit of '0000') await userEvent.click(screen.getByRole('button', { name: digit }));
+      expect(await screen.findByText('PIN accepted')).toBeInTheDocument();
+      await waitFor(() => expect(useStore.getState().isMapAuthorized).toBe(true));
     } finally { global.fetch = originalFetch; }
   });
 });
