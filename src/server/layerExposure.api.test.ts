@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp, createDatabase } from '../../server';
 import { analyzeLayerExposure } from './layerExposure';
 import type { Database } from './database';
-import { REFERENCE_LAYERS } from '../lib/reference';
+import { EXPOSURE_LAYERS } from '../lib/reference';
 
 vi.mock('./layerExposure',()=>({analyzeLayerExposure:vi.fn()}));
 let db:Database;
@@ -14,7 +14,7 @@ it('authorizes, validates geography and layers, prevents caching, and reports mi
   const selection={layers:['flood'],municipality:'Daet',barangay:'Bagasbas',floodClasses:['High']};
   expect((await client.post('/api/reference/layer-exposure').send(selection)).status).toBe(401);
   await client.post('/api/verify-pin').send({pin:'2468'});
-  for(const invalid of [{...selection,layers:['../../private']},{...selection,layers:[]},{...selection,floodClasses:['Critical']},{...selection,barangay:'Angas'},{...selection,municipality:''}]) {
+  for(const invalid of [{...selection,layers:['../../private']},{...selection,layers:[]},{...selection,layers:['noah_flood_5yr']},{...selection,floodClasses:['Critical']},{...selection,barangay:'Angas'},{...selection,municipality:''}]) {
     expect((await client.post('/api/reference/layer-exposure').send(invalid)).status).toBe(400);
   }
   expect(analyzeLayerExposure).not.toHaveBeenCalled();
@@ -25,7 +25,7 @@ it('authorizes, validates geography and layers, prevents caching, and reports mi
   expect(analyzeLayerExposure).toHaveBeenCalledWith(selection);
   expect((await client.post('/api/reference/layer-exposure').send({...selection,barangay:' BAGASBAS '})).status).toBe(200);
   expect(analyzeLayerExposure).toHaveBeenLastCalledWith(selection);
-  const allLayers={...selection,layers:REFERENCE_LAYERS.map(layer=>layer.id)};
+  const allLayers={...selection,layers:EXPOSURE_LAYERS.map(layer=>layer.id)};
   expect((await client.post('/api/reference/layer-exposure').send(allLayers)).status).toBe(200);
   expect(analyzeLayerExposure).toHaveBeenLastCalledWith(allLayers);
   vi.mocked(analyzeLayerExposure).mockRejectedValue(new Error('private file missing'));

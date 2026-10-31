@@ -82,7 +82,11 @@ export function ReferenceControls() {
               <td className="text-center">{layer ? <label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5" type="checkbox" aria-label={`${type.label} zones`} checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/></label> : <span title="No zone layer loaded" aria-label="No zone layer loaded">—</span>}</td>
               <td><label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5 disabled:opacity-40" type="checkbox" aria-label={`${type.label} incidents`} disabled={!s.incidentsVisible} checked={s.activeFilters.includes(type.id)} onChange={()=>s.toggleFilter(type.id)}/></label></td>
             </tr>;
-          })}</tbody>
+          })}{REFERENCE_LAYERS.filter(layer=>!HAZARD_TYPES.some(type=>layer.id===(type.id==='rain_induced_landslide'?'landslide':type.id))).map(layer=><tr key={layer.id} className="border-t border-outline-variant/30">
+            <th scope="row" className="text-left font-medium pr-2">{layer.label}</th>
+            <td className="text-center"><label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5" type="checkbox" aria-label={`${layer.label} zones`} checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/></label></td>
+            <td className="text-center"><span title="Zone layer only" aria-label="Zone layer only">—</span></td>
+          </tr>)}</tbody>
         </table>
         <label className="reference-check text-xs"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show reported incidents and resource pins</label>
         {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check text-xs"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
