@@ -32,6 +32,7 @@ export default function App() {
   const [sidebarOpen,setSidebarOpen] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? true);
   const planning = usePlanningStore();
   const [guideOpen, setGuideOpen] = useState(() => !readFlag(GUIDE_SEEN_KEY));
+  useEffect(() => { if (planning.isPlanningMode) document.title = 'Response Planning CNPDRRMO'; }, [planning.isPlanningMode]);
 
   useEffect(() => {
     fetch('/api/session').then(response => response.json()).then(data => setMapAuthorized(data.valid === true)).catch(() => {});
@@ -105,7 +106,7 @@ export default function App() {
           </div>
           <div className="min-w-0">
             <h1 className="text-[17px] font-display font-semibold tracking-tight text-on-surface leading-tight">
-              Interactive Map
+              {planning.isPlanningMode ? "Response Planning" : "Interactive Map"}
             </h1>
             <p className="text-xs text-on-surface/55 truncate">
               Camarines Norte Provincial DRRMO
@@ -113,41 +114,27 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions flex items-center gap-3">
-          <button
+          {!planning.isPlanningMode && <button
             onClick={() => setAnalyticsOpen(!isAnalyticsOpen)}
             aria-label="View Analytics"
             aria-pressed={isAnalyticsOpen}
             className="nav-text-button"
           >
             Analytics
-          </button>
-          <button
-            onClick={() => {
-              if (planning.isPlanningMode) {
-                if (planning.dirty && !confirm('Discard unsaved planning changes?')) return;
-                const scenario = planning.history?.present;
-                if (scenario && planning.lockAcquired) PlanningAPI.releaseLock(scenario.id, planning.sessionId).catch(() => {});
-                if (planning.dirty) {
-                  const saved = planning.scenarios.find(item => item.id === scenario?.id);
-                  saved ? planning.load(saved) : planning.newBoard();
-                }
-                planning.exit();
-              } else {
-                planning.enter();
-                setAnalyticsOpen(false);
-              }
+          </button>}
+          {/* Review: Planning is its own page (/planning), apart from the interactive map. */}
+          <a
+            href={planning.isPlanningMode ? '/' : '/planning'}
+            onClick={event => {
+              if (!planning.isPlanningMode) return;
+              if (planning.dirty && !confirm('Discard unsaved planning changes?')) { event.preventDefault(); return; }
+              const scenario = planning.history?.present;
+              if (scenario && planning.lockAcquired) PlanningAPI.releaseLock(scenario.id, planning.sessionId).catch(() => {});
             }}
-            role="switch"
-            aria-label="Planning mode"
-            aria-checked={planning.isPlanningMode}
-            aria-describedby="monitor-mode-hint planning-mode-hint"
-            title={planning.isPlanningMode ? 'Switch to monitoring' : 'Switch to planning'}
-            className="mode-switch"
+            className="nav-text-button inline-flex items-center"
           >
-            <span className="mode-label mode-label-monitor"><strong>Monitor</strong><small id="monitor-mode-hint">View incidents</small></span>
-            <span className="mode-switch-track" aria-hidden="true"><span /></span>
-            <span className="mode-label mode-label-planning"><strong>Planning</strong><small id="planning-mode-hint">Build a response</small></span>
-          </button>
+            {planning.isPlanningMode ? 'Interactive map' : 'Planning'}
+          </a>
           {/* Help sits apart from the main navigation, in the top-right corner where people expect it. */}
           <button onClick={() => setGuideOpen(true)} aria-label="How to use this app" title="How to use this app" className="nav-text-button inline-flex items-center gap-1.5">
             <CircleHelp size={18} aria-hidden="true" /><span className="max-sm:hidden">Help</span>
@@ -265,7 +252,7 @@ function MonitorSummary() {
 
 const GUIDE_STEPS = [
   ['Monitor: see what is happening', 'The map shows reported incidents, closed roads and evacuation centers. Tap a number at the top of the map to jump to it. To add a report, tap “Unlock editing”, enter the PIN, then use the pin buttons on the left edge of the map.'],
-  ['Planning: build a response', 'Switch to Planning at the top right to draft a response plan. Work through the three tabs in order: 1 Brief, 2 Map, 3 Review.'],
+  ['Planning: build a response', 'Open Planning at the top right to draft a response plan on its own page. Work through the three tabs in order: 1 Brief, 2 Map, 3 Review.'],
   ['Analytics: check the numbers', 'Analytics gives a situation overview, shows where to focus and lists the latest reports. Open it from the top bar at any time. Tap Help in the top-right corner to see this guide again.'],
 ];
 

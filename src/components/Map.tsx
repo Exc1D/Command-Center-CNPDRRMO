@@ -8,6 +8,7 @@ import { MAP_CONFIG } from '../lib/constants';
 import { usePlanningStore } from '../lib/planningStore';
 import { MapScaleControl, PlanningMapLayer, PublishedPlanningLayers } from './PlanningMapLayer';
 import { ReferenceMapLayers, incidentIcon } from './ReferenceMapLayers';
+import { LocationPicker, LocationCard } from './LocationPicker';
 import { hazardDefinition, filterMapRecords, ROAD_STATUS } from '../lib/reference';
 import { centerOccupancyTone, getCentroid } from '../lib/utils';
 
@@ -349,6 +350,7 @@ export default function DangerMap() {
         <EvacuationCenterMarkersHandler />
 
         <ReferenceMapLayers />
+        <LocationPicker interactive={!isPlanningMode} />
 
         <FeatureGroup>
           {incidentsVisible && [...filteredHazards, ...resourcePins].filter(hazard => getCentroid(hazard.geometry)).map(hazard => {
@@ -370,6 +372,7 @@ export default function DangerMap() {
           })}
         </FeatureGroup>
       </MapContainer>
+      {!isPlanningMode && <LocationCard />}
     </div>
   );
 }

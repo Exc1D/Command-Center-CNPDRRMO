@@ -69,33 +69,6 @@ summary:active,
 .summary-card:hover, .summary-chip:hover { background: #fff; transform: translateY(-1px); }
 .summary-card:focus-visible, .summary-chip:focus-visible { outline: 2px solid var(--color-tertiary); outline-offset: 2px; }
 
-/* Segmented control. Markup stays a role="switch" button; the white thumb slides under the active label. */
-.mode-switch {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 36px;
-  padding: 2px;
-  border: 0;
-  border-radius: 9px;
-  background: rgb(118 118 128 / 0.12);
-  cursor: pointer;
-}
-.mode-switch-track { position: absolute; inset: 2px auto 2px 2px; width: calc(50% - 2px); border-radius: 7px; background: #fff; box-shadow: 0 3px 8px rgb(0 0 0 / 0.12), 0 3px 1px rgb(0 0 0 / 0.04); transition: translate 450ms var(--ease-spring); }
-.mode-switch-track > span { display: none; }
-.mode-switch[aria-checked="true"] .mode-switch-track { translate: 100% 0; }
-.mode-label { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px; color: var(--color-on-surface); font-size: 13px; font-weight: 500; opacity: 0.6; transition: opacity 180ms ease-out, color 180ms ease-out; }
-.mode-label-monitor { grid-column: 1; grid-row: 1; }
-.mode-label-planning { grid-column: 2; grid-row: 1; }
-.mode-label strong { font-weight: inherit; }
-.mode-label small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.mode-label::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0; transition: opacity 180ms ease-out; }
-.mode-switch[aria-checked="false"] .mode-label-monitor { opacity: 1; font-weight: 600; color: var(--color-tertiary); }
-.mode-switch[aria-checked="true"] .mode-label-planning { opacity: 1; font-weight: 600; color: var(--color-on-planning-container); }
-.mode-switch[aria-checked="false"] .mode-label-monitor::before { opacity: 1; }
-.mode-switch[aria-checked="true"] .mode-label-planning::before { opacity: 1; background: var(--color-planning); }
-.mode-switch:hover .mode-label { opacity: 1; }
-
 .sidebar-rail { --sidebar-width: min(360px, calc(100vw - 64px)); position: relative; z-index: 500; width: var(--sidebar-width); flex-shrink: 0; transition: width 520ms var(--ease-spring); }
 .sidebar-rail[data-planning="true"] { --sidebar-width: min(420px, calc(100vw - 64px)); }
 .sidebar-rail[data-open="false"] { width: 0; }
@@ -104,7 +77,7 @@ summary:active,
 .sidebar-panel > aside { width: 100%; max-width: none; border-right: 0.5px solid var(--color-outline-variant); animation: panel-reveal 200ms ease-out; }
 .sidebar-toggle {
   position: absolute;
-  top: 18px;
+  top: 22px;
   right: 16px;
   width: 36px;
   height: 36px;
@@ -117,7 +90,8 @@ summary:active,
   cursor: pointer;
   transition: background-color 180ms ease-out;
 }
-.sidebar-toggle[aria-expanded="false"] { right: auto; left: 12px; top: 12px; width: 44px; height: 44px; background: rgb(255 255 255 / 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); }
+/* Review 1.1: same color as the sidebar, centered on the 55px summary cards beside it. */
+.sidebar-toggle[aria-expanded="false"] { right: auto; left: 12px; top: 17px; width: 44px; height: 44px; background: var(--color-surface); box-shadow: 0 4px 16px rgb(0 0 0 / 0.12); }
 .sidebar-toggle:hover { background: rgb(118 118 128 / 0.2); }
 .sidebar-toggle svg { transition: transform 450ms var(--ease-bounce); }
 .sidebar-toggle:hover svg { transform: translateX(-2px); }
@@ -190,7 +164,6 @@ summary:active,
   .app-header h1 { font-size: 18px; }
   .header-actions { width: 100%; justify-content: space-between; gap: 4px; }
   .header-actions .nav-text-button { padding-inline: 4px; }
-  .mode-label { padding-inline: 10px; }
 }
 
 /* Geoman's masked data URLs are rejected by browsers after Vite processes them. */
@@ -549,3 +522,15 @@ textarea:disabled {
 .incident-drawing .leaflet-overlay-pane *, .incident-drawing .leaflet-marker-pane *,
 .planning-placing .leaflet-overlay-pane *, .planning-placing .leaflet-marker-pane * { pointer-events: none !important; }
 .sheet-in { animation: sheet-in 520ms var(--ease-bounce); }
+
+/* On-map location card (review 3.1 / 10.1): bottom-left over the map, full width on phones. */
+.location-card { position: absolute; left: 12px; bottom: 64px; z-index: 450; width: min(320px, calc(100% - 32px)); padding: 14px 16px; border-radius: 14px; background: rgb(255 255 255 / 0.96); box-shadow: 0 8px 24px rgb(0 0 0 / 0.16); color: var(--color-on-surface); }
+.location-card-close { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: rgb(118 118 128 / 0.12); flex-shrink: 0; }
+.location-card-close:hover { background: rgb(118 118 128 / 0.24); }
+.location-card-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-top: 10px; font-size: 13px; }
+.location-card-facts dt { color: rgb(60 60 67 / 0.65); }
+.location-card-facts dd { font-weight: 600; }
+.location-tooltip { font-weight: 600; }
+@media (max-width: 640px) { .location-card { left: 16px; right: 16px; width: auto; bottom: 88px; } }
+.operational-sidebar .elements-group { border-radius: 12px; background: #fff; padding: 8px 16px 12px; }
+.operational-sidebar .elements-group .reference-select { background: rgb(118 118 128 / 0.12); margin: 4px 0; }

@@ -52,7 +52,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     setBusy(true);setError('');
     const place=barangay?` – ${barangay}`:'';
     const defaultTitle=isResource?PLANNING_SYMBOLS.find(symbol=>symbol.key===symbolKey)?.label:isRoad?`Road or bridge${place}`:`${hazardDefinition(type)?.label || 'Incident'}${place}`;
-    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type:isResource || isRoad?kind:type,symbolKey:symbolKey || null,severity:isResource?'Not applicable':isRoad?roadStatus:severity,title:title.trim() || defaultTitle,municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:isResource || isRoad?'reported':basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
+    const hazard:Hazard={...record,id:record?.id ?? crypto.randomUUID(),type:isResource || isRoad?kind:type,symbolKey:isResource?symbolKey || null:null,severity:isResource?'Not applicable':isRoad?roadStatus:severity,title:title.trim() || defaultTitle,municipality,barangay,notes,affectedPopulation,affectedPopulationBasis:isResource || isRoad?'reported':basis,geometry,dateAdded:record?.dateAdded ?? new Date().toISOString()};
     try {
       if(record) await HazardAPI.updateHazard(hazard); else await HazardAPI.addHazard(hazard);
       setHazards(await HazardAPI.getAllHazards());
@@ -60,10 +60,11 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
     } catch(e) {setError(e instanceof Error?e.message:'Could not save. Your entries are still here.');}
     finally {setBusy(false);}
   }
+  // Review 8.2: incidents and roads take their icon from the hazard type; only resources pick a symbol.
   const symbolField=geometry?.type==='Point' && <label className="block text-sm font-semibold">Pin symbol<select className="reference-select mt-1" value={symbolKey} onChange={e=>setSymbolKey(e.target.value)}>
-        <option value="">{isResource?'Choose a resource symbol':isRoad?'Use road icon':'Use hazard icon'}</option>
+        <option value="">Choose a resource symbol</option>
         <SymbolOptions />
-      </select><span className="block text-xs font-normal mt-1">{isResource || isRoad?'Uses the same symbols as Planning.':'Uses the same symbols as Planning. Hazard type and severity stay with the incident.'}</span></label>;
+      </select><span className="block text-xs font-normal mt-1">Uses the same symbols as Planning.</span></label>;
   return <div className="backdrop-in fixed inset-0 z-[1000] flex items-center justify-center bg-on-surface/20 backdrop-blur-sm p-4">
     <form onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="incident-heading" className="sheet-in w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl p-6 bg-surface-container-lowest shadow-ambient text-on-surface space-y-4">
       <div className="flex justify-between gap-3"><h2 id="incident-heading" className="text-xl font-bold">{isRoad?(record?'Edit Road or Bridge Status':'Road or Bridge Status'):isResource?(record?'Edit Resource Pin':'Resource Pin Details'):(record?'Edit Incident Details':'Incident Details')}</h2><button type="button" aria-label="Close incident details" className="min-w-11 min-h-11 grid place-items-center" onClick={onClose} disabled={busy}><X/></button></div>
@@ -81,8 +82,7 @@ export function IncidentForm({record,geometry,onClose}:{record?:Hazard;geometry:
       <label className="block text-sm font-semibold">Affected Population<input type="number" min={0} max={100000000} step={1} className="reference-select mt-1" value={affected} onChange={e=>{setAffected(e.target.value);setBasis('reported');}} placeholder="Unknown"/></label>
       <p className="text-xs text-on-surface/60">Leave blank if unknown. Enter 0 only when zero affected people is confirmed.</p>
       </>}
-      {!isResource && (kind==='incident' || geometry?.type==='Point') && <details className="rounded-xl border border-outline-variant p-3"><summary className="text-sm font-semibold cursor-pointer min-h-8">More options</summary><div className="space-y-4 mt-3">
-      {symbolField}
+      {kind==='incident' && <details className="rounded-xl border border-outline-variant p-3"><summary className="text-sm font-semibold cursor-pointer min-h-8">More options</summary><div className="space-y-4 mt-3">
       {kind==='incident' && <section className="space-y-2">
         <h3 className="text-sm font-bold">Estimate from population data</h3>
         <p className="text-xs">Counts source population within the incident area. Review coverage and data issues before using the estimate.</p>
