@@ -29,10 +29,9 @@ function ReferenceLayer({id}:{id:string}) {
   const state=useStore();
   const activeSusceptibilityFilters=id==='flood'?state.activeSusceptibilityFilters:noClasses;
   const selectedMunicipality=id==='population'?state.selectedMunicipality:'';
-  const selectedBarangay=id==='population'?state.selectedBarangay:'';
   const isMapAuthorized=id==='population'?state.isMapAuthorized:false;
-  // On the interactive map, hazard zones let clicks through so the barangay is selected; its card shows the hazard level.
-  const passClicks=id in SUSCEPTIBILITY_KEY && !usePlanningStore(s=>s.isPlanningMode);
+  // On the interactive map, hazard zones and population dots let clicks through so the barangay is selected.
+  const passClicks=(id in SUSCEPTIBILITY_KEY || id==='population') && !usePlanningStore(s=>s.isPlanningMode);
   const [status,setStatus]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
@@ -51,7 +50,8 @@ function ReferenceLayer({id}:{id:string}) {
       if(!source || disposed) return;
       group.clearLayers();
       if(id==='population' && map.getZoom()<14) {setStatus('Population: zoom to level 14 or closer to view source points.');return;}
-      const data=id==='population'?{...source,features:source.features.filter((f:any)=>map.getBounds().contains([f.geometry.coordinates[1],f.geometry.coordinates[0]]) && (!selectedBarangay || f.properties.barangay===selectedBarangay))}:source;
+      // ponytail: viewport filter only; source barangay names are often null or differ from boundary names, so a name filter hid every point.
+      const data=id==='population'?{...source,features:source.features.filter((f:any)=>map.getBounds().contains([f.geometry.coordinates[1],f.geometry.coordinates[0]]))}:source;
       const layer=L.geoJSON(data,{
         pmIgnore:true, renderer, interactive:!passClicks,
         filter:f=>id!=='flood' || activeSusceptibilityFilters.length===0 || activeSusceptibilityFilters.includes(f.properties.Suscep),
@@ -65,7 +65,7 @@ function ReferenceLayer({id}:{id:string}) {
             const Icon=icons[f.properties.SubCategor] || Building2;
             return L.marker(latlng,{pmIgnore:true,icon:L.divIcon({className:'incident-icon',html:renderToStaticMarkup(<Icon size={18} color="#155e75"/>),iconSize:[26,26],iconAnchor:[13,13]})});
           }
-          return L.circleMarker(latlng,{pmIgnore:true,renderer,radius:id==='population'?3:4,color:id==='population'?'#7c3aed':'#155e75',fillOpacity:0.8,weight:1});
+          return L.circleMarker(latlng,{pmIgnore:true,renderer,interactive:!passClicks,radius:id==='population'?3:4,color:id==='population'?'#7c3aed':'#155e75',fillOpacity:0.8,weight:1});
         },
         onEachFeature:(f,l)=>{
           const p=f.properties;
@@ -111,7 +111,7 @@ function ReferenceLayer({id}:{id:string}) {
     if(id==='population') map.on('moveend',draw);
     if(id==='facilities') map.on('zoomend',draw);
     return ()=>{disposed=true;controller.abort();map.off('moveend',draw);map.off('zoomend',draw);group.remove();renderer.remove();};
-  },[id,map,activeSusceptibilityFilters,selectedMunicipality,selectedBarangay,isMapAuthorized,retry,passClicks]);
+  },[id,map,activeSusceptibilityFilters,selectedMunicipality,isMapAuthorized,retry,passClicks]);
   return status?<div role="status" className="bg-white/95 text-slate-800 rounded-xl px-3 py-2 text-xs shadow max-w-xs">{status} <button className="underline min-h-8" onClick={()=>setRetry(n=>n+1)}>Retry</button></div>:null;
 }
 export function ReferenceMapLayers() {
