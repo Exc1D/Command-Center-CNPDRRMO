@@ -6,7 +6,7 @@ import { useStore, DISASTER_TYPES } from '../lib/store';
 import { HazardAPI } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Edit3, X, AlertTriangle, ShieldAlert, Check, Delete } from 'lucide-react';
+import { Edit3, X, AlertTriangle, ShieldAlert, Check, Delete } from 'lucide-react';
 import { detectLocationFromGeometry, formatDate } from '../lib/utils';
 
 export function DropTagModal() {
@@ -113,7 +113,7 @@ export function PopUpCard() {
               onClick={() => openPinModal('delete', selectedHazard.id)}
               className="w-full flex items-center justify-center gap-2 bg-error-container/50 text-[var(--color-primary-container)] hover:bg-[#ffdad6] py-2.5 text-[11px] font-bold uppercase tracking-[0.05em] transition-colors rounded-md"
             >
-              <Trash2 className="w-4 h-4" /> Delete report
+              <X className="w-4 h-4" /> Delete report
             </button>
           </div>
         )}

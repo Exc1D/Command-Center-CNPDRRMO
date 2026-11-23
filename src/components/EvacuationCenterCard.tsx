@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../lib/store';
-import { X, Users, MapPin, Trash2 } from 'lucide-react';
+import { X, Users, MapPin } from 'lucide-react';
 import { CENTER_STATUS, centerOccupancyTone, formatDate } from '../lib/utils';
 import { EvacuationCenterAPI } from '../lib/api';
 import type { EvacuationCenter } from '../lib/db';
@@ -170,7 +170,7 @@ export function EvacuationCenterCard() {
             setEvacuationCenters(await EvacuationCenterAPI.getAllCenters());
             setSelectedEvacuationCenter(null);
           } catch { /* the shared sync banner reports authorization and validation failures */ }
-        }} className="mt-4 w-full flex items-center justify-center gap-2 bg-error-container py-2 rounded text-xs font-bold"><Trash2 size={14} />Delete center</button>}
+        }} className="mt-4 w-full flex items-center justify-center gap-2 bg-error-container py-2 rounded text-xs font-bold"><X size={14} />Delete center</button>}
       </div>
     </motion.div>
   );

@@ -112,7 +112,7 @@ export async function saveCurrentPlanningScenario() {
   const document = { ...scenario, mapState: {
       center: operational.mapCenter,
       zoom: operational.mapZoom,
-      baseMap: operational.baseMap,
+      baseMap: operational.baseMap || 'street',
       activeFilters: operational.activeFilters,
       susceptibilityFilters: operational.activeSusceptibilityFilters,
     evacuationCentersVisible: operational.evacuationCentersVisible,

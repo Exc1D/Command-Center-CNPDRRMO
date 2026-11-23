@@ -130,13 +130,12 @@ export function LocationCard() {
       {p && <><dt>Kapitan</dt><dd>{p.captain || 'Not supplied'}{p.contact ? ` · ${p.contact}` : ''}</dd><dt>DRRM contact</dt><dd>Not supplied</dd></>}
       {p && hazards.map(h => {
         const levels = (p.susceptibility as Record<string, string[]>)[SUSCEPTIBILITY_KEY[h.id]] ?? [];
-        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{levels.join(', ') || 'No level recorded'}</dd></Fragment>;
+        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{levels.join(', ') || 'Not Susceptible'}</dd></Fragment>;
       })}
     </dl>
     {p && Object.values(p.demographics).some(v => v !== null) && <dl className="location-card-facts">
       {Object.entries(p.demographics).map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value === null ? 'Not supplied' : (value as number).toLocaleString()}</dd></Fragment>)}
     </dl>}
-    {p && hazards.length > 0 && <p className="text-xs text-on-surface/60 mt-2">No recorded level does not mean safe.</p>}
     {p && !layers.some(id => REFERENCE_LAYERS.some(l => l.id === id)) && <p className="text-xs text-on-surface/60 mt-2">Pick a layer under Hazard zones to see this barangay's susceptibility.</p>}
     {!b && <p className="text-xs text-on-surface/60 mt-2">Click inside {m} to pick a barangay.</p>}
   </div>;

@@ -254,7 +254,7 @@ function EvacuationCenterMarkersHandler() {
 }
 
 export default function DangerMap() {
-  const baseMap = useStore(state => state.baseMap);
+  const baseMap = useStore(state => state.baseMap) || 'street';
   const filteredHazards = useStore(state => state.filteredHazards);
   const hazards = useStore(state => state.hazards);
   const municipality = useStore(state => state.selectedMunicipality);
