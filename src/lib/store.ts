@@ -4,7 +4,8 @@ import type { PlanningScenario } from './planning';
 
 import { HAZARD_TYPES, FLOOD_COLORS, filterIncidents } from './reference';
 
-type BaseMapType = 'street' | 'topo' | 'satellite';
+// '' = not chosen yet: the picker shows "Select basemap" and the map draws Street (review 4.1).
+type BaseMapType = '' | 'street' | 'topo' | 'satellite';
 
 interface AppState {
   referenceLayers: string[];
@@ -100,7 +101,7 @@ export const useStore = create<AppState>((set) => ({
   filteredHazards: [],
   activeFilters: HAZARD_TYPES.map(t=>t.id),
   activeSusceptibilityFilters: [],
-  baseMap: 'street',
+  baseMap: '',
   selectedHazard: null,
   mapCenter: [14.1167, 122.9500] as [number, number], // Camarines Norte center approx
   mapZoom: 10,
