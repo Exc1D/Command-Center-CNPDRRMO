@@ -5,7 +5,7 @@ import { useStore } from '../lib/store';
 import { usePlanningStore } from '../lib/planningStore';
 import { HazardLegend } from './HazardLegend';
 import { getPlanningSymbolIcon } from '../lib/planningIcons';
-import { REFERENCE_LAYERS, ELEMENT_LAYERS, hazardDefinition } from '../lib/reference';
+import { REFERENCE_LAYERS, ELEMENT_LAYERS, hazardDefinition, SUSCEPTIBILITY_KEY } from '../lib/reference';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { School, Landmark, Cross, Church, Flame, Shield, Building2, Plane, Anchor, Bus, Flag, Tent, ShoppingBasket, Briefcase, Waves, Mountain, Activity, Zap, Droplets, TrafficCone } from 'lucide-react';
 
@@ -32,7 +32,7 @@ function ReferenceLayer({id}:{id:string}) {
   const selectedBarangay=id==='population'?state.selectedBarangay:'';
   const isMapAuthorized=id==='population'?state.isMapAuthorized:false;
   // On the interactive map, hazard zones let clicks through so the barangay is selected; its card shows the hazard level.
-  const passClicks=!!REFERENCE_LAYERS.find(t=>t.id===id) && !usePlanningStore(s=>s.isPlanningMode);
+  const passClicks=id in SUSCEPTIBILITY_KEY && !usePlanningStore(s=>s.isPlanningMode);
   const [status,setStatus]=useState('');
   const [retry,setRetry]=useState(0);
   useEffect(()=>{

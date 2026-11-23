@@ -126,7 +126,7 @@ export default function App() {
           <a
             href={planning.isPlanningMode ? '/' : '/planning'}
             onClick={event => {
-              if (!planning.isPlanningMode) return;
+              if (!planning.isPlanningMode || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; // new tab/window: this page stays, so keep its lock and unsaved-changes guard.
               if (planning.dirty && !confirm('Discard unsaved planning changes?')) { event.preventDefault(); return; }
               usePlanningStore.setState({ dirty: false }); // already confirmed; skip the second beforeunload prompt.
               const scenario = planning.history?.present;
