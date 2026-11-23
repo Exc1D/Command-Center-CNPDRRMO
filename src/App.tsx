@@ -174,7 +174,7 @@ export default function App() {
           </ErrorBoundary>
           {!planning.isPlanningMode && <MonitorSummary />}
           {!planning.isPlanningMode && !isMapAuthorized && (
-            <button onClick={() => useStore.getState().openPinModal('unlock')} className="summary-chip absolute bottom-6 left-1/2 -translate-x-1/2 z-[450] flex items-center gap-2 whitespace-nowrap">
+            <button onClick={() => useStore.getState().openPinModal('unlock')} className="summary-chip absolute bottom-12 sm:bottom-6 left-1/2 -translate-x-1/2 z-[450] flex items-center gap-2 whitespace-nowrap">
               <LockKeyhole size={16} aria-hidden="true" /> Unlock editing to add reports
             </button>
           )}

@@ -159,8 +159,8 @@ export function AnalyticsPanel() {
   const maxType=Math.max(1,...hazardMix.map(t=>t.count));
   return <aside aria-label="Situation overview" className="analytics-panel absolute inset-3 sm:left-auto sm:w-[min(760px,95%)] z-[800] bg-surface-container-lowest shadow-ambient rounded-2xl border border-outline-variant flex flex-col overflow-hidden">
     <header className="p-4 flex items-center justify-between border-b border-outline-variant gap-3">
-      <div><h2 className="text-xl font-bold">Situation overview</h2><p className="text-sm text-on-surface/70">{scope}</p></div>
-      <div className="flex gap-2"><button className="min-h-11 px-3 border rounded-xl text-sm flex items-center gap-2" onClick={exportReport} disabled={exporting}><Share size={16} aria-hidden="true"/>{exporting?'Exporting…':'Export Report (Word)'}</button><button aria-label="Close analytics" className="min-w-11 min-h-11 grid place-items-center" onClick={()=>s.setAnalyticsOpen(false)}><X/></button></div>
+      <div className="min-w-0"><h2 className="text-xl font-bold">Situation overview</h2><p className="text-sm text-on-surface/70">{scope}</p></div>
+      <div className="flex gap-2 shrink-0"><button className="min-h-11 px-3 border rounded-xl text-sm flex items-center gap-2 whitespace-nowrap" onClick={exportReport} disabled={exporting}><Share size={16} aria-hidden="true"/>{exporting?'Exporting…':'Export Report (Word)'}</button><button aria-label="Close analytics" className="min-w-11 min-h-11 grid place-items-center" onClick={()=>s.setAnalyticsOpen(false)}><X/></button></div>
     </header>
     <div className="overflow-y-auto p-4 space-y-6">
       {error && <p role="alert">{error}</p>}

@@ -91,8 +91,9 @@ export function LocationPicker({ interactive = true }: { interactive?: boolean }
       else { const c = h.shape.bounds.getCenter(); s.setLocationFilter(h.shape.name, ''); s.flyTo([c.lat, c.lng], map.getBoundsZoom(h.shape.bounds)); }
     };
     const onOut = () => tooltip.remove();
-    map.on('mousemove', onMove).on('click', onClick).on('mouseout', onOut);
-    return () => { map.off('mousemove', onMove).off('click', onClick).off('mouseout', onOut); tooltip.remove(); };
+    // movestart: a click flies the map without a mousemove, which left the label stuck on the old spot.
+    map.on('mousemove', onMove).on('click', onClick).on('mouseout', onOut).on('movestart', onOut);
+    return () => { map.off('mousemove', onMove).off('click', onClick).off('mouseout', onOut).off('movestart', onOut); tooltip.remove(); };
   }, [map, shapes, barangayShapes, interactive]);
 
   return null;
@@ -108,7 +109,7 @@ export function LocationCard() {
   if (!m) return null;
   const rows = profiles.filter(p => p.municipality === m && (!b || p.barangay === b));
   const p = b ? rows[0] : undefined;
-  const hazards = REFERENCE_LAYERS.filter(l => layers.includes(l.id) && SUSCEPTIBILITY_KEY[l.id]);
+  const hazards = REFERENCE_LAYERS.filter(l => layers.includes(l.id));
   const close = () => {
     const s = useStore.getState(), points = barangaysFor(m);
     s.setLocationFilter(b ? m : '', '');
@@ -129,8 +130,10 @@ export function LocationCard() {
       <dt>Population</dt><dd>{rows.reduce((n, r) => n + r.population, 0).toLocaleString()}</dd>
       {p && <><dt>Kapitan</dt><dd>{p.captain || 'Not supplied'}{p.contact ? ` · ${p.contact}` : ''}</dd><dt>DRRM contact</dt><dd>Not supplied</dd></>}
       {p && hazards.map(h => {
-        const levels = (p.susceptibility as Record<string, string[]>)[SUSCEPTIBILITY_KEY[h.id]] ?? [];
-        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{levels.join(', ') || 'Not Susceptible'}</dd></Fragment>;
+        // Storm surge and NOAH flood have no per-barangay table, so say so rather than drop the row.
+        const key = SUSCEPTIBILITY_KEY[h.id];
+        const levels = key ? (p.susceptibility as Record<string, string[]>)[key] ?? [] : [];
+        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{key ? levels.join(', ') || 'Not Susceptible' : 'No barangay data. Click a zone on the map.'}</dd></Fragment>;
       })}
     </dl>
     {p && Object.values(p.demographics).some(v => v !== null) && <dl className="location-card-facts">
