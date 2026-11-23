@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { X } from 'lucide-react';
 import { useStore } from '../lib/store';
 import { MAP_CONFIG } from '../lib/constants';
-import { barangaysFor, municipalityFromBoundary, nearestBarangay, pointInShape, REFERENCE_LAYERS } from '../lib/reference';
+import { barangaysFor, municipalityFromBoundary, nearestBarangay, pointInShape, REFERENCE_LAYERS, SUSCEPTIBILITY_KEY } from '../lib/reference';
 import profiles from '../lib/barangayProfiles.json';
 
 type Shape = { name: string; bounds: L.LatLngBounds; geometry: any };
@@ -98,7 +98,6 @@ export function LocationPicker({ interactive = true }: { interactive?: boolean }
   return null;
 }
 
-const SUSCEPTIBILITY_KEY: Record<string, string> = { flood: 'Flood', landslide: 'Rain-Induced Landslide', tsunami: 'Tsunami', liquefaction: 'Liquefaction' };
 const number = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 // The on-map card for the picked location (review 3.1 / 10.1).
@@ -138,7 +137,7 @@ export function LocationCard() {
       {Object.entries(p.demographics).map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value === null ? 'Not supplied' : (value as number).toLocaleString()}</dd></Fragment>)}
     </dl>}
     {p && hazards.length > 0 && <p className="text-xs text-on-surface/60 mt-2">No recorded level does not mean safe.</p>}
-    {p && !hazards.length && <p className="text-xs text-on-surface/60 mt-2">Turn on a hazard in Map layers to see this barangay's susceptibility.</p>}
+    {p && !layers.some(id => REFERENCE_LAYERS.some(l => l.id === id)) && <p className="text-xs text-on-surface/60 mt-2">Pick a layer under Hazard zones to see this barangay's susceptibility.</p>}
     {!b && <p className="text-xs text-on-surface/60 mt-2">Click inside {m} to pick a barangay.</p>}
   </div>;
 }

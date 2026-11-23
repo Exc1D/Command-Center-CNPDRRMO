@@ -70,3 +70,6 @@ export const municipalityFromBoundary = (name:string) => municipalities.find(m =
 export function nearestBarangay(municipality:string, lat:number, lng:number) {
   return barangaysFor(municipality).reduce<{name:string;lat:number;lng:number}|null>((best,b)=>!best || (b.lat-lat)**2+(b.lng-lng)**2<(best.lat-lat)**2+(best.lng-lng)**2?b:best,null);
 }
+
+// Hazards the barangay card reads per barangay; other hazard layers keep their own zone popups.
+export const SUSCEPTIBILITY_KEY: Record<string, string> = { flood: 'Flood', landslide: 'Rain-Induced Landslide', tsunami: 'Tsunami', liquefaction: 'Liquefaction' };
