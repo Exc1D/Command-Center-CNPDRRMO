@@ -128,6 +128,7 @@ export default function App() {
             onClick={event => {
               if (!planning.isPlanningMode) return;
               if (planning.dirty && !confirm('Discard unsaved planning changes?')) { event.preventDefault(); return; }
+              usePlanningStore.setState({ dirty: false }); // already confirmed; skip the second beforeunload prompt.
               const scenario = planning.history?.present;
               if (scenario && planning.lockAcquired) // keepalive lets the release finish after the page navigates away.
               fetch(`/api/planning/scenarios/${scenario.id}/lock`, { method: 'DELETE', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: planning.sessionId }) }).catch(() => {});

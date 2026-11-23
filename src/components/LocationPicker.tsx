@@ -138,7 +138,7 @@ export function LocationCard() {
       {Object.entries(p.demographics).map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value === null ? 'Not supplied' : (value as number).toLocaleString()}</dd></Fragment>)}
     </dl>}
     {p && hazards.length > 0 && <p className="text-xs text-on-surface/60 mt-2">No recorded level does not mean safe.</p>}
-    {p && !hazards.length && <p className="text-xs text-on-surface/60 mt-2">Turn on a hazard in Map layers to see this barangay's susceptibility.</p>}
+    {p && !hazards.length && <p className="text-xs text-on-surface/60 mt-2">Pick a layer under Hazard zones to see this barangay's susceptibility.</p>}
     {!b && <p className="text-xs text-on-surface/60 mt-2">Click inside {m} to pick a barangay.</p>}
   </div>;
 }
