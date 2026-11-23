@@ -128,12 +128,10 @@ describe('EditHazardModal', () => {
     await waitFor(() => expect(mockUpdateHazard).toHaveBeenCalledWith(expect.objectContaining({ id: mockHazard.id, version: 3 })));
   });
 
-  it('loads a saved pin symbol and allows returning to the default hazard icon', async () => {
+  it('returns an incident with an old custom symbol to its hazard icon', async () => {
     useStore.setState({ editModalHazard: { ...mockHazard, symbolKey: 'rescue-boat', geometry: { type: 'Point', coordinates: [123,14] } } });
     render(<EditHazardModal />);
-    const chooser = screen.getByRole('combobox', { name: /^Pin symbol/ });
-    expect(chooser).toHaveValue('rescue-boat');
-    await userEvent.selectOptions(chooser, '');
+    expect(screen.queryByRole('combobox', { name: /^Pin symbol/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
     await waitFor(() => expect(mockUpdateHazard).toHaveBeenCalledWith(expect.objectContaining({ symbolKey: null })));
   });

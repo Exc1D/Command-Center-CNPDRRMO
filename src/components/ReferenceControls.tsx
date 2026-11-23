@@ -2,7 +2,6 @@ import { useId } from 'react';
 import { HazardLegend } from './HazardLegend';
 import { useStore } from '../lib/store';
 import { barangaysFor, municipalities, HAZARD_TYPES, REFERENCE_LAYERS, ELEMENT_LAYERS, LEGACY_TYPES } from '../lib/reference';
-import profiles from '../lib/barangayProfiles.json';
 import population from '../lib/populationSummary.json';
 import { MAP_CONFIG } from '../lib/constants';
 
@@ -24,40 +23,27 @@ export function LocationFields({municipality,barangay,onChange,required=false}:{
     </select>
   </div>;
 }
-export function LocationOverview() {
-  const {selectedMunicipality:m,selectedBarangay:b,elementLayers} = useStore();
-  const rows = profiles.filter(p=>(!m || p.municipality===m) && (!b || p.barangay===b));
+// Municipality-level population records; the location card on the map covers area and barangay facts.
+export function PopulationRecords() {
+  const m = useStore(s=>s.selectedMunicipality);
   const hh = population.filter(h=>!m || h.municipality===m);
-  return <div className="text-xs space-y-2 leading-relaxed">
-    <p><strong>{b || m || 'Camarines Norte'}</strong> · {rows.length} barangay{rows.length===1?'':'s'}</p>
-    <p>Area: {rows.reduce((n,p)=>n+p.areaKm2,0).toLocaleString(undefined,{maximumFractionDigits:2})} km²</p>
-    <p>Population: {rows.reduce((n,p)=>n+p.population,0).toLocaleString()} <span className="text-on-surface/60">(source year unconfirmed)</span></p>
-    {b && rows.map(p=><div key={p.barangay} className="space-y-2">
-      <p>Barangay captain: {p.captain || 'Not supplied'}<br/>Contact: {p.contact || 'Not supplied'}<br/>DRRM contact: Not supplied</p>
-      {Object.entries(p.susceptibility).map(([hazard,levels])=><p key={hazard}><strong>{hazard}:</strong> {levels.join(', ') || 'No class recorded'}</p>)}
-      <p className="text-on-surface/60">No recorded class does not mean safe. Tsunami classes differ from map depth bands.</p>
-      {Object.entries(p.demographics).map(([label,value])=><p key={label}>{label}: {value===null?'Not supplied':value.toLocaleString()}</p>)}
-    </div>)}
-    {elementLayers.includes('population') && <div className="rounded-xl border border-outline-variant p-3">
-      <strong>Population · {m || 'Province'}</strong>{b && <p>Municipality totals, not barangay exposure.</p>}
-      {hh.length ? <><p>{hh.reduce((n,h)=>n+h.sourceRecords,0).toLocaleString()} records (not people).</p><p>Reported population sum: {hh.some(h=>h.populationSum===null)?'Incomplete':hh.reduce((n,h)=>n+(h.populationSum ?? 0),0).toLocaleString()}.</p><p>{hh.reduce((n,h)=>n+h.duplicateIdExcess,0).toLocaleString()} duplicate-ID excess records retained for review.</p></> : <p>No population file supplied for this municipality.</p>}
-      <p>Population coverage is incomplete; data year unconfirmed.</p>
-    </div>}
+  return <div className="text-xs space-y-1 leading-relaxed rounded-xl bg-surface-container-low p-3 mt-2">
+    <strong>Population records · {m || 'Province'}</strong>
+    {hh.length ? <><p>{hh.reduce((n,h)=>n+h.sourceRecords,0).toLocaleString()} household records (not people).</p><p>Reported population sum: {hh.some(h=>h.populationSum===null)?'Incomplete':hh.reduce((n,h)=>n+(h.populationSum ?? 0),0).toLocaleString()}.</p><p>{hh.reduce((n,h)=>n+h.duplicateIdExcess,0).toLocaleString()} records share an ID with another record and are kept for review.</p></> : <p>No population file supplied for this municipality.</p>}
+    <p>Population coverage is incomplete; data year unconfirmed.</p>
   </div>;
-}
-export function IncidentFilters() {
-  const s = useStore();
-  return <details className="border border-outline-variant/40 rounded-xl p-3">
-    <summary className="min-h-11 cursor-pointer font-semibold text-sm">Incident types · {s.activeFilters.length} selected</summary>
-    {HAZARD_TYPES.map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.activeFilters.includes(t.id)} onChange={()=>s.toggleFilter(t.id)}/><span aria-hidden="true" style={{color:t.color}}>{t.symbol}</span>{t.label}</label>)}
-    {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
-    <p className="text-xs text-on-surface/60">Filters also apply to analytics. Resource pins are independent of hazard types.</p>
-  </details>;
 }
 export function ReferenceControls() {
   const s=useStore();
+  const allTypes=HAZARD_TYPES.map(t=>t.id);
+  const hasLegacy=s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type));
+  const legacyOn=LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id));
+  const shownTypes=s.activeFilters.filter(id=>allTypes.includes(id));
+  const incidentType=shownTypes.length===allTypes.length?'':shownTypes.length===1?shownTypes[0]:'mixed';
+  const check=(id:string)=><label key={id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(id)} onChange={()=>s.toggleElementLayer(id)}/>{ELEMENT_LAYERS.find(t=>t.id===id)!.label}</label>;
   return <div className="space-y-5">
-    <section className="space-y-3"><h3 className="font-bold">Location Overview</h3>
+    <section className="space-y-3"><h3 className="font-bold">Location</h3>
+      <p className="text-xs">Click a municipality on the map, then a barangay. Or pick one here.</p>
       <LocationFields municipality={s.selectedMunicipality} barangay={s.selectedBarangay} onChange={(m,b)=>{
         s.setLocationFilter(m,b);
         const points=barangaysFor(m); const point=points.find(p=>p.name===b);
@@ -65,43 +51,39 @@ export function ReferenceControls() {
         else if(points.length) s.flyTo([points.reduce((n,p)=>n+p.lat,0)/points.length,points.reduce((n,p)=>n+p.lng,0)/points.length],MAP_CONFIG.MUNICIPALITY_ZOOM);
         else s.flyTo(MAP_CONFIG.PROVINCE_CENTER,MAP_CONFIG.DEFAULT_ZOOM);
       }}/>
-      <LocationOverview/>
     </section>
-    {/* Everything below is optional during an event, so it stays folded until someone needs it. */}
-    <details className="map-layers border-t border-outline-variant/40 pt-2"><summary className="min-h-11 cursor-pointer font-bold py-3">Map layers</summary><div className="space-y-5 pt-2">
-    <label className="block font-bold">Basemap<select className="reference-select mt-2" value={s.baseMap} onChange={e=>s.setBaseMap(e.target.value as typeof s.baseMap)}><option value="street">Street · OpenStreetMap</option><option value="topo">Topographic · OpenTopoMap</option><option value="satellite">Satellite · Esri</option></select></label>
-    <section>
-      <details className="border border-outline-variant/40 rounded-xl p-3"><summary className="min-h-11 cursor-pointer text-sm font-semibold">Hazards</summary>
-        <table className="w-full text-xs">
-          <caption className="sr-only">Hazard zones and reported incidents</caption>
-          <thead><tr><th scope="col" className="text-left font-semibold">Hazard</th><th scope="col" className="font-semibold">Zones</th><th scope="col" className="font-semibold">Incidents</th></tr></thead>
-          <tbody>{HAZARD_TYPES.map(type=>{
-            const layer=REFERENCE_LAYERS.find(layer=>layer.id===(type.id==='rain_induced_landslide'?'landslide':type.id));
-            return <tr key={type.id} className="border-t border-outline-variant/30">
-              <th scope="row" className="text-left font-medium pr-2">{type.label}</th>
-              <td className="text-center">{layer ? <label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5" type="checkbox" aria-label={`${type.label} zones`} checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/></label> : <span title="No zone layer loaded" aria-label="No zone layer loaded">—</span>}</td>
-              <td><label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5 disabled:opacity-40" type="checkbox" aria-label={`${type.label} incidents`} disabled={!s.incidentsVisible} checked={s.activeFilters.includes(type.id)} onChange={()=>s.toggleFilter(type.id)}/></label></td>
-            </tr>;
-          })}{REFERENCE_LAYERS.filter(layer=>!HAZARD_TYPES.some(type=>layer.id===(type.id==='rain_induced_landslide'?'landslide':type.id))).map(layer=><tr key={layer.id} className="border-t border-outline-variant/30">
-            <th scope="row" className="text-left font-medium pr-2">{layer.label}</th>
-            <td className="text-center"><label className="min-h-11 min-w-11 flex items-center justify-center"><input className="w-5 h-5" type="checkbox" aria-label={`${layer.label} zones`} checked={s.referenceLayers.includes(layer.id)} onChange={()=>s.toggleReferenceLayer(layer.id)}/></label></td>
-            <td className="text-center"><span title="Zone layer only" aria-label="Zone layer only">—</span></td>
-          </tr>)}</tbody>
-        </table>
-        <label className="reference-check text-xs"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show reported incidents and resource pins</label>
-        {s.hazards.some(h=>LEGACY_TYPES.some(t=>t.id===h.type)) && <label className="reference-check text-xs"><input type="checkbox" checked={LEGACY_TYPES.some(t=>s.activeFilters.includes(t.id))} onChange={e=>{const checked=e.target.checked;LEGACY_TYPES.forEach(t=>{if(s.activeFilters.includes(t.id)!==checked)s.toggleFilter(t.id);});}}/>Include legacy records</label>}
-      </details>
-    </section>
-    <section><h3 className="font-bold">Elements</h3>{ELEMENT_LAYERS.filter(t=>t.id!=='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}<label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
-      <p className="text-xs mt-2">Critical Point Facilities include transport facilities: ports, airport and terminals.</p>
-      <div role="group" aria-label="Roads" className="roads-group rounded-xl border border-outline-variant p-3 my-3">
-        {ELEMENT_LAYERS.filter(t=>t.id==='roads').map(t=><label key={t.id} className="reference-check"><input type="checkbox" checked={s.elementLayers.includes(t.id)} onChange={()=>s.toggleElementLayer(t.id)}/>{t.label}</label>)}
-        <p className="text-xs">Reference locations only; road conditions are unverified.</p>
-      </div>
-      <p className="text-xs text-on-surface/60">Roads © OpenStreetMap contributors.</p>
-    </section>
-    </div></details>
-    {/* The legend stays outside the fold so the colors are explained whenever a hazard layer is on. */}
+    <label className="block font-bold">Basemap<select className="reference-select mt-2" aria-label="Basemap" value={s.baseMap} onChange={e=>s.setBaseMap(e.target.value as typeof s.baseMap)}><option value="" disabled>Select basemap</option><option value="street">Street · OpenStreetMap</option><option value="topo">Topographic · OpenTopoMap</option><option value="satellite">Satellite · Esri</option></select></label>
+    <label className="block font-bold">Hazard zones<select className="reference-select mt-2" aria-label="Hazard zones" value={s.referenceLayers[0] ?? ''} onChange={e=>useStore.setState({referenceLayers:e.target.value?[e.target.value]:[]})}>
+      <option value="">Select hazard</option>
+      {REFERENCE_LAYERS.map(layer=><option key={layer.id} value={layer.id}>{layer.label}</option>)}
+    </select></label>
+    {/* The legend sits right under the hazard choice so the colors are explained whenever a zone layer is on. */}
     {s.referenceLayers.length>0 && <HazardLegend filterFlood />}
+    <section className="space-y-2"><h3 className="font-bold">Incidents</h3>
+      <div className="elements-group">
+        <label className="reference-check"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show incidents and resource pins</label>
+        <select className="reference-select" aria-label="Incident type" disabled={!s.incidentsVisible} value={incidentType} onChange={e=>s.setFilters([...s.activeFilters.filter(id=>!allTypes.includes(id)),...(e.target.value?[e.target.value]:allTypes)])}>
+          <option value="">All incident types</option>
+          {incidentType==='mixed' && <option value="mixed" disabled>Several types</option>}
+          {HAZARD_TYPES.map(t=><option key={t.id} value={t.id}>{t.symbol} {t.label}</option>)}
+        </select>
+        {hasLegacy && <label className="reference-check text-xs"><input type="checkbox" disabled={!s.incidentsVisible} checked={legacyOn} onChange={()=>LEGACY_TYPES.forEach(t=>s.toggleFilter(t.id))}/>Include legacy records</label>}
+      </div>
+    </section>
+    <section className="space-y-2"><h3 className="font-bold">Elements</h3>
+      <div className="elements-group">
+        {check('facilities')}
+        <p className="text-xs">Includes transport facilities: ports, airport and terminals.</p>
+        {check('population')}
+        {s.elementLayers.includes('population') && <PopulationRecords/>}
+        {check('rivers')}
+        <label className="reference-check"><input type="checkbox" checked={s.evacuationCentersVisible} onChange={s.toggleEvacuationCenters}/>Evacuation centers</label>
+        <div role="group" aria-label="Lifeline Utilities" className="pt-2 mt-2 border-t border-outline-variant/40">
+          <p className="text-xs font-semibold uppercase tracking-wide">Lifeline Utilities</p>
+          {check('roads')}
+          <p className="text-xs">Road Network: reference locations only; road conditions are unverified. Roads © OpenStreetMap contributors.</p>
+        </div>
+      </div>
+    </section>
   </div>;
 }

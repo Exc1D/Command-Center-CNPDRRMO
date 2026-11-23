@@ -3,37 +3,31 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ReferenceControls } from './ReferenceControls';
 import { useStore } from '../lib/store';
 
-it('controls GIS zones and reported incidents independently in one hazard list',()=>{
+it('picks one hazard zone layer and filters incidents with separate dropdowns',()=>{
   useStore.setState({...useStore.getInitialState()});
   render(<ReferenceControls/>);
-  fireEvent.click(screen.getByText('Hazards', {exact:true}));
-  const hazards=screen.getByRole('table',{name:'Hazard zones and reported incidents'});
-  fireEvent.click(within(hazards).getByRole('checkbox',{name:'Flood zones'}));
+  fireEvent.change(screen.getByRole('combobox',{name:'Hazard zones'}),{target:{value:'flood'}});
   expect(useStore.getState().referenceLayers).toEqual(['flood']);
-  expect(within(hazards).getByRole('checkbox',{name:'Flood incidents'})).toBeChecked();
-  fireEvent.click(within(hazards).getByRole('checkbox',{name:'Flood incidents'}));
-  expect(useStore.getState().activeFilters).not.toContain('flood');
-  expect(within(hazards).getByRole('checkbox',{name:'Flood zones'})).toBeChecked();
-  fireEvent.click(within(hazards).getByRole('checkbox',{name:'Storm Surge zones'}));
-  fireEvent.click(within(hazards).getByRole('checkbox',{name:'Rain-Induced Landslide zones'}));
-  expect(useStore.getState().referenceLayers).toEqual(['flood','storm_surge','landslide']);
-  expect(within(hazards).queryByRole('checkbox',{name:'Erosion zones'})).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents and resource pins'}));
-  expect(within(hazards).getByRole('checkbox',{name:'Storm Surge incidents'})).toBeDisabled();
-  expect(within(hazards).getByRole('checkbox',{name:'Storm Surge zones'})).toBeEnabled();
-  fireEvent.click(screen.getByRole('checkbox',{name:'Show reported incidents and resource pins'}));
-  expect(within(hazards).getByRole('checkbox',{name:'Storm Surge incidents'})).toBeChecked();
-  expect(within(hazards).getByRole('checkbox',{name:'Flood incidents'})).not.toBeChecked();
+  fireEvent.change(screen.getByRole('combobox',{name:'Hazard zones'}),{target:{value:'landslide'}});
+  expect(useStore.getState().referenceLayers).toEqual(['landslide']);
+  const type=screen.getByRole('combobox',{name:'Incident type'});
+  fireEvent.change(type,{target:{value:'storm_surge'}});
+  expect(useStore.getState().activeFilters).toEqual(['storm_surge']);
+  fireEvent.click(screen.getByRole('checkbox',{name:'Show incidents and resource pins'}));
+  expect(type).toBeDisabled();
+  expect(useStore.getState().referenceLayers).toEqual(['landslide']);
+  fireEvent.click(screen.getByRole('checkbox',{name:'Show incidents and resource pins'}));
+  fireEvent.change(type,{target:{value:''}});
+  expect(useStore.getState().activeFilters).toHaveLength(8);
 });
 
-it('groups transport with Critical Point Facilities while keeping roads separate',()=>{
+it('keeps Elements in one container with the road network under Lifeline Utilities',()=>{
   useStore.setState(useStore.getInitialState());
   render(<ReferenceControls/>);
-  const roads=screen.getByRole('group',{name:'Roads'});
+  const lifeline=screen.getByRole('group',{name:'Lifeline Utilities'});
   fireEvent.click(screen.getByRole('checkbox',{name:'Critical Point Facilities'}));
-  fireEvent.click(within(roads).getByRole('checkbox',{name:'Roads'}));
+  fireEvent.click(within(lifeline).getByRole('checkbox',{name:'Road Network'}));
   expect(useStore.getState().elementLayers).toEqual(['facilities','roads']);
-  expect(screen.queryByRole('checkbox',{name:/Transport facilities/})).not.toBeInTheDocument();
-  expect(screen.getByText(/Critical Point Facilities include transport facilities/)).toBeInTheDocument();
-  expect(within(roads).getByText('Reference locations only; road conditions are unverified.')).toBeInTheDocument();
+  expect(screen.queryByRole('checkbox',{name:/Boundaries/})).not.toBeInTheDocument();
+  expect(screen.getByText(/Includes transport facilities/)).toBeInTheDocument();
 });

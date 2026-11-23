@@ -1,12 +1,11 @@
 import { resolveModernColors } from '../lib/resolveModernColors';
 import { useState } from 'react';
-import { X, Download, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
+import { X, Share, AlertTriangle, CheckCircle2, HelpCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useStore } from '../lib/store';
 import { hazardDefinition, municipalities, canonicalLocation, REFERENCE_LAYERS, HAZARD_TYPES } from '../lib/reference';
 import { MAP_CONFIG } from '../lib/constants';
 import { PopulationExposure } from './PopulationExposure';
-import { LocationFields, IncidentFilters } from './ReferenceControls';
 import type { Hazard, EvacuationCenter } from '../lib/db';
 
 const severities=['Minor','Moderate','Severe','Critical'];
@@ -106,14 +105,13 @@ export function AnalyticsPanel() {
   async function exportReport() {
     setExporting(true);setError('');
     try {
-      const [{jsPDF},{default:html2canvas}]=await Promise.all([import('jspdf'),import('html2canvas')]);
-      const pdf=new jsPDF({orientation:'landscape'});
-      let y=15;
-      const line=(text:string,gap=6)=>{const lines=pdf.splitTextToSize(text,270);if(y+lines.length*5>190){pdf.addPage();y=15;}pdf.text(lines,12,y);y+=lines.length*5+gap-5;};
-      const heading=(text:string)=>{y+=4;pdf.setFont('helvetica','bold');line(text,7);pdf.setFont('helvetica','normal');};
-      pdf.setFontSize(16);line('Camarines Norte - Situation Report · '+scope,8);
-      pdf.setFontSize(10);
-      line('Incident types: '+s.activeFilters.map(t=>hazardDefinition(t)?.label || t).join(', ')+' | Generated: '+new Date().toLocaleString(),4);
+      const [{Document,Packer,Paragraph,HeadingLevel,Table,TableRow,TableCell,TextRun,ImageRun,WidthType,PageOrientation},{default:html2canvas}]=await Promise.all([import('docx'),import('html2canvas')]);
+      const body:any[]=[];
+      const line=(text:string,size?:number)=>body.push(new Paragraph({children:[new TextRun({text,size})]}));
+      const heading=(text:string)=>body.push(new Paragraph({text,heading:HeadingLevel.HEADING_2}));
+      const swatch=(color:string,label:string)=>body.push(new Paragraph({children:[new TextRun({text:'■ ',color:color.replace('#','')}),new TextRun(label)]}));
+      body.push(new Paragraph({text:'Camarines Norte - Situation Report · '+scope,heading:HeadingLevel.HEADING_1}));
+      line('Incident types: '+s.activeFilters.map(t=>hazardDefinition(t)?.label || t).join(', ')+' | Generated: '+new Date().toLocaleString());
       heading('Overview');
       for(const t of tiles) line(`${t.label}: ${t.value}${t.detail?' ('+t.detail+')':''}`);
       heading('Where to focus');
@@ -122,45 +120,39 @@ export function AnalyticsPanel() {
       heading('Shelter readiness');
       for(const p of shelters) line(`${p.name}: ${p.status.label} · ${p.centers} centers, ${p.capacity.toLocaleString()} spaces, ${p.total===p.unknown?'affected not reported':p.affected.toLocaleString()+' reported affected'}`);
       if(!shelters.length) line('No incidents reported for these filters.');
-      pdf.setFontSize(8);line('Reported affected counts are summed per incident and may count the same people more than once. No reports does not mean no risk.');
-      pdf.addPage();y=15;pdf.setFontSize(12);pdf.text('Appendix - incident list',12,y);y+=10;pdf.setFontSize(10);
-      const headings=['Municipality','Barangay','Hazard','Incident','Severity','Affected'];
-      const xs=[12,57,97,154,227,257];
-      const widths=[42,37,54,70,27,28];
-      const tableHeading=()=>{pdf.setFont('helvetica','bold');headings.forEach((v,i)=>pdf.text(v,xs[i],y));pdf.setFont('helvetica','normal');y+=8;};
-      tableHeading();
-      for(const h of rows) {
-        const cells=[h.municipality||'Unknown',h.barangay||'Unknown',hazardDefinition(h.type)?.label||h.type,h.title||'Untitled',h.severity,h.affectedPopulation==null?'Unknown':String(h.affectedPopulation)+(h.affectedPopulationBasis==='population_estimate'?' (est.)':'')].map((v,i)=>pdf.splitTextToSize(v,widths[i]));
-        const height=Math.max(...cells.map(c=>c.length))*5+5;
-        if(y+height>190){pdf.addPage();y=15;tableHeading();}
-        cells.forEach((v,i)=>pdf.text(v,xs[i],y));y+=height;
-      }
-      if(!rows.length) pdf.text('No incidents match the selected filters.',12,y);
-      pdf.addPage();pdf.text('Map context - current visible layers',12,15);
+      line('Reported affected counts are summed per incident and may count the same people more than once. No reports does not mean no risk.',16);
+      heading('Appendix - incident list');
+      const cells=(values:string[],bold=false)=>new TableRow({tableHeader:bold,children:values.map(v=>new TableCell({children:[new Paragraph({children:[new TextRun({text:v,bold})]})]}))});
+      if(rows.length) body.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:[
+        cells(['Municipality','Barangay','Hazard','Incident','Severity','Affected'],true),
+        ...rows.map(h=>cells([h.municipality||'Unknown',h.barangay||'Unknown',hazardDefinition(h.type)?.label||h.type,h.title||'Untitled',h.severity,h.affectedPopulation==null?'Unknown':String(h.affectedPopulation)+(h.affectedPopulationBasis==='population_estimate'?' (est.)':'')])),
+      ]}));
+      else line('No incidents match the selected filters.');
+      heading('Map context - current visible layers');
       const element=document.querySelector('.leaflet-container') as HTMLElement | null;
       if(element) {
-        try {const canvas=await html2canvas(element,{useCORS:true,scale:1,backgroundColor:'#ffffff',onclone:resolveModernColors}); const scale=Math.min(270/canvas.width,155/canvas.height);pdf.addImage(canvas.toDataURL('image/jpeg',0.8),'JPEG',12,25,canvas.width*scale,canvas.height*scale);}
-        catch (error) {console.warn('Map report capture failed',error);setError('Report exported without the map image; the rest of the report is complete.');pdf.text('Map capture unavailable. The rest of the report is complete.',12,30);}
+        try {
+          const canvas=await html2canvas(element,{useCORS:true,scale:1,backgroundColor:'#ffffff',onclone:resolveModernColors});
+          const scale=Math.min(640/canvas.width,380/canvas.height);
+          const data=await (await new Promise<Blob>((ok,fail)=>canvas.toBlob(b=>b?ok(b):fail(new Error('Map image failed')),'image/jpeg',0.8))).arrayBuffer();
+          body.push(new Paragraph({children:[new ImageRun({type:'jpg',data,transformation:{width:Math.round(canvas.width*scale),height:Math.round(canvas.height*scale)}})]}));
+        } catch (error) {console.warn('Map report capture failed',error);setError('Report exported without the map image; the rest of the report is complete.');line('Map capture unavailable. The rest of the report is complete.');}
       }
-      pdf.setFontSize(9);
-      pdf.text('Reference layers: '+(s.referenceLayers.join(', ') || 'None')+' | Incident overlays: '+(s.incidentsVisible?'Visible':'Hidden'),12,190);
-      pdf.addPage();y=15;pdf.setFontSize(14);pdf.text('Map legends',12,y);y+=10;pdf.setFontSize(10);
+      line('Reference layers: '+(s.referenceLayers.map(id=>REFERENCE_LAYERS.find(l=>l.id===id)?.label || id).join(', ') || 'None')+' | Incident overlays: '+(s.incidentsVisible?'Visible':'Hidden'),16);
+      heading('Map legends');
       for(const layer of REFERENCE_LAYERS.filter(t=>s.referenceLayers.includes(t.id))) {
-        if(y>160){pdf.addPage();y=15;}
-        pdf.setFont('helvetica','bold');pdf.text(layer.label,12,y);y+=7;pdf.setFont('helvetica','normal');
-        for(const [label,color] of Object.entries(layer.colors)) {
-          pdf.setFillColor(color);pdf.rect(12,y-4,5,5,'F');
-          pdf.text(label+(label.startsWith('Debris')?' (black hatch)':''),20,y);y+=7;
-        }
-        y+=4;
+        body.push(new Paragraph({children:[new TextRun({text:layer.label,bold:true})]}));
+        for(const [label,color] of Object.entries(layer.colors)) swatch(color,label+(label.startsWith('Debris')?' (black hatch)':''));
       }
-      if(y>130){pdf.addPage();y=15;}
-      pdf.text('Incident types (severity is recorded separately)',12,y);y+=8;
-      for(const type of HAZARD_TYPES.filter(t=>s.activeFilters.includes(t.id))) {
-        pdf.setFillColor(type.color);pdf.rect(12,y-4,5,5,'F');pdf.text(type.label,20,y);y+=7;
-      }
-      pdf.save('Camarines-Norte-Situation-Report-'+new Date().toISOString().slice(0,10)+'.pdf');
-    }catch {setError('Report export failed. Please try again.');}
+      body.push(new Paragraph({children:[new TextRun({text:'Incident types (severity is recorded separately)',bold:true})]}));
+      for(const type of HAZARD_TYPES.filter(t=>s.activeFilters.includes(t.id))) swatch(type.color,type.label);
+      const blob=await Packer.toBlob(new Document({sections:[{properties:{page:{size:{orientation:PageOrientation.LANDSCAPE}}},children:body}]}));
+      const link=document.createElement('a');
+      link.href=URL.createObjectURL(blob);
+      link.download='Camarines-Norte-Situation-Report-'+new Date().toISOString().slice(0,10)+'.docx';
+      link.click();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+    }catch (error) {console.warn('Report export failed',error);setError('Report export failed. Please try again.');}
     finally {setExporting(false);}
   }
   const maxTotal=Math.max(1,...ranked.map(p=>p.total));
@@ -168,10 +160,9 @@ export function AnalyticsPanel() {
   return <aside aria-label="Situation overview" className="analytics-panel absolute inset-3 sm:left-auto sm:w-[min(760px,95%)] z-[800] bg-surface-container-lowest shadow-ambient rounded-2xl border border-outline-variant flex flex-col overflow-hidden">
     <header className="p-4 flex items-center justify-between border-b border-outline-variant gap-3">
       <div><h2 className="text-xl font-bold">Situation overview</h2><p className="text-sm text-on-surface/70">{scope}</p></div>
-      <div className="flex gap-2"><button className="min-h-11 px-3 border rounded-xl text-sm flex items-center gap-2" onClick={exportReport} disabled={exporting}><Download size={16}/>{exporting?'Exporting…':'Export Report'}</button><button aria-label="Close analytics" className="min-w-11 min-h-11 grid place-items-center" onClick={()=>s.setAnalyticsOpen(false)}><X/></button></div>
+      <div className="flex gap-2"><button className="min-h-11 px-3 border rounded-xl text-sm flex items-center gap-2" onClick={exportReport} disabled={exporting}><Share size={16} aria-hidden="true"/>{exporting?'Exporting…':'Export Report (Word)'}</button><button aria-label="Close analytics" className="min-w-11 min-h-11 grid place-items-center" onClick={()=>s.setAnalyticsOpen(false)}><X/></button></div>
     </header>
     <div className="overflow-y-auto p-4 space-y-6">
-      <div className="grid sm:grid-cols-2 gap-4"><LocationFields municipality={s.selectedMunicipality} barangay={s.selectedBarangay} onChange={s.setLocationFilter}/><IncidentFilters/></div>
       {error && <p role="alert">{error}</p>}
       <section aria-label="Headline figures" className="grid grid-cols-2 gap-3">
         {tiles.map(t=><Tile key={t.label} {...t}/>)}

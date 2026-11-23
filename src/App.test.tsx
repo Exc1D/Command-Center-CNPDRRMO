@@ -173,36 +173,26 @@ describe('App', () => {
     });
   });
 
-  it('opens in monitoring and supports keyboard mode switching with hints', async () => {
+  it('opens on the interactive map and links to Planning on its own page', () => {
     render(<App />);
-
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();
-    const modeSwitch = screen.getByRole('switch', { name: 'Planning mode' });
-    expect(modeSwitch).toHaveAttribute('aria-checked', 'false');
-    expect(modeSwitch).toHaveAccessibleDescription('View incidents Build a response');
-    expect(screen.queryByText(/Operational planning workspace|Live operational map/)).not.toBeInTheDocument();
-    act(() => useStore.setState({ isAnalyticsOpen: true }));
-    modeSwitch.focus();
-    await userEvent.keyboard(' ');
-    expect(modeSwitch).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByTestId('planning-sidebar')).toBeInTheDocument();
-    expect(useStore.getState().isAnalyticsOpen).toBe(false);
-    await userEvent.keyboard('{Enter}');
-    expect(modeSwitch).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Planning' })).toHaveAttribute('href', '/planning');
+    expect(screen.getByRole('button', { name: 'View Analytics' })).toBeInTheDocument();
   });
 
-  it('retains an unsaved plan when leaving planning is canceled', async () => {
+  it('shows only planning on the planning page and keeps an unsaved plan when leaving is canceled', async () => {
     usePlanningStore.getState().enter();
     usePlanningStore.getState().newBoard();
     usePlanningStore.getState().edit(plan => ({ ...plan, notes: 'Keep this draft' }));
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
     render(<App />);
-    await userEvent.click(screen.getByRole('switch', { name: 'Planning mode' }));
+    expect(screen.getByTestId('planning-sidebar')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View Analytics' })).not.toBeInTheDocument();
+    const back = screen.getByRole('link', { name: 'Interactive map' });
+    expect(back).toHaveAttribute('href', '/');
+    await userEvent.click(back);
     expect(confirm).toHaveBeenCalledWith('Discard unsaved planning changes?');
-    expect(usePlanningStore.getState().isPlanningMode).toBe(true);
     expect(usePlanningStore.getState().history?.present.notes).toBe('Keep this draft');
-    expect(usePlanningStore.getState().dirty).toBe(true);
   });
 
   it('collapses and keeps the sidebar mounted for reopening', async () => {

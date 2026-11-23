@@ -6,12 +6,8 @@ import Sidebar from './Sidebar';
 import { h1, h2, h3 } from '../test/fixtures/hazards';
 import { ec1, ec2 } from '../test/fixtures/evacuationCenters';
 
-const report=vi.hoisted(()=>({
-  setFontSize:vi.fn(),text:vi.fn(),setFont:vi.fn(),addPage:vi.fn(),setFillColor:vi.fn(),rect:vi.fn(),
-  splitTextToSize:vi.fn((text:string)=>[text]),addImage:vi.fn(),save:vi.fn(),
-}));
-vi.mock('jspdf',()=>({jsPDF:class {constructor(){return report;}}}));
-vi.mock('html2canvas',()=>({default:vi.fn(async()=>({width:274,height:761,toDataURL:()=> 'data:image/jpeg;base64,test'}))}));
+import JSZip from 'jszip';
+vi.mock('html2canvas',()=>({default:vi.fn(async()=>({width:274,height:761,toBlob:(done:(b:unknown)=>void)=>done({arrayBuffer:async()=>new Uint8Array([255,216,255]).buffer})}))}));
 
 beforeEach(()=>{
   vi.clearAllMocks();
@@ -62,7 +58,8 @@ it('shows an empty state that does not imply zero risk',()=>{
   expect(screen.queryByRole('region',{name:'Where to focus'})).not.toBeInTheDocument();
 });
 it('shares dependent geographic filters with the map and preserves hazard filters',()=>{
-  render(<AnalyticsPanel/>);
+  render(<><Sidebar/><AnalyticsPanel/></>);
+  expect(within(screen.getByRole('complementary',{name:'Situation overview'})).queryByLabelText('Municipality')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Municipality'),{target:{value:'Daet'}});
   fireEvent.change(screen.getByLabelText('Barangay'),{target:{value:'Bagasbas'}});
   expect(useStore.getState().filteredHazards.map(h=>h.id)).toEqual(['h1']);
@@ -74,16 +71,19 @@ it('keeps incident-log navigation removed',()=>{
   render(<><Sidebar/><AnalyticsPanel/></>);
   expect(screen.queryByRole('button',{name:/Incident Logs/})).not.toBeInTheDocument();
 });
-it('exports a situation report and the map without stretching a narrow viewport',async()=>{
+it('exports the situation report as a Word document with the map',async()=>{
+  let blob:Blob|undefined;
+  URL.createObjectURL=(b:Blob)=>{blob=b;return 'blob:report';};URL.revokeObjectURL=()=>{};
+  vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
   render(<><div className="leaflet-container"/><AnalyticsPanel/></>);
-  fireEvent.click(screen.getByRole('button',{name:'Export Report'}));
-  await waitFor(()=>expect(report.save).toHaveBeenCalled());
-  const image=report.addImage.mock.calls.at(-1)!;
-  expect(image[4]/image[5]).toBeCloseTo(274/761);
-  expect(image[5]).toBe(155);
-  expect(report.text).toHaveBeenCalledWith('Map context - current visible layers',12,15);
-  expect(report.text).toHaveBeenCalledWith(['Camarines Norte - Situation Report · Camarines Norte'],12,15);
-  expect(report.text).toHaveBeenCalledWith(['Mercedes: 1 severe · 1 total'],12,expect.any(Number));
+  fireEvent.click(screen.getByRole('button',{name:'Export Report (Word)'}));
+  await waitFor(()=>expect(blob).toBeDefined());
+  const zip=await JSZip.loadAsync(blob!);
+  const xml=await zip.file('word/document.xml')!.async('string');
+  expect(xml).toContain('Camarines Norte - Situation Report · Camarines Norte');
+  expect(xml).toContain('Mercedes: 1 severe · 1 total');
+  expect(xml).toContain('Map context - current visible layers');
+  expect(Object.keys(zip.files).some(f=>f.startsWith('word/media/'))).toBe(true);
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 it('groups places case-insensitively and ranks critical before severe before volume',()=>{

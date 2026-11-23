@@ -15,6 +15,7 @@ interface AppState {
   toggleReferenceLayer: (id: string) => void;
   toggleElementLayer: (id: string) => void;
   toggleIncidents: () => void;
+  setFilters: (types: string[]) => void;
   setLocationFilter: (municipality: string, barangay: string) => void;
   hazards: Hazard[];
   filteredHazards: Hazard[];
@@ -93,6 +94,7 @@ export const useStore = create<AppState>((set) => ({
   toggleReferenceLayer: id => set(s => ({referenceLayers: s.referenceLayers.includes(id) ? s.referenceLayers.filter(x => x !== id) : [...s.referenceLayers,id]})),
   toggleElementLayer: id => set(s => ({elementLayers: s.elementLayers.includes(id) ? s.elementLayers.filter(x => x !== id) : [...s.elementLayers,id]})),
   toggleIncidents: () => set(s => ({incidentsVisible: !s.incidentsVisible})),
+  setFilters: activeFilters => set(s => ({activeFilters, filteredHazards: filterIncidents(s.hazards,activeFilters,s.selectedMunicipality,s.selectedBarangay)})),
   setLocationFilter: (selectedMunicipality,selectedBarangay) => set(s => ({selectedMunicipality,selectedBarangay,filteredHazards:filterIncidents(s.hazards,s.activeFilters,selectedMunicipality,selectedBarangay)})),
   hazards: [],
   filteredHazards: [],

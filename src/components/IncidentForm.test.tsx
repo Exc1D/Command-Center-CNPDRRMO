@@ -12,20 +12,19 @@ const record = { id: crypto.randomUUID(), type: 'flood', severity: 'Moderate', m
 
 beforeEach(() => { vi.clearAllMocks(); useStore.setState(useStore.getInitialState()); });
 
-it('offers every planning symbol for an incident and saves or clears its selection', async () => {
+it('gives incidents the hazard icon automatically, with no symbol to pick', async () => {
   const user=userEvent.setup();
-  const view=render(<IncidentForm record={record} geometry={point} onClose={()=>{}} />);
-  const chooser=screen.getByRole('combobox',{name:/Pin symbol/});
-  expect(chooser.querySelectorAll('option')).toHaveLength(PLANNING_SYMBOLS.length+1);
-  await user.selectOptions(chooser,'rescue-boat');
-  await user.click(screen.getByRole('button',{name:'Save Changes'}));
-  await waitFor(()=>expect(HazardAPI.updateHazard).toHaveBeenCalledWith(expect.objectContaining({type:'flood',symbolKey:'rescue-boat',severity:'Moderate',version:2})));
-  view.unmount();
   render(<IncidentForm record={{...record,symbolKey:'rescue-boat'}} geometry={point} onClose={()=>{}} />);
-  expect(screen.getByRole('combobox',{name:/Pin symbol/})).toHaveValue('rescue-boat');
-  await user.selectOptions(screen.getByRole('combobox',{name:/Pin symbol/}),'');
+  expect(screen.queryByRole('combobox',{name:/Pin symbol/})).not.toBeInTheDocument();
   await user.click(screen.getByRole('button',{name:'Save Changes'}));
-  await waitFor(()=>expect(HazardAPI.updateHazard).toHaveBeenLastCalledWith(expect.objectContaining({symbolKey:null})));
+  await waitFor(()=>expect(HazardAPI.updateHazard).toHaveBeenCalledWith(expect.objectContaining({type:'flood',symbolKey:null,severity:'Moderate',version:2})));
+});
+
+it('offers every planning symbol for a resource pin', async () => {
+  const user=userEvent.setup();
+  render(<IncidentForm geometry={point} onClose={()=>{}} />);
+  await user.selectOptions(screen.getByLabelText('Pin type'),'resource');
+  expect(screen.getByRole('combobox',{name:/Pin symbol/}).querySelectorAll('option')).toHaveLength(PLANNING_SYMBOLS.length+1);
 });
 
 it('creates a standalone resource without incident fields and excludes it from analytics', async () => {

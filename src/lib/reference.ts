@@ -34,7 +34,7 @@ export const REFERENCE_LAYERS = [
 export const EXPOSURE_LAYERS = REFERENCE_LAYERS.filter(layer => layer.exposure !== false);
 export const ELEMENT_LAYERS = [
   {id:'facilities',label:'Critical Point Facilities'}, {id:'population',label:'Population'},
-  {id:'roads',label:'Roads'}, {id:'rivers',label:'Rivers'}, {id:'boundaries',label:'Municipal Boundaries (NAMRIA)'},
+  {id:'roads',label:'Road Network'}, {id:'rivers',label:'Rivers'},
 ];
 export const municipalities = Object.keys(locations);
 export const barangaysFor = (m: string) => (locations as Record<string,{barangays:{name:string;lat:number;lng:number}[]}>)[m]?.barangays.map(b => ({...b,name:b.name.trim()})) ?? [];
@@ -51,4 +51,22 @@ export function filterMapRecords(hazards: Hazard[], types: string[], municipalit
 }
 export function filterIncidents(hazards: Hazard[], types: string[], municipality = '', barangay = '') {
   return filterMapRecords(hazards, types.filter(type => type !== 'resource' && type !== 'road'), municipality, barangay);
+}
+// Ray casting over GeoJSON rings; a point inside a hole is outside the shape.
+export function pointInShape([lng,lat]:[number,number], geometry:{type:string;coordinates:any}) {
+  const polygons:number[][][][]=geometry.type==='Polygon'?[geometry.coordinates]:geometry.coordinates;
+  return polygons.some(rings=>rings.every((ring,index)=>{
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++) {
+      const [xi,yi]=ring[i],[xj,yj]=ring[j];
+      if((yi>lat)!==(yj>lat) && lng<(xj-xi)*(lat-yi)/(yj-yi)+xi) inside=!inside;
+    }
+    return index===0?inside:!inside;
+  }));
+}
+// Boundary names carry suffixes like "Daet (Capital)"; the barangay list uses "Daet".
+export const municipalityFromBoundary = (name:string) => municipalities.find(m => m===name) ?? municipalities.find(m => name.startsWith(m)) ?? '';
+// Fallback when a barangay has no outline: the closest barangay center stands in for "the barangay you clicked".
+export function nearestBarangay(municipality:string, lat:number, lng:number) {
+  return barangaysFor(municipality).reduce<{name:string;lat:number;lng:number}|null>((best,b)=>!best || (b.lat-lat)**2+(b.lng-lng)**2<(best.lat-lat)**2+(best.lng-lng)**2?b:best,null);
 }
