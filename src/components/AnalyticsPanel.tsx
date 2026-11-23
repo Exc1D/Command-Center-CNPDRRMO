@@ -134,7 +134,7 @@ export function AnalyticsPanel() {
         try {
           const canvas=await html2canvas(element,{useCORS:true,scale:1,backgroundColor:'#ffffff',onclone:resolveModernColors});
           const scale=Math.min(640/canvas.width,380/canvas.height);
-          const data=await (await fetch(canvas.toDataURL('image/jpeg',0.8))).arrayBuffer();
+          const data=await (await new Promise<Blob>((ok,fail)=>canvas.toBlob(b=>b?ok(b):fail(new Error('Map image failed')),'image/jpeg',0.8))).arrayBuffer();
           body.push(new Paragraph({children:[new ImageRun({type:'jpg',data,transformation:{width:Math.round(canvas.width*scale),height:Math.round(canvas.height*scale)}})]}));
         } catch (error) {console.warn('Map report capture failed',error);setError('Report exported without the map image; the rest of the report is complete.');line('Map capture unavailable. The rest of the report is complete.');}
       }

@@ -36,28 +36,35 @@ export function LocationPicker({ interactive = true }: { interactive?: boolean }
     return () => { map.attributionControl?.removeAttribution(credit); };
   }, [map, barangayShapes]);
 
+  // Outlines are built once per data load; picking a location only restyles them (rebuilding ~300 layers per click was slow).
+  const [drawn, setDrawn] = useState<{ layer: L.Path; municipality: string; name: string; kind: 'barangay' | 'municipality' | 'dot' }[]>([]);
   useEffect(() => {
     if (!shapes.length) return;
     if (!map.getPane('locations')) { const pane = map.createPane('locations'); pane.style.zIndex = '360'; pane.style.pointerEvents = 'none'; }
-    const layer = L.layerGroup().addTo(map);
+    const group = L.layerGroup().addTo(map);
+    const opts = { pane: 'locations', interactive: false, pmIgnore: true } as any;
     const outlined = new Set(barangayShapes.map(b => `${b.municipality}|${b.name}`));
-    barangayShapes.forEach(b => {
-      const picked = b.municipality === municipality;
-      L.geoJSON(b.geometry, { pane: 'locations', interactive: false, pmIgnore: true, style: {
-        color: picked ? '#0a84ff' : '#64748b', weight: picked && b.name === barangay ? 3 : picked ? 1.2 : 0.6, opacity: picked ? 0.9 : 0.6, fill: false,
-      } } as any).addTo(layer);
-    });
-    shapes.forEach(s => L.geoJSON(s.geometry, { pane: 'locations', interactive: false, pmIgnore: true, style: {
-      color: s.name === municipality ? '#0a84ff' : '#334155', weight: s.name === municipality ? 3 : 1.5, opacity: 0.85, fill: false,
-    } } as any).addTo(layer));
+    const items: typeof drawn = [];
+    const add = (layer: L.Path, municipality: string, name: string, kind: 'barangay' | 'municipality' | 'dot') => { layer.addTo(group); items.push({ layer, municipality, name, kind }); };
+    barangayShapes.forEach(b => add(L.geoJSON(b.geometry, { ...opts, style: { fill: false } }) as unknown as L.Path, b.municipality, b.name, 'barangay'));
+    shapes.forEach(s => add(L.geoJSON(s.geometry, { ...opts, style: { fill: false } }) as unknown as L.Path, s.name, s.name, 'municipality'));
     // Dots only for barangays with no outline (or while the outline file is loading or missing).
-    shapes.forEach(s => barangaysFor(s.name).filter(b => !outlined.has(`${s.name}|${b.name}`)).forEach(b => {
-      const picked = s.name === municipality;
-      L.circleMarker([b.lat, b.lng], { pane: 'locations', interactive: false, pmIgnore: true,
-        radius: picked && b.name === barangay ? 7 : picked ? 4 : 2.5, color: '#fff', weight: picked ? 1.5 : 1,
-        fillColor: picked ? '#0a84ff' : '#334155', fillOpacity: picked ? 1 : 0.7 } as any).addTo(layer);
-    }));
-    if (!interactive) return () => { layer.remove(); };
+    shapes.forEach(s => barangaysFor(s.name).filter(b => !outlined.has(`${s.name}|${b.name}`)).forEach(b => add(L.circleMarker([b.lat, b.lng], { ...opts, color: '#fff' }), s.name, b.name, 'dot')));
+    setDrawn(items);
+    return () => { group.remove(); };
+  }, [map, shapes, barangayShapes]);
+
+  useEffect(() => {
+    drawn.forEach(({ layer, municipality: m, name, kind }) => {
+      const picked = m === municipality, exact = picked && name === barangay;
+      if (kind === 'barangay') layer.setStyle({ color: picked ? '#0a84ff' : '#64748b', weight: exact ? 3 : picked ? 1.2 : 0.6, opacity: picked ? 0.9 : 0.6 });
+      else if (kind === 'municipality') layer.setStyle({ color: picked ? '#0a84ff' : '#334155', weight: picked ? 3 : 1.5, opacity: 0.85 });
+      else { (layer as L.CircleMarker).setRadius(exact ? 7 : picked ? 4 : 2.5); layer.setStyle({ weight: picked ? 1.5 : 1, fillColor: picked ? '#0a84ff' : '#334155', fillOpacity: picked ? 1 : 0.7 }); }
+    });
+  }, [drawn, municipality, barangay]);
+
+  useEffect(() => {
+    if (!shapes.length || !interactive) return;
 
     const tooltip = L.tooltip({ direction: 'top', offset: [0, -8], className: 'location-tooltip' });
     const busy = (e: L.LeafletMouseEvent) => e.sourceTarget !== map || (map as any).pm?.globalDrawModeEnabled?.();
@@ -85,8 +92,8 @@ export function LocationPicker({ interactive = true }: { interactive?: boolean }
     };
     const onOut = () => tooltip.remove();
     map.on('mousemove', onMove).on('click', onClick).on('mouseout', onOut);
-    return () => { map.off('mousemove', onMove).off('click', onClick).off('mouseout', onOut); tooltip.remove(); layer.remove(); };
-  }, [map, shapes, barangayShapes, municipality, barangay, interactive]);
+    return () => { map.off('mousemove', onMove).off('click', onClick).off('mouseout', onOut); tooltip.remove(); };
+  }, [map, shapes, barangayShapes, interactive]);
 
   return null;
 }
@@ -103,7 +110,12 @@ export function LocationCard() {
   const rows = profiles.filter(p => p.municipality === m && (!b || p.barangay === b));
   const p = b ? rows[0] : undefined;
   const hazards = REFERENCE_LAYERS.filter(l => layers.includes(l.id) && SUSCEPTIBILITY_KEY[l.id]);
-  const close = () => { const s = useStore.getState(); s.setLocationFilter(b ? m : '', ''); if (!b) s.flyTo(MAP_CONFIG.PROVINCE_CENTER, MAP_CONFIG.DEFAULT_ZOOM); };
+  const close = () => {
+    const s = useStore.getState(), points = barangaysFor(m);
+    s.setLocationFilter(b ? m : '', '');
+    if (b && points.length) s.flyTo([points.reduce((n, p) => n + p.lat, 0) / points.length, points.reduce((n, p) => n + p.lng, 0) / points.length], MAP_CONFIG.MUNICIPALITY_ZOOM);
+    else s.flyTo(MAP_CONFIG.PROVINCE_CENTER, MAP_CONFIG.DEFAULT_ZOOM);
+  };
   return <div className="location-card" role="region" aria-label="Selected location">
     <div className="flex items-start gap-2">
       <div className="flex-1 min-w-0">
@@ -119,9 +131,13 @@ export function LocationCard() {
       {p && <><dt>Kapitan</dt><dd>{p.captain || 'Not supplied'}{p.contact ? ` · ${p.contact}` : ''}</dd><dt>DRRM contact</dt><dd>Not supplied</dd></>}
       {p && hazards.map(h => {
         const levels = (p.susceptibility as Record<string, string[]>)[SUSCEPTIBILITY_KEY[h.id]] ?? [];
-        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{levels.join(', ') || 'Not Susceptible'}</dd></Fragment>;
+        return <Fragment key={h.id}><dt>{h.label}</dt><dd>{levels.join(', ') || 'No level recorded'}</dd></Fragment>;
       })}
     </dl>
+    {p && Object.values(p.demographics).some(v => v !== null) && <dl className="location-card-facts">
+      {Object.entries(p.demographics).map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value === null ? 'Not supplied' : (value as number).toLocaleString()}</dd></Fragment>)}
+    </dl>}
+    {p && hazards.length > 0 && <p className="text-xs text-on-surface/60 mt-2">No recorded level does not mean safe.</p>}
     {p && !hazards.length && <p className="text-xs text-on-surface/60 mt-2">Turn on a hazard in Map layers to see this barangay's susceptibility.</p>}
     {!b && <p className="text-xs text-on-surface/60 mt-2">Click inside {m} to pick a barangay.</p>}
   </div>;

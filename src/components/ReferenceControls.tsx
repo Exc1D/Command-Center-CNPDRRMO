@@ -62,7 +62,7 @@ export function ReferenceControls() {
     <section className="space-y-2"><h3 className="font-bold">Incidents</h3>
       <div className="elements-group">
         <label className="reference-check"><input type="checkbox" checked={s.incidentsVisible} onChange={s.toggleIncidents}/>Show incidents and resource pins</label>
-        <select className="reference-select" aria-label="Incident type" disabled={!s.incidentsVisible} value={incidentType} onChange={e=>s.setFilters([...(e.target.value?[e.target.value]:allTypes),...(legacyOn?LEGACY_TYPES.map(t=>t.id):[])])}>
+        <select className="reference-select" aria-label="Incident type" disabled={!s.incidentsVisible} value={incidentType} onChange={e=>s.setFilters([...s.activeFilters.filter(id=>!allTypes.includes(id)),...(e.target.value?[e.target.value]:allTypes)])}>
           <option value="">All incident types</option>
           {incidentType==='mixed' && <option value="mixed" disabled>Several types</option>}
           {HAZARD_TYPES.map(t=><option key={t.id} value={t.id}>{t.symbol} {t.label}</option>)}

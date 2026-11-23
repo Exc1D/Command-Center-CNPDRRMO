@@ -7,7 +7,7 @@ import { h1, h2, h3 } from '../test/fixtures/hazards';
 import { ec1, ec2 } from '../test/fixtures/evacuationCenters';
 
 import JSZip from 'jszip';
-vi.mock('html2canvas',()=>({default:vi.fn(async()=>({width:274,height:761,toDataURL:()=> 'data:image/jpeg;base64,test'}))}));
+vi.mock('html2canvas',()=>({default:vi.fn(async()=>({width:274,height:761,toBlob:(done:(b:unknown)=>void)=>done({arrayBuffer:async()=>new Uint8Array([255,216,255]).buffer})}))}));
 
 beforeEach(()=>{
   vi.clearAllMocks();

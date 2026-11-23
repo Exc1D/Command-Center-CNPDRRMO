@@ -32,7 +32,7 @@ export default function App() {
   const [sidebarOpen,setSidebarOpen] = useState(() => window.matchMedia?.('(min-width: 768px)').matches ?? true);
   const planning = usePlanningStore();
   const [guideOpen, setGuideOpen] = useState(() => !readFlag(GUIDE_SEEN_KEY));
-  useEffect(() => { if (planning.isPlanningMode) document.title = 'Response Planning CNPDRRMO'; }, [planning.isPlanningMode]);
+  useEffect(() => { document.title = planning.isPlanningMode ? 'Response Planning CNPDRRMO' : 'Interactive Map CNPDRRMO'; }, [planning.isPlanningMode]);
 
   useEffect(() => {
     fetch('/api/session').then(response => response.json()).then(data => setMapAuthorized(data.valid === true)).catch(() => {});
@@ -129,7 +129,8 @@ export default function App() {
               if (!planning.isPlanningMode) return;
               if (planning.dirty && !confirm('Discard unsaved planning changes?')) { event.preventDefault(); return; }
               const scenario = planning.history?.present;
-              if (scenario && planning.lockAcquired) PlanningAPI.releaseLock(scenario.id, planning.sessionId).catch(() => {});
+              if (scenario && planning.lockAcquired) // keepalive lets the release finish after the page navigates away.
+              fetch(`/api/planning/scenarios/${scenario.id}/lock`, { method: 'DELETE', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: planning.sessionId }) }).catch(() => {});
             }}
             className="nav-text-button inline-flex items-center"
           >
